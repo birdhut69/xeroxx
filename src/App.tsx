@@ -3,9 +3,10 @@ import { Header } from './components/shared/Header';
 import { TerminalDashboard } from './components/terminal/TerminalDashboard';
 import { CustomerPortal } from './components/customer/CustomerPortal';
 import { DualDemoSimulator } from './components/simulator/DualDemoSimulator';
+import { ToastProvider } from './components/shared/ToastContext';
 import { ShieldCheck, Lock, Flame, RefreshCw, Key, HelpCircle } from 'lucide-react';
 
-export const App: React.FC = () => {
+export const AppContent: React.FC = () => {
   const [currentMode, setCurrentMode] = useState<'TERMINAL' | 'CUSTOMER' | 'SIMULATOR'>('SIMULATOR');
   const [serverOnline, setServerOnline] = useState(true);
 
@@ -23,7 +24,6 @@ export const App: React.FC = () => {
         if (data.status === 'ONLINE') setServerOnline(true);
       })
       .catch(() => {
-        // Fallback check on port 8080 if on Vite dev port 5173
         fetch('http://localhost:8080/api/health')
           .then((r) => r.json())
           .then(() => setServerOnline(true))
@@ -48,7 +48,7 @@ export const App: React.FC = () => {
       </main>
 
       {/* Security Architecture & Transparency Footer */}
-      <footer className="glass-panel border-t border-slate-800/80 px-4 py-8 mt-12 no-print">
+      <footer className="glass-panel border-t border-slate-800/80 px-4 py-8 mt-12 no-print text-left">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-slate-400">
           <div>
             <div className="flex items-center gap-2 text-white font-bold text-sm mb-2">
@@ -81,15 +81,23 @@ export const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto mt-6 pt-4 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 font-mono">
+        <div className="max-w-6xl mx-auto mt-6 pt-4 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 font-mono">
           <div>© 2026 SafePrint Ephemeral Technology • 100% In-Memory Architecture</div>
           <div className="flex items-center gap-3 mt-2 sm:mt-0">
-            <span className="text-emerald-400">✓ Zero Server Disk I/O</span>
-            <span className="text-cyan-400">✓ Web Crypto AES-256</span>
+            <span className="text-emerald-400 font-bold">✓ Zero Server Disk I/O</span>
+            <span className="text-cyan-400 font-bold">✓ Web Crypto AES-256</span>
           </div>
         </div>
       </footer>
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   );
 };
 
