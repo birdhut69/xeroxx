@@ -755,14 +755,37 @@ export const TerminalDashboard: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-2 flex-wrap">
-                        {/* Print Button */}
+                        {/* Print Single Button */}
                         <button
                           onClick={handlePrint}
                           disabled={isPrinting}
-                          className="btn-wa-primary px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-md shadow-[#00a884]/20"
+                          className="btn-wa-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#00a884]/20"
                         >
                           <Printer className="w-4 h-4" />
-                          <span>{isPrinting ? 'Printing...' : 'Print Document'}</span>
+                          <span>{isPrinting ? 'Printing...' : 'Print This'}</span>
+                        </button>
+
+                        {/* Print & Jump to Next Customer in Queue */}
+                        <button
+                          onClick={async () => {
+                            await handlePrint();
+                            const list = Array.from(customers.values());
+                            const currentIndex = list.findIndex(c => c.customerId === selectedCustomerId);
+                            const nextCust = list.find((c, idx) => idx !== currentIndex && c.documents.some(d => d.status === 'READY'));
+                            if (nextCust) {
+                              setSelectedCustomerId(nextCust.customerId);
+                              if (nextCust.documents.length > 0) {
+                                setSelectedDocId(nextCust.documents[0].id);
+                              }
+                              toast.info('Switched to Next Customer', `Now viewing ${nextCust.customerName}`);
+                            }
+                          }}
+                          disabled={isPrinting}
+                          className="px-4 py-2.5 rounded-xl bg-[#008069] hover:bg-[#00705b] text-white text-xs font-bold flex items-center gap-1.5 shadow-md"
+                          title="Print current and immediately switch to the next customer waiting in line"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                          <span>Print & Next Customer</span>
                         </button>
                       </div>
                     </div>

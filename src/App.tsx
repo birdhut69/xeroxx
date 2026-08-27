@@ -8,13 +8,24 @@ import { ShieldCheck, Lock, Flame, Key } from 'lucide-react';
 type AppMode = 'TERMINAL' | 'CUSTOMER';
 
 export const AppContent: React.FC = () => {
-  const [currentMode, setCurrentMode] = useState<AppMode>('TERMINAL');
+  const [currentMode, setCurrentMode] = useState<AppMode>('CUSTOMER');
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
+    return sessionStorage.getItem('safeprint_admin_auth') === 'true';
+  });
   const [serverOnline, setServerOnline] = useState(true);
 
-  // Auto-detect Customer Mode if QR URL params exist
+  // Auto-detect mode on URL load
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('room') && window.location.hash.includes('key=')) {
+    const path = window.location.pathname;
+
+    if (path.includes('/admin') || path.includes('/terminal')) {
+      if (sessionStorage.getItem('safeprint_admin_auth') === 'true') {
+        setCurrentMode('TERMINAL');
+      } else {
+        setCurrentMode('CUSTOMER');
+      }
+    } else {
       setCurrentMode('CUSTOMER');
     }
   }, []);
@@ -42,9 +53,21 @@ export const AppContent: React.FC = () => {
   const handleModeChange = useCallback((mode: AppMode) => {
     setCurrentMode(mode);
     if (mode === 'TERMINAL') {
-      window.history.replaceState({}, '', window.location.pathname);
+      window.history.replaceState({}, '', '/admin');
+    } else {
+      window.history.replaceState({}, '', '/');
     }
   }, []);
+
+  const handleAdminLogin = () => {
+    setIsAdminAuthenticated(true);
+    sessionStorage.setItem('safeprint_admin_auth', 'true');
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdminAuthenticated(false);
+    sessionStorage.removeItem('safeprint_admin_auth');
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f0f2f5] text-[#111b21] selection:bg-[#00a884] selection:text-white">
@@ -52,10 +75,13 @@ export const AppContent: React.FC = () => {
         currentMode={currentMode}
         onModeChange={handleModeChange}
         serverOnline={serverOnline}
+        isAdminAuthenticated={isAdminAuthenticated}
+        onAdminLogin={handleAdminLogin}
+        onAdminLogout={handleAdminLogout}
       />
 
       <main className="flex-1">
-        {currentMode === 'TERMINAL' && <TerminalDashboard />}
+        {currentMode === 'TERMINAL' && isAdminAuthenticated && <TerminalDashboard />}
         {currentMode === 'CUSTOMER' && <CustomerPortal />}
       </main>
 

@@ -309,7 +309,20 @@ export const CustomerPortal: React.FC = () => {
 
           {/* Quick Settings Sheet (Dropdown) */}
           {showSettings && (
-            <div className="bg-white p-3 border-b border-[#e9edef] shadow-inner text-left animate-in slide-in-from-top duration-200">
+            <div className="bg-white p-3 border-b border-[#e9edef] shadow-inner text-left animate-in slide-in-from-top duration-200 space-y-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-[#54656f] block">
+                  Your Name / Token (Shows on Shopkeeper Screen):
+                </label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="e.g. Rahul Sharma"
+                  className="w-full px-3 py-1.5 rounded-lg bg-[#f0f2f5] border border-[#d1d7db] text-xs text-[#111b21] focus:outline-none focus:border-[#00a884]"
+                />
+              </div>
+
               <WatermarkTool
                 watermarkText={watermarkText}
                 maxCopies={maxCopies}
