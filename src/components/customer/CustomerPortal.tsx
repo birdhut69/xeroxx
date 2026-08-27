@@ -11,13 +11,11 @@ import {
   Clock,
   Printer,
   Flame,
-  Award,
-  RefreshCw,
-  SlidersHorizontal,
   ChevronLeft,
-  Eye,
   ShieldAlert,
-  Camera
+  Camera,
+  Upload,
+  UserCheck
 } from 'lucide-react';
 import { QRScanner } from './QRScanner';
 import { RedactionStudio } from './RedactionStudio';
@@ -46,7 +44,7 @@ interface SentDocument {
 export const CustomerPortal: React.FC = () => {
   const toast = useToast();
 
-  // Session & Connection
+  // Session & Pairing
   const [roomId, setRoomId] = useState<string | null>(null);
   const [keyHex, setKeyHex] = useState<string | null>(null);
   const [shopName, setShopName] = useState('SafePrint Station');
@@ -54,7 +52,7 @@ export const CustomerPortal: React.FC = () => {
   const [customerId] = useState(() => `CUST-${Math.random().toString(36).substring(2, 7).toUpperCase()}`);
   const [customerName, setCustomerName] = useState('My Phone');
 
-  // Attachment & Document State
+  // File staging
   const [selectedFile, setSelectedFile] = useState<{
     name: string;
     type: string;
@@ -65,16 +63,17 @@ export const CustomerPortal: React.FC = () => {
   const [watermarkText, setWatermarkText] = useState('');
   const [maxCopies, setMaxCopies] = useState(1);
 
-  // Modals & Panels
+  // UI state
   const [showSettings, setShowSettings] = useState(false);
   const [showRedactionStudio, setShowRedactionStudio] = useState(false);
   const [activeCert, setActiveCert] = useState<DestructionCertificate | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const relayRef = useRef<RelaySocket | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
-  // Parse URL on mount
+  // Parse URL parameters on load
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const room = params.get('room');
@@ -92,7 +91,6 @@ export const CustomerPortal: React.FC = () => {
     };
   }, []);
 
-  // Auto scroll chat to bottom
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [sentDocs, selectedFile]);
@@ -121,7 +119,7 @@ export const CustomerPortal: React.FC = () => {
         setShopName(data.shopName);
         setShopId(data.shopId);
         sounds.playConnect();
-        toast.shield('Connected to Xerox Shop', `Encrypted channel open with ${data.shopName}`);
+        toast.shield('Paired to Shop Terminal', `Connected to ${data.shopName}`);
       },
       onPrintStatus: (data) => {
         setSentDocs((prev) =>
@@ -170,6 +168,7 @@ export const CustomerPortal: React.FC = () => {
     });
 
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
   const handleApplyRedaction = (newBuffer: ArrayBuffer) => {
@@ -185,7 +184,6 @@ export const CustomerPortal: React.FC = () => {
     toast.success('Redaction Applied', 'Sensitive ID masked in RAM.');
   };
 
-  // Send document over E2EE relay stream
   const handleSendDocument = async () => {
     if (!selectedFile || !roomId || !keyHex || !relayRef.current) return;
 
@@ -260,59 +258,61 @@ export const CustomerPortal: React.FC = () => {
   };
 
   return (
-    <div className="max-w-xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
+    <div className="max-w-xl mx-auto px-2 sm:px-4 py-2 sm:py-3 w-full">
       {/* ── STEP 1: Not Paired -> Scan QR ── */}
       {!roomId ? (
-        <QRScanner onSessionDecoded={handleSessionDecoded} />
+        <div className="space-y-4">
+          <QRScanner onSessionDecoded={handleSessionDecoded} />
+        </div>
       ) : (
         /* ── STEP 2: WhatsApp Chat Interface ── */
-        <div className="wa-panel-elevated rounded-2xl overflow-hidden flex flex-col h-[calc(100vh-120px)] sm:h-[680px] border border-[#d1d7db] shadow-xl">
+        <div className="wa-panel-elevated rounded-2xl overflow-hidden flex flex-col h-[calc(100dvh-125px)] sm:h-[680px] border border-[#d1d7db] shadow-xl">
           {/* WhatsApp Chat Top Header */}
-          <div className="bg-[#008069] text-white p-3 sm:p-3.5 flex items-center justify-between shadow-md">
-            <div className="flex items-center gap-3">
+          <div className="bg-[#008069] text-white px-3 py-2.5 sm:py-3 flex items-center justify-between shadow-md shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <button
                 onClick={handleReset}
                 className="p-1 rounded-full hover:bg-white/20 text-white transition-colors"
-                title="Disconnect & Exit Chat"
+                title="Disconnect"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
 
-              <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40 flex items-center justify-center font-bold text-white text-sm">
+              <div className="relative shrink-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/20 border border-white/40 flex items-center justify-center font-bold text-white text-sm">
                   <Printer className="w-5 h-5" />
                 </div>
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#25d366] border border-white" />
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#25d366] border-2 border-[#008069]" />
               </div>
 
-              <div className="text-left">
-                <div className="text-sm font-bold flex items-center gap-1.5 leading-tight">
-                  <span>{shopName}</span>
+              <div className="text-left min-w-0">
+                <div className="text-xs sm:text-sm font-bold truncate">
+                  {shopName}
                 </div>
-                <div className="text-[11px] text-white/80 font-mono flex items-center gap-1">
-                  <span>🟢 Connected • 0 KB Disk Storage</span>
+                <div className="text-[10px] text-white/85 font-mono flex items-center gap-1">
+                  <span>🟢 Connected to Queue</span>
                 </div>
               </div>
             </div>
 
-            {/* Header Right Actions */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                className={`p-2 rounded-full transition-colors ${showSettings ? 'bg-white/30 text-white' : 'hover:bg-white/20 text-white/90'}`}
-                title="Print Copies & Watermark Settings"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-              </button>
-            </div>
+            {/* Header Right Profile & Preferences */}
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                showSettings ? 'bg-white/30 text-white' : 'bg-white/15 hover:bg-white/25 text-white'
+              }`}
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Preferences</span>
+            </button>
           </div>
 
-          {/* Quick Settings Sheet (Dropdown) */}
+          {/* Quick Settings Dropdown */}
           {showSettings && (
-            <div className="bg-white p-3 border-b border-[#e9edef] shadow-inner text-left animate-in slide-in-from-top duration-200 space-y-3">
+            <div className="bg-white p-3 border-b border-[#e9edef] shadow-inner text-left animate-in slide-in-from-top duration-200 space-y-2.5 shrink-0">
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-[#54656f] block">
-                  Your Name / Token (Shows on Shopkeeper Screen):
+                  Your Name / Token (Displayed in Shopkeeper's Queue):
                 </label>
                 <input
                   type="text"
@@ -332,26 +332,25 @@ export const CustomerPortal: React.FC = () => {
             </div>
           )}
 
-          {/* ── CHAT MESSAGES FEED (WhatsApp Wallpaper) ── */}
-          <div className="flex-1 wa-chat-wallpaper overflow-y-auto p-4 space-y-3 text-left">
-            {/* WhatsApp System Encryption Pill */}
+          {/* ── CHAT MESSAGES FEED ── */}
+          <div className="flex-1 wa-chat-wallpaper overflow-y-auto p-3 sm:p-4 space-y-3 text-left">
+            {/* System Encryption Pill */}
             <div className="wa-system-pill flex items-center justify-center gap-1.5 text-center">
               <Lock className="w-3 h-3 text-[#54656f] shrink-0" />
               <span>
-                Documents sent in this chat are end-to-end encrypted. Held strictly in printer RAM.
+                🔒 Documents sent in this chat are AES-256 encrypted directly in printer RAM.
               </span>
             </div>
 
-            {/* Sent Documents List as WhatsApp Document Message Bubbles */}
+            {/* Sent Documents List */}
             {sentDocs.map((doc) => {
               const isPdf = doc.type.includes('pdf') || doc.name.toLowerCase().endsWith('.pdf');
 
               return (
-                <div key={doc.id} className="flex justify-end">
-                  <div className="wa-bubble-out max-w-[85%] sm:max-w-sm p-3 space-y-2 border border-[#d1d7db]/40">
-                    {/* Document Icon & Details Box */}
-                    <div className="p-2.5 rounded-lg bg-[#ffffff]/90 flex items-center gap-3 border border-[#00a884]/20 shadow-sm">
-                      <div className="p-2.5 rounded-lg bg-[#00a884]/15 text-[#008069] shrink-0">
+                <div key={doc.id} className="flex justify-end animate-in fade-in duration-150">
+                  <div className="wa-bubble-out max-w-[90%] sm:max-w-sm p-3 space-y-2 border border-[#d1d7db]/40">
+                    <div className="p-2.5 rounded-lg bg-white flex items-center gap-3 border border-[#00a884]/20 shadow-sm">
+                      <div className="p-2 rounded-lg bg-[#00a884]/15 text-[#008069] shrink-0">
                         {isPdf ? <FileText className="w-6 h-6" /> : <ImageIcon className="w-6 h-6" />}
                       </div>
 
@@ -365,7 +364,6 @@ export const CustomerPortal: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Progress Bar (if streaming) */}
                     {doc.status === 'STREAMING' && (
                       <div className="space-y-1">
                         <div className="flex justify-between text-[10px] text-[#54656f] font-mono">
@@ -381,14 +379,13 @@ export const CustomerPortal: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Watermark Tag (if applied) */}
                     {doc.watermark && (
                       <div className="text-[10px] text-[#008069] font-mono bg-[#d9fdd3] px-2 py-0.5 rounded border border-[#00a884]/30 inline-block">
                         Watermark: {doc.watermark}
                       </div>
                     )}
 
-                    {/* Message Bubble Footer: Time & Status Ticks */}
+                    {/* Bubble Footer */}
                     <div className="flex items-center justify-between pt-1 border-t border-[#00a884]/10 text-[10px]">
                       <span className="text-[#667781] font-mono">
                         {new Date(doc.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -440,10 +437,10 @@ export const CustomerPortal: React.FC = () => {
               );
             })}
 
-            {/* Selected Staged File Preview Bubble */}
+            {/* Staged File Preview */}
             {selectedFile && (
-              <div className="flex justify-end">
-                <div className="wa-bubble-out max-w-[85%] sm:max-w-sm p-3 space-y-2.5 border-2 border-[#00a884] shadow-md animate-in fade-in duration-200">
+              <div className="flex justify-end animate-in zoom-in-95 duration-150">
+                <div className="wa-bubble-out max-w-[90%] sm:max-w-sm p-3 space-y-2.5 border-2 border-[#00a884] shadow-md">
                   <div className="text-[11px] font-bold text-[#008069] flex items-center justify-between">
                     <span>Ready to Encrypt & Send</span>
                     <button
@@ -461,7 +458,7 @@ export const CustomerPortal: React.FC = () => {
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-bold text-[#111b21] truncate">{selectedFile.name}</div>
                       <div className="text-[10px] text-[#667781] font-mono">
-                        {(selectedFile.size / 1024).toFixed(1)} KB • In RAM
+                        {(selectedFile.size / 1024).toFixed(1)} KB • Staged in RAM
                       </div>
                     </div>
                   </div>
@@ -472,7 +469,7 @@ export const CustomerPortal: React.FC = () => {
                       className="w-full py-1.5 rounded-lg bg-[#e7f8ff] text-[#0284c7] hover:bg-[#d0f0fd] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-[#0284c7]/30"
                     >
                       <ShieldAlert className="w-3.5 h-3.5" />
-                      <span>Mask / Redact Sensitive ID</span>
+                      <span>Mask Private ID Numbers</span>
                     </button>
                   )}
                 </div>
@@ -483,7 +480,8 @@ export const CustomerPortal: React.FC = () => {
           </div>
 
           {/* ── CHAT INPUT ATTACHMENT BAR (WhatsApp Style) ── */}
-          <div className="bg-[#f0f2f5] p-2 sm:p-2.5 flex items-center gap-2 border-t border-[#e9edef]">
+          <div className="bg-[#f0f2f5] p-2 sm:p-2.5 flex items-center gap-1.5 sm:gap-2 border-t border-[#e9edef] shrink-0">
+            {/* File Pickers */}
             <input
               ref={fileInputRef}
               type="file"
@@ -491,34 +489,51 @@ export const CustomerPortal: React.FC = () => {
               onChange={handleFilePicked}
               className="hidden"
             />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFilePicked}
+              className="hidden"
+            />
 
-            {/* Attach Document Button */}
+            {/* Document Picker Button */}
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="p-2.5 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors"
-              title="Attach PDF or Image Document"
+              className="p-2 sm:p-2.5 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors"
+              title="Attach Document (PDF, Image)"
             >
               <Plus className="w-5 h-5 text-[#54656f]" />
             </button>
 
-            {/* Quick Status / Input Display */}
+            {/* Camera Capture Button */}
+            <button
+              onClick={() => cameraInputRef.current?.click()}
+              className="p-2 sm:p-2.5 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors"
+              title="Scan with Camera"
+            >
+              <Camera className="w-5 h-5 text-[#54656f]" />
+            </button>
+
+            {/* Input Bar Trigger */}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="flex-1 bg-white px-3.5 py-2.5 rounded-2xl text-xs text-[#667781] border border-[#e9edef] cursor-pointer hover:border-[#00a884] transition-colors truncate"
+              className="flex-1 bg-white px-3 py-2 rounded-2xl text-xs text-[#667781] border border-[#e9edef] cursor-pointer hover:border-[#00a884] transition-colors truncate"
             >
               {selectedFile ? (
                 <span className="text-[#111b21] font-semibold">{selectedFile.name}</span>
               ) : (
-                <span>Tap (+) to choose document (PDF, JPG, PNG)...</span>
+                <span>Tap (+) or camera to select document...</span>
               )}
             </div>
 
-            {/* Send Button (WhatsApp Circular Teal Button) */}
+            {/* WhatsApp Send Button */}
             <button
               onClick={handleSendDocument}
               disabled={!selectedFile}
-              className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 disabled:cursor-not-allowed shrink-0"
-              title="Encrypt & Send to Xerox Shop Terminal"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 disabled:cursor-not-allowed shrink-0"
+              title="Encrypt & Send to Shop"
             >
               <Send className="w-4 h-4 ml-0.5" />
             </button>
@@ -537,7 +552,7 @@ export const CustomerPortal: React.FC = () => {
         </div>
       )}
 
-      {/* Verifiable Shred Proof Modal */}
+      {/* Shred Certificate Modal */}
       {activeCert && (
         <ShredCertificateModal certificate={activeCert} onNewSession={() => setActiveCert(null)} />
       )}
