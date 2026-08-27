@@ -48,28 +48,46 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
   const [renderError, setRenderError] = useState<string | null>(null);
   const toast = useToast();
 
-  // ── ADVANCED ANTI-SCREENSHOT & ANTI-EXFILTRATION SHIELD ──
+  // ── ADVANCED ANTI-SCREENSHOT & ANTI-SAVE DRM PROTECTION ──
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      toast.shield('Action Prohibited', 'Context menu is disabled on Sandboxed DRM.');
+      e.stopPropagation();
+      toast.shield('Save Prohibited', 'Right-click and context menu are disabled on SafePrint.');
+    };
+
+    const handleSelectStart = (e: Event) => {
+      e.preventDefault();
+    };
+
+    const handleCopyCut = (e: ClipboardEvent) => {
+      e.preventDefault();
+      toast.shield('Copying Prohibited', 'Document content cannot be copied to clipboard.');
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key ? e.key.toLowerCase() : '';
       const isCmdOrCtrl = e.ctrlKey || e.metaKey;
 
-      // Intercept Save (Ctrl+S, Cmd+S)
+      // Intercept Save Shortcuts (Ctrl+S, Cmd+S, Ctrl+Shift+S, Cmd+Shift+S)
       if (isCmdOrCtrl && key === 's') {
         e.preventDefault();
-        toast.shield('Save Blocked', 'Saving files to disk is prohibited by Zero-Trust protocol.');
+        e.stopPropagation();
+        toast.shield('Save Blocked', 'Saving files to computer is prohibited by Zero-Trust protocol.');
         triggerShield('Save Attempt Intercepted');
       }
 
       // Intercept Print Shortcut to route through SafePrint print engine
       if (isCmdOrCtrl && key === 'p') {
         e.preventDefault();
+        e.stopPropagation();
         onSafePrintTrigger();
+      }
+
+      // Intercept View Source (Ctrl+U, Cmd+Option+U)
+      if (isCmdOrCtrl && key === 'u') {
+        e.preventDefault();
+        e.stopPropagation();
       }
 
       // Intercept Screenshot Shortcuts:
@@ -78,22 +96,27 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
       if (
         key === 'printscreen' ||
         e.keyCode === 44 ||
-        (isCmdOrCtrl && e.shiftKey && ['3', '4', '5', 's'].includes(key)) ||
+        (isCmdOrCtrl && e.shiftKey && ['3', '4', '5', 's', 'x'].includes(key)) ||
         (e.altKey && key === 'printscreen')
       ) {
         e.preventDefault();
+        e.stopPropagation();
         triggerShield('Screenshot Shortcut Detected');
         toast.error('Screenshot Blocked', 'Screen capture is prohibited on encrypted documents.');
       }
 
-      // Intercept DevTools (F12, Ctrl+Shift+I, Cmd+Option+I)
+      // Intercept DevTools (F12, Ctrl+Shift+I, Cmd+Option+I, Ctrl+Shift+J)
       if (e.key === 'F12' || (isCmdOrCtrl && e.shiftKey && ['i', 'j', 'c'].includes(key))) {
         e.preventDefault();
+        e.stopPropagation();
         triggerShield('DevTools Inspection Blocked');
       }
     };
 
-    const handleDragStart = (e: DragEvent) => { e.preventDefault(); };
+    const handleDragStart = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
 
     // Shield on window blur (e.g. Snipping tool, window switch, screen recorder)
     const handleBlur = () => {
@@ -113,26 +136,28 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
       }
     };
 
-    const handleMouseLeave = () => {
-      // Optional subtle shield when cursor leaves window boundary
-    };
-
     const triggerShield = (reason: string) => {
       setShieldReason(reason);
       setIsShielded(true);
     };
 
-    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('contextmenu', handleContextMenu, true);
+    window.addEventListener('selectstart', handleSelectStart, true);
+    window.addEventListener('copy', handleCopyCut, true);
+    window.addEventListener('cut', handleCopyCut, true);
     window.addEventListener('keydown', handleKeyDown, true);
-    window.addEventListener('dragstart', handleDragStart);
+    window.addEventListener('dragstart', handleDragStart, true);
     window.addEventListener('blur', handleBlur);
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('contextmenu', handleContextMenu, true);
+      window.removeEventListener('selectstart', handleSelectStart, true);
+      window.removeEventListener('copy', handleCopyCut, true);
+      window.removeEventListener('cut', handleCopyCut, true);
       window.removeEventListener('keydown', handleKeyDown, true);
-      window.removeEventListener('dragstart', handleDragStart);
+      window.removeEventListener('dragstart', handleDragStart, true);
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -196,7 +221,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
       canvas.height = viewport.height;
 
       await page.render({ canvasContext: ctx, viewport }).promise;
-      applyCanvasFilter(canvas, ctx);
+      applyCanvasFilterAndWatermark(canvas, ctx);
     } catch (err) {
       console.warn('[SafePrint DRM Viewer] Page render warning:', err);
     }
@@ -234,7 +259,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
         ctx.restore();
 
-        applyCanvasFilter(canvas, ctx);
+        applyCanvasFilterAndWatermark(canvas, ctx);
         URL.revokeObjectURL(imgUrl);
       };
 
@@ -249,26 +274,36 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
     }
   };
 
-  const applyCanvasFilter = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
-    if (filterMode === 'NORMAL') return;
+  const applyCanvasFilterAndWatermark = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
     try {
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imgData.data;
+      // 1. Apply image filters
+      if (filterMode !== 'NORMAL') {
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
 
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        if (filterMode === 'GRAYSCALE') {
-          data[i] = data[i + 1] = data[i + 2] = gray;
-        } else {
-          // Photocopy B&W Threshold
-          const threshold = filterMode === 'HIGH_CONTRAST' ? 145 : 128;
-          const val = gray > threshold ? 255 : 0;
-          data[i] = data[i + 1] = data[i + 2] = val;
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          if (filterMode === 'GRAYSCALE') {
+            data[i] = data[i + 1] = data[i + 2] = gray;
+          } else {
+            // Photocopy B&W Threshold
+            const threshold = filterMode === 'HIGH_CONTRAST' ? 145 : 128;
+            const val = gray > threshold ? 255 : 0;
+            data[i] = data[i + 1] = data[i + 2] = val;
+          }
         }
+        ctx.putImageData(imgData, 0, 0);
       }
-      ctx.putImageData(imgData, 0, 0);
+
+      // 2. Burn subtle security provenance stamp directly into canvas pixel buffer
+      ctx.save();
+      ctx.font = '10px monospace';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+      ctx.textAlign = 'right';
+      ctx.fillText(`SAFEPRINT • ${shopId} • PHYSICAL PRINT ONLY`, canvas.width - 12, canvas.height - 12);
+      ctx.restore();
     } catch (e) {
-      console.warn('[SafePrint] Filter error:', e);
+      console.warn('[SafePrint] Filter note:', e);
     }
   };
 
@@ -279,6 +314,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
     <div
       ref={containerRef}
       className="drm-canvas-container relative w-full min-h-[360px] sm:min-h-[520px] bg-[#475569] rounded-2xl overflow-auto flex items-center justify-center p-3 sm:p-5 shadow-2xl select-none border border-[#cbd5e1]"
+      onContextMenu={(e) => e.preventDefault()}
     >
       {/* Dynamic High-Density Forensic Watermark Grid */}
       <div className="forensic-watermark-overlay">
@@ -319,18 +355,29 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
             <span>{renderError}</span>
           </div>
         ) : (
-          <canvas
-            ref={canvasRef}
-            className="print-page-canvas shadow-2xl bg-white rounded transition-transform duration-150"
-            style={{ maxWidth: '100%', height: 'auto' }}
-          />
+          <div className="relative inline-block">
+            <canvas
+              ref={canvasRef}
+              className="print-page-canvas shadow-2xl bg-white rounded transition-transform duration-150 pointer-events-none select-none"
+              style={{ maxWidth: '100%', height: 'auto' }}
+            />
+            {/* Transparent Protection Click-Shield Over Canvas */}
+            <div
+              className="absolute inset-0 z-20 cursor-default select-none pointer-events-auto"
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDragStart={(e) => e.preventDefault()}
+            />
+          </div>
         )}
       </div>
 
       {/* DRM Active Badge */}
       <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/80 text-[10px] font-mono text-white shadow-lg no-print border border-white/20">
         <Lock className="w-3 h-3 text-[#25d366]" />
-        <span>RAM Sandboxed • Anti-Capture DRM</span>
+        <span>RAM Sandboxed • Anti-Save DRM</span>
       </div>
     </div>
   );
