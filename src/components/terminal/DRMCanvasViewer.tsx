@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { EyeOff, Lock, AlertCircle } from 'lucide-react';
+import { EyeOff, Lock, AlertCircle, ShieldAlert, Shield } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '../shared/ToastContext';
 
-// Set up pdf.js worker with unpkg fallback
+// Set up pdf.js worker
 try {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 } catch {
@@ -22,6 +22,7 @@ interface DRMCanvasViewerProps {
   currentPage: number;
   onPageCountLoaded: (count: number) => void;
   onSafePrintTrigger: () => void;
+  onCloseDocument?: () => void;
 }
 
 export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
@@ -36,46 +37,105 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
   currentPage,
   onPageCountLoaded,
   onSafePrintTrigger,
+  onCloseDocument,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [isWindowBlurred, setIsWindowBlurred] = useState(false);
+  const [isShielded, setIsShielded] = useState(false);
+  const [shieldReason, setShieldReason] = useState<string>('Display Protected');
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [loading, setLoading] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const toast = useToast();
 
-  // Anti-Exfiltration DRM Protections
+  // ── ADVANCED ANTI-SCREENSHOT & ANTI-EXFILTRATION SHIELD ──
   useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => { e.preventDefault(); };
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      toast.shield('Action Prohibited', 'Context menu is disabled on Sandboxed DRM.');
+    };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      const key = e.key ? e.key.toLowerCase() : '';
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+
+      // Intercept Save (Ctrl+S, Cmd+S)
+      if (isCmdOrCtrl && key === 's') {
         e.preventDefault();
-        toast.shield('Download Blocked', 'Saving documents to disk is prohibited on SafePrint.');
+        toast.shield('Save Blocked', 'Saving files to disk is prohibited by Zero-Trust protocol.');
+        triggerShield('Save Attempt Intercepted');
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+
+      // Intercept Print Shortcut to route through SafePrint print engine
+      if (isCmdOrCtrl && key === 'p') {
         e.preventDefault();
         onSafePrintTrigger();
+      }
+
+      // Intercept Screenshot Shortcuts:
+      // Windows: PrintScreen, Win+Shift+S, Alt+PrintScreen
+      // Mac: Cmd+Shift+3, Cmd+Shift+4, Cmd+Shift+5
+      if (
+        key === 'printscreen' ||
+        e.keyCode === 44 ||
+        (isCmdOrCtrl && e.shiftKey && ['3', '4', '5', 's'].includes(key)) ||
+        (e.altKey && key === 'printscreen')
+      ) {
+        e.preventDefault();
+        triggerShield('Screenshot Shortcut Detected');
+        toast.error('Screenshot Blocked', 'Screen capture is prohibited on encrypted documents.');
+      }
+
+      // Intercept DevTools (F12, Ctrl+Shift+I, Cmd+Option+I)
+      if (e.key === 'F12' || (isCmdOrCtrl && e.shiftKey && ['i', 'j', 'c'].includes(key))) {
+        e.preventDefault();
+        triggerShield('DevTools Inspection Blocked');
       }
     };
 
     const handleDragStart = (e: DragEvent) => { e.preventDefault(); };
-    const handleBlur = () => setIsWindowBlurred(true);
-    const handleFocus = () => setIsWindowBlurred(false);
+
+    // Shield on window blur (e.g. Snipping tool, window switch, screen recorder)
+    const handleBlur = () => {
+      triggerShield('Window Focus Lost (Anti-Capture Active)');
+    };
+
+    const handleFocus = () => {
+      setIsShielded(false);
+    };
+
+    // Shield when tab is hidden or backgrounded
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        triggerShield('Tab Inactive (RAM Shielded)');
+      } else {
+        setIsShielded(false);
+      }
+    };
+
+    const handleMouseLeave = () => {
+      // Optional subtle shield when cursor leaves window boundary
+    };
+
+    const triggerShield = (reason: string) => {
+      setShieldReason(reason);
+      setIsShielded(true);
+    };
 
     window.addEventListener('contextmenu', handleContextMenu);
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('dragstart', handleDragStart);
     window.addEventListener('blur', handleBlur);
     window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('contextmenu', handleContextMenu);
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('dragstart', handleDragStart);
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [onSafePrintTrigger, toast]);
 
@@ -103,7 +163,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         }
       } catch (err) {
         console.error('[SafePrint DRM Viewer] Load error:', err);
-        if (!cancelled) setRenderError('Could not load document preview.');
+        if (!cancelled) setRenderError('Could not load document preview in RAM.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -200,7 +260,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         if (filterMode === 'GRAYSCALE') {
           data[i] = data[i + 1] = data[i + 2] = gray;
         } else {
-          // Photocopy B&W threshold
+          // Photocopy B&W Threshold
           const threshold = filterMode === 'HIGH_CONTRAST' ? 145 : 128;
           const val = gray > threshold ? 255 : 0;
           data[i] = data[i + 1] = data[i + 2] = val;
@@ -218,51 +278,59 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
   return (
     <div
       ref={containerRef}
-      className="drm-canvas-container relative w-full min-h-[300px] sm:min-h-[480px] bg-[#54656f] rounded-2xl overflow-auto flex items-center justify-center p-3 sm:p-4 shadow-xl select-none border border-[#d1d7db]"
+      className="drm-canvas-container relative w-full min-h-[360px] sm:min-h-[520px] bg-[#475569] rounded-2xl overflow-auto flex items-center justify-center p-3 sm:p-5 shadow-2xl select-none border border-[#cbd5e1]"
     >
-      {/* Forensic Watermark Overlay */}
+      {/* Dynamic High-Density Forensic Watermark Grid */}
       <div className="forensic-watermark-overlay">
-        {Array.from({ length: 24 }).map((_, i) => (
-          <div key={i} className="p-3 opacity-60 whitespace-nowrap">
+        {Array.from({ length: 32 }).map((_, i) => (
+          <div key={i} className="p-3 opacity-70 whitespace-nowrap">
             SAFEPRINT • {shopId} • {sessionId.substring(0, 8)} • {watermarkTime}
           </div>
         ))}
       </div>
 
-      {/* Window Blur Shield */}
-      {isWindowBlurred && (
-        <div className="absolute inset-0 z-30 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 text-white">
-          <EyeOff className="w-10 h-10 text-red-400 mb-2 animate-bounce" />
-          <h4 className="text-sm font-bold">Display Shielded</h4>
-          <p className="text-xs text-slate-300">Click window to resume document viewing.</p>
+      {/* Real-Time Screen Capture Shield Overlay */}
+      {isShielded && (
+        <div
+          onClick={() => setIsShielded(false)}
+          className="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-6 text-white cursor-pointer animate-in fade-in duration-100"
+        >
+          <div className="w-16 h-16 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 flex items-center justify-center mb-3 animate-pulse">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+          <h4 className="text-base font-bold text-white mb-1">Anti-Exfiltration DRM Shield Active</h4>
+          <p className="text-xs text-slate-300 max-w-sm mb-2">{shieldReason}</p>
+          <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-500/40">
+            Click anywhere on this screen to resume viewing
+          </span>
         </div>
       )}
 
       {/* Canvas Print Sandbox Area */}
       <div id="print-area" className="relative z-10 max-w-full">
         {loading ? (
-          <div className="flex flex-col items-center gap-2 text-white font-mono text-xs py-10">
-            <div className="w-7 h-7 rounded-full border-2 border-white border-t-transparent animate-spin" />
-            <span>Rendering in RAM sandbox...</span>
+          <div className="flex flex-col items-center gap-2 text-white font-mono text-xs py-12">
+            <div className="w-8 h-8 rounded-full border-2 border-white border-t-transparent animate-spin" />
+            <span>Loading document into isolated RAM...</span>
           </div>
         ) : renderError ? (
-          <div className="flex flex-col items-center gap-2 text-red-300 font-mono text-xs py-10 text-center px-4">
-            <AlertCircle className="w-6 h-6" />
+          <div className="flex flex-col items-center gap-2 text-red-300 font-mono text-xs py-12 text-center px-4">
+            <AlertCircle className="w-7 h-7" />
             <span>{renderError}</span>
           </div>
         ) : (
           <canvas
             ref={canvasRef}
-            className="print-page-canvas shadow-xl bg-white rounded transition-transform duration-150"
+            className="print-page-canvas shadow-2xl bg-white rounded transition-transform duration-150"
             style={{ maxWidth: '100%', height: 'auto' }}
           />
         )}
       </div>
 
       {/* DRM Active Badge */}
-      <div className="absolute bottom-2.5 right-2.5 z-20 flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/75 text-[10px] font-mono text-white shadow-md no-print">
+      <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/80 text-[10px] font-mono text-white shadow-lg no-print border border-white/20">
         <Lock className="w-3 h-3 text-[#25d366]" />
-        <span>DRM Sandboxed • Anti-Save</span>
+        <span>RAM Sandboxed • Anti-Capture DRM</span>
       </div>
     </div>
   );

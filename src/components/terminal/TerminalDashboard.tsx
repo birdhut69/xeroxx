@@ -16,7 +16,11 @@ import {
   FileCheck,
   Sparkles,
   Layers,
-  Lock
+  Lock,
+  X,
+  Trash2,
+  Eye,
+  FileSpreadsheet
 } from 'lucide-react';
 import {
   generateSessionKey,
@@ -177,7 +181,6 @@ export const TerminalDashboard: React.FC = () => {
         }
 
         try {
-          // Decode Base64 ciphertext directly to binary in RAM
           const binary = atob(msg.ciphertextBase64);
           const ciphertextBytes = new Uint8Array(binary.length);
           for (let i = 0; i < binary.length; i++) {
@@ -255,7 +258,7 @@ export const TerminalDashboard: React.FC = () => {
   }, []);
 
   const selectedCustomer = selectedCustomerId ? customers.get(selectedCustomerId) : null;
-  const selectedDoc = selectedCustomer?.documents.find((d) => d.id === selectedDocId) || selectedCustomer?.documents[0] || null;
+  const selectedDoc = selectedCustomer?.documents.find((d) => d.id === selectedDocId) || null;
 
   // Print execution
   const handlePrint = useCallback(async () => {
@@ -304,6 +307,30 @@ export const TerminalDashboard: React.FC = () => {
       toast.success('Print Dispatched', `${totalPages} page(s) × ${copies} copies sent to printer.`);
     }, 300);
   }, [selectedCustomer, selectedDoc, totalPages, copies, toast]);
+
+  // Shred single file from customer
+  const handleDeleteDoc = (docId: string) => {
+    if (!selectedCustomer) return;
+    const doc = selectedCustomer.documents.find((d) => d.id === docId);
+    if (doc?.decryptedBuffer) {
+      zeroizeBuffer(doc.decryptedBuffer);
+      doc.decryptedBuffer = null;
+    }
+
+    setCustomers((prev) => {
+      const next = new Map(prev);
+      const cust = next.get(selectedCustomer.customerId);
+      if (cust) {
+        cust.documents = cust.documents.filter((d) => d.id !== docId);
+      }
+      return next;
+    });
+
+    if (selectedDocId === docId) {
+      setSelectedDocId(null);
+    }
+    toast.info('File Shredded', 'Document buffer wiped from RAM.');
+  };
 
   // Shred customer memory
   const handleShredCustomer = useCallback(async (custId: string) => {
@@ -371,27 +398,27 @@ export const TerminalDashboard: React.FC = () => {
   return (
     <div className="max-w-[1720px] mx-auto px-3 sm:px-6 py-4">
       {/* ── 2-COLUMN BALANCED WHATSAPP WEB LAYOUT ── */}
-      <div className="wa-panel-elevated rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-140px)] border border-[#d1d7db] shadow-xl">
+      <div className="wa-panel-elevated rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-130px)] border border-[#d1d7db] shadow-2xl">
         {/* ── LEFT SIDEBAR: QR COUNTER STATION + QUEUE (4 Cols on Desktop) ── */}
         <div className="lg:col-span-4 bg-white border-r border-[#e9edef] flex flex-col no-print">
           {/* Sidebar Top Header */}
-          <div className="bg-[#f0f2f5] p-3.5 flex items-center justify-between border-b border-[#e9edef]">
+          <div className="bg-[#008069] text-white p-3.5 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-full bg-[#008069] text-white flex items-center justify-center text-sm font-bold shadow-sm">
+              <div className="w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white flex items-center justify-center text-sm font-bold shadow-sm">
                 <Printer className="w-5 h-5" />
               </div>
               <div className="text-left">
-                <div className="text-sm font-bold text-[#111b21]">{shopName}</div>
-                <div className="text-[11px] text-[#667781] font-mono flex items-center gap-1.5">
+                <div className="text-sm font-bold">{shopName}</div>
+                <div className="text-[11px] text-white/80 font-mono flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-[#25d366] inline-block" />
-                  <span>Terminal: {shopId}</span>
+                  <span>Station ID: {shopId}</span>
                 </div>
               </div>
             </div>
 
             <button
               onClick={initTerminal}
-              className="p-2 rounded-lg hover:bg-[#e9edef] text-[#54656f] transition-colors"
+              className="p-2 rounded-lg hover:bg-white/15 text-white transition-colors"
               title="Reset Terminal Session Keys"
             >
               <RefreshCw className="w-4 h-4" />
@@ -405,10 +432,10 @@ export const TerminalDashboard: React.FC = () => {
               <span>COUNTER QR READY TO SCAN</span>
             </div>
 
-            <div className="p-3 bg-white rounded-xl border border-[#00a884]/40 shadow-sm inline-block mx-auto">
+            <div className="p-3 bg-white rounded-xl border border-[#00a884]/40 shadow-md inline-block mx-auto">
               <QRCodeSVG
                 value={customerUrl}
-                size={145}
+                size={140}
                 level="H"
                 includeMargin={false}
                 imageSettings={{
@@ -588,7 +615,7 @@ export const TerminalDashboard: React.FC = () => {
                 <div className="w-16 h-16 rounded-full bg-[#d9fdd3] text-[#008069] flex items-center justify-center mx-auto shadow-sm">
                   <Shield className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-[#111b21]">SafePrint Shop Terminal</h3>
+                <h3 className="text-lg font-bold text-[#111b21]">SafePrint Xerox Terminal</h3>
                 <p className="text-xs text-[#667781] leading-relaxed">
                   Select a customer from the left queue to preview decrypted documents in RAM and dispatch physical prints.
                 </p>
@@ -601,7 +628,7 @@ export const TerminalDashboard: React.FC = () => {
           ) : (
             /* Active Customer Workspace */
             <div className="flex-1 flex flex-col min-h-0 bg-[#f0f2f5]">
-              {/* Workspace Header */}
+              {/* Workspace Top Bar */}
               <div className="bg-[#f0f2f5] px-4 py-3 border-b border-[#e9edef] flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3 text-left">
                   <div className="w-10 h-10 rounded-full bg-[#008069] text-white font-bold flex items-center justify-center text-sm shadow-sm">
@@ -613,55 +640,105 @@ export const TerminalDashboard: React.FC = () => {
                       <span className="text-[10px] font-mono text-[#667781]">({selectedCustomer.customerId})</span>
                     </div>
                     <div className="text-xs text-[#008069] font-medium">
-                      {selectedCustomer.documents.length} Document(s) • Held in RAM
+                      {selectedCustomer.documents.length} Document(s) • Decrypted in RAM
                     </div>
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleShredCustomer(selectedCustomer.customerId)}
-                  disabled={isShredding}
-                  className="btn-wa-danger px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
-                  title="Wipe RAM for this customer"
-                >
-                  <Flame className="w-3.5 h-3.5" />
-                  <span>Shred Customer</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleShredCustomer(selectedCustomer.customerId)}
+                    disabled={isShredding}
+                    className="btn-wa-danger px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
+                    title="Zeroize all RAM for this customer"
+                  >
+                    <Flame className="w-3.5 h-3.5" />
+                    <span>Shred Session</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Multi-document tabs */}
-              {selectedCustomer.documents.length > 1 && (
-                <div className="bg-white px-3 py-1.5 border-b border-[#e9edef] flex items-center gap-1.5 overflow-x-auto">
-                  <span className="text-xs text-[#667781] font-semibold shrink-0">Files:</span>
+              {/* Multi-document Selection Bar */}
+              {selectedCustomer.documents.length > 0 && (
+                <div className="bg-white px-4 py-2 border-b border-[#e9edef] flex items-center gap-2 overflow-x-auto">
+                  <span className="text-xs text-[#667781] font-semibold shrink-0">Files ({selectedCustomer.documents.length}):</span>
                   {selectedCustomer.documents.map((doc) => (
-                    <button
+                    <div
                       key={doc.id}
-                      onClick={() => setSelectedDocId(doc.id)}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all shrink-0 ${
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 border ${
                         selectedDoc?.id === doc.id
-                          ? 'bg-[#00a884] text-white shadow-sm'
-                          : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e9edef]'
+                          ? 'bg-[#008069] text-white border-[#008069] shadow-sm'
+                          : 'bg-[#f0f2f5] text-[#54656f] border-[#d1d7db] hover:bg-[#e9edef]'
                       }`}
                     >
-                      <FileText className="w-3 h-3" />
-                      <span>{doc.filename}</span>
-                    </button>
+                      <button
+                        onClick={() => setSelectedDocId(doc.id)}
+                        className="flex items-center gap-1 outline-none"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span className="truncate max-w-[140px]">{doc.filename}</span>
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDoc(doc.id);
+                        }}
+                        className="p-0.5 rounded hover:bg-black/20 text-white/80 hover:text-white transition-colors ml-1"
+                        title="Delete file from RAM"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
 
-              {/* Document Canvas Workspace */}
+              {/* Main Document Workspace View */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3 text-left">
-                {!selectedDoc || !selectedDoc.decryptedBuffer ? (
+                {!selectedDoc ? (
+                  /* Document Selection Cards when no specific file is open */
+                  <div className="wa-panel p-6 rounded-2xl max-w-lg mx-auto my-6 space-y-4 text-center">
+                    <div className="w-12 h-12 rounded-full bg-[#d9fdd3] text-[#008069] flex items-center justify-center mx-auto">
+                      <FileSpreadsheet className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-[#111b21]">Select a Document to Preview & Print</h4>
+                      <p className="text-xs text-[#667781]">Customer has sent {selectedCustomer.documents.length} document(s).</p>
+                    </div>
+
+                    <div className="space-y-2 text-left">
+                      {selectedCustomer.documents.map((doc) => (
+                        <div
+                          key={doc.id}
+                          onClick={() => setSelectedDocId(doc.id)}
+                          className="p-3 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] border border-[#d1d7db] cursor-pointer flex items-center justify-between gap-3 transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <FileText className="w-5 h-5 text-[#008069] shrink-0" />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-[#111b21] truncate">{doc.filename}</div>
+                              <div className="text-[10px] text-[#667781] font-mono">{(doc.fileSize / 1024).toFixed(1)} KB • In RAM</div>
+                            </div>
+                          </div>
+
+                          <button className="btn-wa-primary px-3 py-1.5 rounded-lg text-xs font-bold shrink-0">
+                            Open & Print
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : !selectedDoc.decryptedBuffer ? (
                   <div className="wa-panel p-8 rounded-2xl text-center max-w-sm mx-auto my-8 space-y-2">
                     <Clock className="w-8 h-8 text-[#0284c7] mx-auto animate-pulse" />
-                    <div className="text-xs font-bold text-[#111b21]">Streaming Encrypted Document...</div>
-                    <p className="text-[11px] text-[#667781]">Decrypting AES-256 payload directly in RAM.</p>
+                    <div className="text-xs font-bold text-[#111b21]">Decrypting Document...</div>
+                    <p className="text-[11px] text-[#667781]">Loading AES-256 payload into RAM.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {/* Print Engine Toolbar */}
-                    <div className="wa-panel p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-sm">
+                    <div className="wa-panel p-3 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-sm border border-[#d1d7db]">
                       <div className="flex items-center gap-2.5">
                         <div className="p-2 rounded-lg bg-[#d9fdd3] text-[#008069]">
                           <FileCheck className="w-5 h-5" />
@@ -710,7 +787,7 @@ export const TerminalDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Document Editor Controls */}
+                    {/* Document Editor Controls with Close & Delete */}
                     <DocEditor
                       currentPage={currentPage}
                       totalPages={totalPages}
@@ -725,6 +802,8 @@ export const TerminalDashboard: React.FC = () => {
                       onZoomChange={(delta) => setZoomLevel((prev) => Math.min(2.5, Math.max(0.5, prev + delta)))}
                       onResetZoom={() => setZoomLevel(1.0)}
                       onCopiesChange={setCopies}
+                      onCloseFile={() => setSelectedDocId(null)}
+                      onDeleteFile={() => handleDeleteDoc(selectedDoc.id)}
                     />
 
                     {/* DRM Sandboxed Canvas Viewer */}
@@ -740,6 +819,7 @@ export const TerminalDashboard: React.FC = () => {
                       currentPage={currentPage}
                       onPageCountLoaded={setTotalPages}
                       onSafePrintTrigger={handlePrint}
+                      onCloseDocument={() => setSelectedDocId(null)}
                     />
                   </div>
                 )}
