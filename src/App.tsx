@@ -1,34 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/shared/Header';
 import { TerminalDashboard } from './components/terminal/TerminalDashboard';
 import { CustomerPortal } from './components/customer/CustomerPortal';
-import { DualDemoSimulator } from './components/simulator/DualDemoSimulator';
 import { ToastProvider } from './components/shared/ToastContext';
-import { ShieldCheck, Lock, Flame, RefreshCw, Key, HelpCircle } from 'lucide-react';
+import { ShieldCheck, Lock, Flame, Key } from 'lucide-react';
+
+type AppMode = 'TERMINAL' | 'CUSTOMER';
 
 export const AppContent: React.FC = () => {
-  const [currentMode, setCurrentMode] = useState<'TERMINAL' | 'CUSTOMER' | 'SIMULATOR'>('SIMULATOR');
+  const [currentMode, setCurrentMode] = useState<AppMode>('TERMINAL');
   const [serverOnline, setServerOnline] = useState(true);
 
   // Auto-detect Customer Mode if QR URL params exist
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('room')) {
+    if (params.get('room') && window.location.hash.includes('key=')) {
       setCurrentMode('CUSTOMER');
     }
+  }, []);
 
-    // Ping health check
-    fetch('/api/health')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.status === 'ONLINE') setServerOnline(true);
-      })
-      .catch(() => {
-        fetch('http://localhost:8080/api/health')
-          .then((r) => r.json())
-          .then(() => setServerOnline(true))
-          .catch(() => setServerOnline(false));
-      });
+  // Health check for relay
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const res = await fetch('/api/relay?action=health');
+        const data = await res.json();
+        setServerOnline(data.status === 'ONLINE');
+      } catch {
+        // Try local dev server
+        try {
+          const res = await fetch('http://localhost:8080/api/health');
+          await res.json();
+          setServerOnline(true);
+        } catch {
+          setServerOnline(false);
+        }
+      }
+    };
+    checkHealth();
+  }, []);
+
+  const handleModeChange = useCallback((mode: AppMode) => {
+    setCurrentMode(mode);
+    // Clean URL when switching to Terminal mode
+    if (mode === 'TERMINAL') {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   return (
@@ -36,18 +53,17 @@ export const AppContent: React.FC = () => {
       {/* Universal SafePrint Header */}
       <Header
         currentMode={currentMode}
-        onModeChange={setCurrentMode}
+        onModeChange={handleModeChange}
         serverOnline={serverOnline}
       />
 
-      {/* Main Mode View */}
+      {/* Main View */}
       <main className="flex-1">
         {currentMode === 'TERMINAL' && <TerminalDashboard />}
         {currentMode === 'CUSTOMER' && <CustomerPortal />}
-        {currentMode === 'SIMULATOR' && <DualDemoSimulator />}
       </main>
 
-      {/* Security Architecture & Transparency Footer */}
+      {/* Security Architecture Footer */}
       <footer className="glass-panel border-t border-slate-800/80 px-4 py-8 mt-12 no-print text-left">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-slate-400">
           <div>
@@ -56,7 +72,8 @@ export const AppContent: React.FC = () => {
               <span>SafePrint Security Protocol</span>
             </div>
             <p className="leading-relaxed">
-              Designed to end document theft at xerox & print shops. Documents are encrypted client-side, held only in RAM during print prep, and cryptographically shredded upon completion.
+              Designed to end document theft at xerox & print shops. Documents are encrypted client-side,
+              held only in RAM during print prep, and cryptographically shredded upon completion.
             </p>
           </div>
 
@@ -66,7 +83,8 @@ export const AppContent: React.FC = () => {
               <span>Zero-Knowledge Handshake</span>
             </div>
             <p className="leading-relaxed font-mono text-[11px]">
-              Session keys reside strictly in the QR code URL hash (<code className="text-cyan-300">#key=...</code>). Per RFC 3986, hash fragments are never sent to the relay server.
+              Session keys reside strictly in the QR code URL hash (<code className="text-cyan-300">#key=...</code>).
+              Per RFC 3986, hash fragments are never sent to the relay server.
             </p>
           </div>
 
@@ -76,13 +94,15 @@ export const AppContent: React.FC = () => {
               <span>Cryptographic Destruction</span>
             </div>
             <p className="leading-relaxed">
-              Upon printing, document byte arrays are actively zeroized with <code className="text-rose-300 font-mono">crypto.getRandomValues()</code> and committed to an immutable SHA-256 Merkle audit block.
+              Upon printing, document byte arrays are actively zeroized with{' '}
+              <code className="text-rose-300 font-mono">crypto.getRandomValues()</code> and committed to an
+              immutable SHA-256 Merkle audit block.
             </p>
           </div>
         </div>
 
         <div className="max-w-6xl mx-auto mt-6 pt-4 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 font-mono">
-          <div>© 2026 SafePrint Ephemeral Technology • 100% In-Memory Architecture</div>
+          <div>© {new Date().getFullYear()} SafePrint • 100% In-Memory Architecture</div>
           <div className="flex items-center gap-3 mt-2 sm:mt-0">
             <span className="text-emerald-400 font-bold">✓ Zero Server Disk I/O</span>
             <span className="text-cyan-400 font-bold">✓ Web Crypto AES-256</span>

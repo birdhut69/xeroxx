@@ -1,10 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ShieldCheck, Lock, RefreshCw, Smartphone, CheckCircle2, Flame, Layers, AlertTriangle } from 'lucide-react';
-import { generateSessionKey, exportKeyToHash, generateRandomSessionId, decryptDocument, base64UrlToUint8Array } from '../../crypto/e2ee';
-import { zeroizeBuffer, scrubObjectUrls } from '../../crypto/zeroize';
-import { EphemeralLedger } from '../../crypto/ledger';
+import { Lock, Wifi, WifiOff, AlertTriangle } from 'lucide-react';
+import {
+  generateSessionKey,
+  exportKeyToHash,
+  generateRandomSessionId,
+  decryptDocument,
+} from '../../crypto/e2ee';
+import { zeroizeBuffer } from '../../crypto/zeroize';
+import { EphemeralLedger, type DestructionCertificate } from '../../crypto/ledger';
 import { RelaySocket } from '../../services/relaySocket';
 import { sounds } from '../../services/AudioEffects';
+import { useToast } from '../shared/ToastContext';
 import { QRDisplay } from './QRDisplay';
 import { DRMCanvasViewer } from './DRMCanvasViewer';
 import { DocEditor } from './DocEditor';
@@ -16,60 +22,81 @@ interface TerminalDashboardProps {
   onOpenCustomerView?: (url: string) => void;
 }
 
+interface DocMetadata {
+  filename: string;
+  fileType: string;
+  fileSize: number;
+  docHash?: string;
+  pageCount?: number;
+  watermarkText?: string;
+  maxCopies?: number;
+}
+
+type SessionState = 'IDLE' | 'RECEIVING' | 'VIEWING' | 'PRINTING' | 'SHREDDING';
+type FilterMode = 'NORMAL' | 'BW' | 'GRAYSCALE' | 'HIGH_CONTRAST';
+
 export const TerminalDashboard: React.FC<TerminalDashboardProps> = ({ onOpenCustomerView }) => {
+  const toast = useToast();
+
   // Session Identity & Cryptography
-  const [sessionId, setSessionId] = useState<string>('');
-  const [sessionKey, setSessionKey] = useState<CryptoKey | null>(null);
-  const [sessionKeyHex, setSessionKeyHex] = useState<string>('');
-  const [shopId] = useState<string>(() => `XEROX-${Math.random().toString(36).substring(2, 7).toUpperCase()}`);
-  const [shopName] = useState<string>('SafePrint Express Terminal #1');
+  const [sessionId, setSessionId] = useState('');
+  const [sessionKeyHex, setSessionKeyHex] = useState('');
+  const [shopId] = useState(() => `XEROX-${Math.random().toString(36).substring(2, 7).toUpperCase()}`);
+  const [shopName] = useState('SafePrint Terminal');
 
   // Connection & Document State
-  const [connectedUser, setConnectedUser] = useState<boolean>(false);
-  const [sessionState, setSessionState] = useState<'IDLE' | 'RECEIVING' | 'VIEWING' | 'PRINTING' | 'SHREDDING'>('IDLE');
-  const [streamProgress, setStreamProgress] = useState<number>(0);
+  const [connectedUser, setConnectedUser] = useState(false);
+  const [sessionState, setSessionState] = useState<SessionState>('IDLE');
+  const [streamProgress, setStreamProgress] = useState(0);
   const [documentBuffer, setDocumentBuffer] = useState<ArrayBuffer | null>(null);
-  const [docMeta, setDocMeta] = useState<any>(null);
-  const [iv, setIv] = useState<Uint8Array | null>(null);
+  const [docMeta, setDocMeta] = useState<DocMetadata | null>(null);
 
   // Editor State
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [rotation, setRotation] = useState<number>(0);
-  const [filterMode, setFilterMode] = useState<'NORMAL' | 'BW' | 'GRAYSCALE' | 'HIGH_CONTRAST'>('NORMAL');
-  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
-  const [copies, setCopies] = useState<number>(1);
-  const [maxAllowedCopies, setMaxAllowedCopies] = useState<number>(5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [filterMode, setFilterMode] = useState<FilterMode>('NORMAL');
+  const [zoomLevel, setZoomLevel] = useState(1.0);
+  const [copies, setCopies] = useState(1);
+  const [maxAllowedCopies, setMaxAllowedCopies] = useState(5);
 
   // Print & Shred Lifecycle
-  const [printCompleted, setPrintCompleted] = useState<boolean>(false);
-  const [autoDestructSeconds, setAutoDestructSeconds] = useState<number>(45);
-  const [isShredding, setIsShredding] = useState<boolean>(false);
+  const [printCompleted, setPrintCompleted] = useState(false);
+  const [isShredding, setIsShredding] = useState(false);
 
-  // Blockchain Ledger
+  // Refs for stable callback access
   const ledgerRef = useRef<EphemeralLedger | null>(null);
   const relayRef = useRef<RelaySocket | null>(null);
   const chunkBufferRef = useRef<Uint8Array[]>([]);
+  const sessionKeyRef = useRef<CryptoKey | null>(null);
+  const ivRef = useRef<Uint8Array | null>(null);
+  const docMetaRef = useRef<DocMetadata | null>(null);
+  const sessionIdRef = useRef('');
+
+  // Keep refs in sync with state
+  useEffect(() => { docMetaRef.current = docMeta; }, [docMeta]);
 
   // Initialize or Reset Session
   const initSession = useCallback(async () => {
-    // 1. Zeroize any previous buffer before resetting
+    // 1. Zeroize any previous buffer
     if (documentBuffer) {
       zeroizeBuffer(documentBuffer);
-      setDocumentBuffer(null);
     }
 
     const newSessionId = generateRandomSessionId();
     const newKey = await generateSessionKey();
     const newKeyHex = await exportKeyToHash(newKey);
 
+    sessionKeyRef.current = newKey;
+    ivRef.current = null;
+    sessionIdRef.current = newSessionId;
+
     setSessionId(newSessionId);
-    setSessionKey(newKey);
     setSessionKeyHex(newKeyHex);
     setConnectedUser(false);
     setSessionState('IDLE');
+    setDocumentBuffer(null);
     setDocMeta(null);
-    setIv(null);
     chunkBufferRef.current = [];
     setCurrentPage(1);
     setTotalPages(1);
@@ -92,42 +119,68 @@ export const TerminalDashboard: React.FC<TerminalDashboardProps> = ({ onOpenCust
     const relay = new RelaySocket();
     relayRef.current = relay;
 
-    relay.connect({
+    await relay.connect({
       onOpen: () => {
         relay.send({
           type: 'INIT_TERMINAL',
           roomId: newSessionId,
           shopId,
-          shopName
+          shopName,
         });
       },
       onCustomerConnected: () => {
         setConnectedUser(true);
         sounds.playConnect();
+        toast.shield('Customer Connected', 'A mobile device has paired to this terminal securely.');
       },
       onDocMeta: (msg) => {
-        setDocMeta(msg.metadata);
-        setIv(new Uint8Array(msg.iv));
-        if (msg.metadata?.maxCopies) {
-          setMaxAllowedCopies(msg.metadata.maxCopies);
+        const meta: DocMetadata = {
+          filename: msg.metadata?.filename || 'Document',
+          fileType: msg.metadata?.fileType || 'application/octet-stream',
+          fileSize: msg.metadata?.fileSize || 0,
+          docHash: msg.metadata?.docHash,
+          pageCount: msg.metadata?.pageCount,
+          watermarkText: msg.metadata?.watermarkText,
+          maxCopies: msg.metadata?.maxCopies,
+        };
+        setDocMeta(meta);
+        docMetaRef.current = meta;
+        ivRef.current = new Uint8Array(msg.iv);
+        if (meta.maxCopies) {
+          setMaxAllowedCopies(meta.maxCopies);
         }
         chunkBufferRef.current = [];
         setSessionState('RECEIVING');
         setStreamProgress(0);
+        toast.info('Incoming Document', `Receiving encrypted "${meta.filename}"...`);
       },
       onDocChunk: (msg) => {
-        // Decode base64 chunk to binary in RAM
-        const binary = atob(msg.data);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-          bytes[i] = binary.charCodeAt(i);
+        try {
+          const binary = atob(msg.data);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          chunkBufferRef.current.push(bytes);
+          setStreamProgress(Math.round(((msg.chunkIndex + 1) / msg.totalChunks) * 100));
+        } catch (err) {
+          console.error('[SafePrint] Chunk decode error:', err);
         }
-        chunkBufferRef.current.push(bytes);
-        setStreamProgress(Math.round(((msg.chunkIndex + 1) / msg.totalChunks) * 100));
       },
       onDocComplete: async () => {
+        // Read key and IV from refs (not stale closure)
+        const currentKey = sessionKeyRef.current;
+        const currentIv = ivRef.current;
+        const currentMeta = docMetaRef.current;
+
+        if (!currentKey || !currentIv) {
+          toast.error('Decryption Failed', 'Missing encryption key or IV. Ask customer to re-scan QR.');
+          setSessionState('IDLE');
+          return;
+        }
+
         try {
-          // Combine chunks in RAM
+          // Combine all chunks in RAM
           const totalLength = chunkBufferRef.current.reduce((acc, c) => acc + c.length, 0);
           const combinedCiphertext = new Uint8Array(totalLength);
           let offset = 0;
@@ -135,37 +188,36 @@ export const TerminalDashboard: React.FC<TerminalDashboardProps> = ({ onOpenCust
             combinedCiphertext.set(chunk, offset);
             offset += chunk.length;
           }
-
-          // Clear chunk array reference
           chunkBufferRef.current = [];
 
-          if (!newKey || !iv) {
-            console.error('[SafePrint Terminal] Missing key or IV for decryption');
-            return;
-          }
-
           // Decrypt strictly into RAM ArrayBuffer
-          const plaintextBuffer = await decryptDocument(combinedCiphertext.buffer as ArrayBuffer, iv, newKey);
+          const plaintextBuffer = await decryptDocument(
+            combinedCiphertext.buffer as ArrayBuffer,
+            currentIv,
+            currentKey
+          );
           setDocumentBuffer(plaintextBuffer);
           setSessionState('VIEWING');
           sounds.playEncrypt();
+          toast.success('Document Decrypted', `"${currentMeta?.filename}" loaded into secure DRM canvas.`);
 
-          // Log Ingest Block on Ephemeral Ledger
-          if (ledgerRef.current && docMeta) {
+          // Record Ingest Block on Ledger
+          if (ledgerRef.current && currentMeta) {
             await ledgerRef.current.recordIngest(
-              docMeta.docHash || 'UNKNOWN',
-              docMeta.filename || 'Document',
-              docMeta.pageCount || 1,
-              docMeta.watermarkText
+              currentMeta.docHash || 'UNKNOWN',
+              currentMeta.filename,
+              currentMeta.pageCount || 1,
+              currentMeta.watermarkText
             );
           }
         } catch (err) {
           console.error('[SafePrint Terminal] Decryption error:', err);
-          alert('Failed to decrypt document. Integrity check or key mismatch.');
+          toast.error('Decryption Failed', 'Document integrity check failed or key mismatch. Ask customer to re-send.');
+          setSessionState('IDLE');
         }
-      }
+      },
     });
-  }, [shopId, shopName, docMeta, iv]);
+  }, [shopId, shopName, toast]);
 
   useEffect(() => {
     initSession();
@@ -174,25 +226,28 @@ export const TerminalDashboard: React.FC<TerminalDashboardProps> = ({ onOpenCust
         relayRef.current.close();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle Safe Print Pipeline
-  const handleExecutePrint = async () => {
+  const handleExecutePrint = useCallback(async () => {
     setSessionState('PRINTING');
     sounds.playPrint();
 
+    const currentSessionId = sessionIdRef.current;
+
     // Inform customer
-    if (relayRef.current && sessionId) {
+    if (relayRef.current && currentSessionId) {
       relayRef.current.send({
         type: 'PRINT_STATUS_UPDATE',
-        roomId: sessionId,
+        roomId: currentSessionId,
         status: 'PRINTING',
         pagesPrinted: totalPages,
-        copies
+        copies,
       });
     }
 
-    // Invoke Safe Print
+    // Invoke browser print after a short delay for state update
     setTimeout(() => {
       window.print();
       setPrintCompleted(true);
@@ -203,61 +258,76 @@ export const TerminalDashboard: React.FC<TerminalDashboardProps> = ({ onOpenCust
         ledgerRef.current.recordPrint(totalPages, copies);
       }
 
-      if (relayRef.current && sessionId) {
+      if (relayRef.current && currentSessionId) {
         relayRef.current.send({
           type: 'PRINT_STATUS_UPDATE',
-          roomId: sessionId,
+          roomId: currentSessionId,
           status: 'PRINT_COMPLETED',
           pagesPrinted: totalPages,
-          copies
+          copies,
         });
       }
+
+      toast.success('Print Dispatched', `${totalPages} page(s) × ${copies} copies sent to printer.`);
     }, 300);
-  };
+  }, [totalPages, copies, toast]);
 
   // Handle Memory Zeroization & Ephemeral Shredding
-  const handleShred = async () => {
+  const handleShred = useCallback(async () => {
     if (isShredding) return;
     setIsShredding(true);
+    setSessionState('SHREDDING');
     sounds.playShred();
 
-    // 1. RAM Hardware Zeroization
+    const currentSessionId = sessionIdRef.current;
+
+    // 1. RAM Zeroization
     if (documentBuffer) {
       zeroizeBuffer(documentBuffer);
       setDocumentBuffer(null);
     }
 
-    // 2. Commit Final Shred Block to Ephemeral Blockchain Ledger
-    const zeroizeNonce = Math.random().toString(36).substring(2, 15);
+    // 2. Commit Final Shred Block to Ledger
+    const zeroizeNonce = crypto.getRandomValues(new Uint8Array(8)).join('');
     if (ledgerRef.current) {
       const { block, certificate } = await ledgerRef.current.recordShred(zeroizeNonce);
 
       // Send verifiable certificate back to customer
-      if (relayRef.current && sessionId) {
+      if (relayRef.current && currentSessionId) {
         relayRef.current.send({
           type: 'SHRED_CONFIRMED',
-          roomId: sessionId,
+          roomId: currentSessionId,
           certificate,
-          ledgerBlock: block
+          ledgerBlock: block,
         });
       }
     }
 
-    // 3. Reset terminal to fresh session
+    toast.shield('Memory Shredded', 'All document buffers overwritten with cryptographic noise and zeroed.');
+
+    // 3. Reset terminal to fresh session after visual feedback
     setTimeout(() => {
       setIsShredding(false);
       initSession();
-    }, 1800);
-  };
+    }, 2000);
+  }, [documentBuffer, isShredding, initSession, toast]);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 text-left">
       {/* Top Security Banner */}
       <SecurityBadge />
 
-      {/* Main Terminal Stage */}
+      {/* Connection Status Bar */}
+      {connectedUser && sessionState === 'IDLE' && (
+        <div className="glass-panel p-3 rounded-2xl border border-emerald-500/30 flex items-center gap-3 mb-4">
+          <Wifi className="w-4 h-4 text-emerald-400 animate-pulse shrink-0" />
+          <span className="text-xs font-bold text-emerald-300">Customer connected and ready to send documents.</span>
+        </div>
+      )}
+
+      {/* Main Terminal Stage — QR Display */}
       {sessionState === 'IDLE' && (
-        <div className="flex flex-col items-center justify-center my-6">
+        <div className="flex flex-col items-center justify-center my-4 sm:my-6">
           <QRDisplay
             sessionId={sessionId}
             sessionKeyHex={sessionKeyHex}
@@ -271,15 +341,14 @@ export const TerminalDashboard: React.FC<TerminalDashboardProps> = ({ onOpenCust
 
       {/* In-Memory Receiving Progress */}
       {sessionState === 'RECEIVING' && (
-        <div className="glass-panel-glow p-8 rounded-2xl max-w-lg mx-auto text-center my-12 animate-pulse">
+        <div className="glass-panel-glow p-6 sm:p-8 rounded-3xl max-w-lg mx-auto text-center my-8 sm:my-12">
           <div className="w-16 h-16 rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center mx-auto mb-4">
             <Lock className="w-8 h-8 animate-bounce" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">Streaming Encrypted Document...</h3>
+          <h3 className="text-lg sm:text-xl font-bold text-white mb-2">Streaming Encrypted Document...</h3>
           <p className="text-xs text-slate-300 font-mono mb-6">
-            Piping AES-256 chunks directly into RAM buffers ({streamProgress}% complete)
+            Piping AES-256-GCM chunks directly into RAM ({streamProgress}%)
           </p>
-
           <div className="w-full bg-slate-900 h-3 rounded-full overflow-hidden border border-cyan-500/30">
             <div
               className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 transition-all duration-200"
@@ -289,10 +358,9 @@ export const TerminalDashboard: React.FC<TerminalDashboardProps> = ({ onOpenCust
         </div>
       )}
 
-      {/* Document Loaded into Sandboxed DRM Workspace */}
+      {/* Document Loaded — Secure Workspace */}
       {(sessionState === 'VIEWING' || sessionState === 'PRINTING') && documentBuffer && (
         <div className="space-y-4">
-          {/* Print Status & Shred Toolbar */}
           <SafePrintEngine
             filename={docMeta?.filename || 'Document'}
             totalPages={totalPages}
@@ -303,16 +371,14 @@ export const TerminalDashboard: React.FC<TerminalDashboardProps> = ({ onOpenCust
             onManualShred={handleShred}
           />
 
-          {/* Auto-Destruct Countdown Timer */}
           {printCompleted && (
             <ShredAnimation
-              countdownSeconds={autoDestructSeconds}
+              countdownSeconds={60}
               onShredTriggered={handleShred}
               isShredding={isShredding}
             />
           )}
 
-          {/* Document In-Memory Editor Toolbar */}
           <DocEditor
             currentPage={currentPage}
             totalPages={totalPages}
@@ -324,16 +390,15 @@ export const TerminalDashboard: React.FC<TerminalDashboardProps> = ({ onOpenCust
             onPageChange={setCurrentPage}
             onRotate={() => setRotation((prev) => (prev + 90) % 360)}
             onFilterChange={setFilterMode}
-            onZoomChange={(delta) => setZoomLevel((prev) => Math.min(2.5, Math.max(0.6, prev + delta)))}
+            onZoomChange={(delta) => setZoomLevel((prev) => Math.min(2.5, Math.max(0.5, prev + delta)))}
             onResetZoom={() => setZoomLevel(1.0)}
             onCopiesChange={setCopies}
           />
 
-          {/* Sandboxed DRM Canvas Container */}
           <DRMCanvasViewer
             documentBuffer={documentBuffer}
             fileType={docMeta?.fileType || 'application/pdf'}
-            filename={docMeta?.filename || 'Document.pdf'}
+            filename={docMeta?.filename || 'Document'}
             shopId={shopId}
             sessionId={sessionId}
             rotation={rotation}
@@ -343,6 +408,19 @@ export const TerminalDashboard: React.FC<TerminalDashboardProps> = ({ onOpenCust
             onPageCountLoaded={setTotalPages}
             onSafePrintTrigger={handleExecutePrint}
           />
+        </div>
+      )}
+
+      {/* Shredding in Progress */}
+      {sessionState === 'SHREDDING' && (
+        <div className="glass-panel-danger p-8 rounded-3xl max-w-lg mx-auto text-center my-12">
+          <div className="w-16 h-16 rounded-full bg-rose-500/30 text-rose-400 border border-rose-500/40 flex items-center justify-center mx-auto mb-4 animate-spin">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Zeroizing Memory...</h3>
+          <p className="text-xs text-slate-300 font-mono">
+            Overwriting document buffers with cryptographic noise and zeros.
+          </p>
         </div>
       )}
     </div>

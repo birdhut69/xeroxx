@@ -17,5 +17,17 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'pdf-engine': ['pdfjs-dist'],
+          'react-vendor': ['react', 'react-dom'],
+          'ui-icons': ['lucide-react', 'qrcode.react']
+        }
+      }
+    }
   }
 });

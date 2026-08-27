@@ -1,195 +1,98 @@
 import React, { useRef, useState } from 'react';
-import { Upload, FileText, Image as ImageIcon, ShieldAlert, Sparkles, Check, FileCheck, Award, CreditCard, Scroll } from 'lucide-react';
+import { Upload, FileText, ShieldAlert, Check, File, ImageIcon } from 'lucide-react';
 import { sounds } from '../../services/AudioEffects';
 import { useToast } from '../shared/ToastContext';
 
+interface SelectedFile {
+  name: string;
+  type: string;
+  size: number;
+  buffer: ArrayBuffer;
+}
+
 interface DocumentPickerProps {
-  selectedFile: { name: string; type: string; size: number; buffer: ArrayBuffer } | null;
-  onFileSelected: (file: { name: string; type: string; size: number; buffer: ArrayBuffer }) => void;
+  selectedFile: SelectedFile | null;
+  onFileSelected: (file: SelectedFile) => void;
   onOpenRedactionStudio: () => void;
+}
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+
+const ACCEPTED_TYPES = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+  'image/bmp',
+];
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getFileIcon(type: string) {
+  if (type.startsWith('image/')) return <ImageIcon className="w-5 h-5" />;
+  return <File className="w-5 h-5" />;
 }
 
 export const DocumentPicker: React.FC<DocumentPickerProps> = ({
   selectedFile,
   onFileSelected,
-  onOpenRedactionStudio
+  onOpenRedactionStudio,
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const toast = useToast();
 
+  const processFile = async (file: globalThis.File) => {
+    // Validate type
+    if (!ACCEPTED_TYPES.includes(file.type) && !file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Unsupported File', `"${file.name}" is not a supported format. Use PDF, PNG, JPG, or WebP.`);
+      return;
+    }
+
+    // Validate size
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('File Too Large', `Max file size is 25 MB. "${file.name}" is ${formatFileSize(file.size)}.`);
+      return;
+    }
+
+    if (file.size === 0) {
+      toast.error('Empty File', 'The selected file is empty.');
+      return;
+    }
+
+    try {
+      const buffer = await file.arrayBuffer();
+      onFileSelected({
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+        buffer,
+      });
+      sounds.playSuccess();
+      toast.success('Document Loaded', `${file.name} (${formatFileSize(file.size)}) ready for encryption.`);
+    } catch (err) {
+      console.error('[SafePrint] File read error:', err);
+      toast.error('Read Error', 'Failed to read file. Please try again.');
+    }
+  };
+
   const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    const buffer = await file.arrayBuffer();
-    onFileSelected({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      buffer
-    });
-    sounds.playSuccess();
-    toast.success('Document Loaded in Memory', `${file.name} (${(file.size / 1024).toFixed(1)} KB) ready.`);
+    if (file) await processFile(file);
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-
-    const buffer = await file.arrayBuffer();
-    onFileSelected({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      buffer
-    });
-    sounds.playSuccess();
-    toast.success('Document Loaded in Memory', `${file.name} ready for encryption.`);
-  };
-
-  // Generate Synthetic Mock Documents in Browser Memory
-  const handleLoadSample = (sampleType: 'ID_CARD' | 'CERTIFICATE' | 'DRIVING_LICENSE' | 'RENT_AGREEMENT') => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 800;
-    canvas.height = 500;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    if (sampleType === 'ID_CARD') {
-      // Draw Synthetic Aadhaar / National ID Mock
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillRect(0, 0, 800, 500);
-
-      // Top Tri-Color Accent
-      ctx.fillStyle = '#f97316';
-      ctx.fillRect(0, 0, 800, 10);
-      ctx.fillStyle = '#0284c7';
-      ctx.fillRect(0, 10, 800, 60);
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText('GOVERNMENT OF INDIA • UNIQUE IDENTIFICATION AUTHORITY', 40, 48);
-
-      // Photo Frame
-      ctx.fillStyle = '#cbd5e1';
-      ctx.fillRect(40, 100, 140, 175);
-      ctx.fillStyle = '#64748b';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.fillText('[PHOTO]', 80, 195);
-
-      // Details
-      ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText('Name: ABHAY VIKRAM JADHAV', 210, 130);
-      ctx.font = '16px sans-serif';
-      ctx.fillText('DOB: 14/08/1998', 210, 168);
-      ctx.fillText('Gender: MALE / पुरुष', 210, 206);
-      ctx.fillText('Address: Flat 402, Cyber Heights, Pune 411001', 210, 244);
-
-      // Aadhaar 12-digit number (Target for redaction!)
-      ctx.fillStyle = '#dc2626';
-      ctx.font = 'bold 28px monospace';
-      ctx.fillText('9182  4029  7816', 210, 310);
-
-      // Footer
-      ctx.fillStyle = '#e2e8f0';
-      ctx.fillRect(40, 355, 720, 110);
-      ctx.fillStyle = '#334155';
-      ctx.font = '13px sans-serif';
-      ctx.fillText('मेरा आधार, मेरी पहचान • Valid for Identity Verification', 60, 395);
-      ctx.fillText('CONFIDENTIAL: Mask your 12-digit Aadhaar number with SafePrint Redaction Brush.', 60, 425);
-
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        blob.arrayBuffer().then((buffer) => {
-          onFileSelected({
-            name: 'Aadhaar_ID_Sample.jpg',
-            type: 'image/jpeg',
-            size: buffer.byteLength,
-            buffer
-          });
-          sounds.playSuccess();
-          toast.shield('Aadhaar Mock Loaded', 'Use the Redact button to black out the 12-digit ID before sending!');
-        });
-      }, 'image/jpeg', 0.92);
-    } else if (sampleType === 'CERTIFICATE') {
-      // Academic Marksheet
-      ctx.fillStyle = '#fffbeb';
-      ctx.fillRect(0, 0, 800, 500);
-      ctx.strokeStyle = '#b45309';
-      ctx.lineWidth = 8;
-      ctx.strokeRect(20, 20, 760, 460);
-
-      ctx.fillStyle = '#78350f';
-      ctx.font = 'bold 26px serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('UNIVERSITY OF ADVANCED TECHNOLOGY', 400, 80);
-      ctx.font = '16px serif';
-      ctx.fillText('BACHELOR OF TECHNOLOGY IN COMPUTER ENGINEERING', 400, 115);
-
-      ctx.fillStyle = '#1e293b';
-      ctx.font = '17px sans-serif';
-      ctx.fillText('Candidate Name: Abhay V. Jadhav • Roll: EN-2026-9810', 400, 180);
-      ctx.fillText('Marks Secured: 89.4% (First Class with Distinction - CGPA 9.42)', 400, 230);
-      ctx.fillText('Conferred at Annual Convocation on August 2026', 400, 280);
-
-      ctx.font = 'italic 16px serif';
-      ctx.fillText('Chancellor Signature: Prof. Katherine Cole', 400, 390);
-
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        blob.arrayBuffer().then((buffer) => {
-          onFileSelected({
-            name: 'College_Degree_Marksheet.jpg',
-            type: 'image/jpeg',
-            size: buffer.byteLength,
-            buffer
-          });
-          sounds.playSuccess();
-          toast.success('Marksheet Mock Loaded', 'Ready for E2EE streaming.');
-        });
-      }, 'image/jpeg', 0.92);
-    } else {
-      // Driving License Mock
-      ctx.fillStyle = '#f0fdf4';
-      ctx.fillRect(0, 0, 800, 500);
-      ctx.fillStyle = '#15803d';
-      ctx.fillRect(0, 0, 800, 65);
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 22px sans-serif';
-      ctx.fillText('UNION MOTOR VEHICLE DRIVING LICENCE', 40, 42);
-
-      ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold 18px sans-serif';
-      ctx.fillText('DL No: MH-12-20260084129', 40, 120);
-      ctx.fillText('Holder: ABHAY JADHAV', 40, 160);
-      ctx.fillText('Class: LMV / MCWG (Private)', 40, 200);
-      ctx.fillText('Valid Thru: 26/08/2046', 40, 240);
-
-      ctx.fillStyle = '#15803d';
-      ctx.fillRect(40, 300, 720, 140);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '14px sans-serif';
-      ctx.fillText('OFFICIAL LICENCE DOCUMENT • SECURE TRANSMISSION REQUIRED', 60, 350);
-
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        blob.arrayBuffer().then((buffer) => {
-          onFileSelected({
-            name: 'Driving_Licence.jpg',
-            type: 'image/jpeg',
-            size: buffer.byteLength,
-            buffer
-          });
-          sounds.playSuccess();
-          toast.success('Licence Mock Loaded', 'Ready to encrypt and beam.');
-        });
-      }, 'image/jpeg', 0.92);
-    }
+    if (file) await processFile(file);
   };
 
   const isImage = selectedFile?.type.startsWith('image/');
@@ -202,12 +105,12 @@ export const DocumentPicker: React.FC<DocumentPickerProps> = ({
             <FileText className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm sm:text-base font-bold text-white">Select Document to Send</h3>
-            <p className="text-[11px] text-slate-400">Zero-knowledge AES-256 E2EE before transmission</p>
+            <h3 className="text-sm sm:text-base font-bold text-white">Select Document</h3>
+            <p className="text-[11px] text-slate-400">AES-256-GCM encrypted before transmission</p>
           </div>
         </div>
         <span className="text-[10px] font-mono uppercase px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
-          PDF • PNG • JPG
+          PDF • PNG • JPG • WebP
         </span>
       </div>
 
@@ -229,7 +132,7 @@ export const DocumentPicker: React.FC<DocumentPickerProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,image/png,image/jpeg,image/webp"
+          accept=".pdf,image/png,image/jpeg,image/webp,image/gif,image/bmp"
           onChange={handleFileInput}
           className="hidden"
         />
@@ -239,56 +142,11 @@ export const DocumentPicker: React.FC<DocumentPickerProps> = ({
         </div>
 
         <p className="text-xs sm:text-sm font-bold text-slate-100 mb-1">
-          Tap or Drop files here to choose from your phone
+          Tap to choose or drop your document here
         </p>
         <p className="text-[11px] text-slate-400">
-          Held exclusively in your phone's RAM • Never stored on any server
+          Held exclusively in RAM • Never stored on any server • Max 25 MB
         </p>
-      </div>
-
-      {/* Quick Mock Sample Document Selectors */}
-      <div className="pt-2 text-left">
-        <div className="text-[11px] text-slate-300 font-bold mb-2 flex items-center gap-1.5 font-mono">
-          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-          <span>Or load a sample document with 1 click:</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => handleLoadSample('ID_CARD')}
-            className="p-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-left transition-all active:scale-95 group"
-          >
-            <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-300 group-hover:text-cyan-200">
-              <CreditCard className="w-3.5 h-3.5" />
-              <span>Aadhaar Mock ID</span>
-            </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">Includes 12-digit number for redaction</div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleLoadSample('CERTIFICATE')}
-            className="p-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-left transition-all active:scale-95 group"
-          >
-            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300 group-hover:text-amber-200">
-              <Award className="w-3.5 h-3.5" />
-              <span>Marksheet Mock</span>
-            </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">College Degree certificate</div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleLoadSample('DRIVING_LICENSE')}
-            className="p-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-left transition-all active:scale-95 group"
-          >
-            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 group-hover:text-emerald-200">
-              <FileCheck className="w-3.5 h-3.5" />
-              <span>Driving Licence</span>
-            </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">Official vehicle licence</div>
-          </button>
-        </div>
       </div>
 
       {/* Selected File Status Card */}
@@ -296,12 +154,18 @@ export const DocumentPicker: React.FC<DocumentPickerProps> = ({
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-cyan-500/40 flex items-center justify-between gap-3 shadow-lg text-left">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 shrink-0">
-              <FileText className="w-5 h-5" />
+              {getFileIcon(selectedFile.type)}
             </div>
             <div className="min-w-0">
-              <div className="text-xs sm:text-sm font-bold text-white truncate">{selectedFile.name}</div>
-              <div className="text-[11px] text-slate-400 font-mono">
-                {(selectedFile.size / 1024).toFixed(1)} KB • In RAM • Ready to Encrypt
+              <div className="text-xs sm:text-sm font-bold text-white truncate max-w-[220px]" title={selectedFile.name}>
+                {selectedFile.name}
+              </div>
+              <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
+                <span>{formatFileSize(selectedFile.size)}</span>
+                <span className="text-slate-600">•</span>
+                <span className="text-emerald-400 flex items-center gap-0.5">
+                  <Check className="w-3 h-3" /> In RAM
+                </span>
               </div>
             </div>
           </div>

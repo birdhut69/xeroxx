@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ShieldAlert, EyeOff, Lock, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { EyeOff, Lock } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
+import { useToast } from '../shared/ToastContext';
 
-// Set up pdf.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 interface DRMCanvasViewerProps {
@@ -11,7 +11,7 @@ interface DRMCanvasViewerProps {
   filename: string;
   shopId: string;
   sessionId: string;
-  rotation: number; // 0, 90, 180, 270
+  rotation: number;
   filterMode: 'NORMAL' | 'BW' | 'GRAYSCALE' | 'HIGH_CONTRAST';
   zoomLevel: number;
   currentPage: number;
@@ -30,54 +30,37 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
   zoomLevel,
   currentPage,
   onPageCountLoaded,
-  onSafePrintTrigger
+  onSafePrintTrigger,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isWindowBlurred, setIsWindowBlurred] = useState(false);
-  const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [loading, setLoading] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
+  const toast = useToast();
 
-  // Anti-Exfiltration & DRM Protections
+  // Anti-Exfiltration DRM Protections
   useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      return false;
-    };
+    const handleContextMenu = (e: MouseEvent) => { e.preventDefault(); };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Intercept Ctrl+S / Cmd+S
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        alert('🔒 DRM Protected: Saving raw documents to disk is strictly prohibited on SafePrint.');
-        return false;
+        toast.shield('Download Blocked', 'Saving documents to disk is prohibited on SafePrint.');
       }
-
-      // Intercept Ctrl+P / Cmd+P -> Route to SafePrint
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         onSafePrintTrigger();
-        return false;
       }
-
-      // Intercept DevTools shortcuts
       if (e.key === 'F12' || ((e.ctrlKey || e.metaKey) && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase()))) {
         e.preventDefault();
-        return false;
       }
     };
 
-    const handleDragStart = (e: DragEvent) => {
-      e.preventDefault();
-    };
-
-    const handleBlur = () => {
-      setIsWindowBlurred(true);
-    };
-
-    const handleFocus = () => {
-      setIsWindowBlurred(false);
-    };
+    const handleDragStart = (e: DragEvent) => { e.preventDefault(); };
+    const handleBlur = () => setIsWindowBlurred(true);
+    const handleFocus = () => setIsWindowBlurred(false);
 
     window.addEventListener('contextmenu', handleContextMenu);
     window.addEventListener('keydown', handleKeyDown);
@@ -92,47 +75,41 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [onSafePrintTrigger]);
+  }, [onSafePrintTrigger, toast]);
 
   // Load Document (PDF or Image) into Memory Canvas
   useEffect(() => {
     if (!documentBuffer || documentBuffer.byteLength === 0) return;
 
-    let isMounted = true;
+    let cancelled = false;
     setLoading(true);
+    setRenderError(null);
 
-    const renderDocument = async () => {
+    const loadDocument = async () => {
       try {
         const isPdf = fileType.includes('pdf') || filename.toLowerCase().endsWith('.pdf');
 
         if (isPdf) {
-          // Clone the buffer slice to avoid worker detach issues
           const bufferCopy = documentBuffer.slice(0);
-          const loadingTask = pdfjsLib.getDocument({ data: bufferCopy });
-          const pdf = await loadingTask.promise;
-          if (!isMounted) return;
-
+          const pdf = await pdfjsLib.getDocument({ data: bufferCopy }).promise;
+          if (cancelled) return;
           setPdfDoc(pdf);
           onPageCountLoaded(pdf.numPages);
-          await renderPdfPage(pdf, currentPage);
         } else {
-          // Image rendering (PNG/JPEG)
           onPageCountLoaded(1);
-          await renderImageBuffer(documentBuffer);
+          setPdfDoc(null);
         }
       } catch (err) {
-        console.error('[SafePrint DRM Viewer] Render error:', err);
+        console.error('[SafePrint DRM Viewer] Load error:', err);
+        if (!cancelled) setRenderError('Failed to load document. The file may be corrupted or unsupported.');
       } finally {
-        if (isMounted) setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    renderDocument();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [documentBuffer, fileType, filename]);
+    loadDocument();
+    return () => { cancelled = true; };
+  }, [documentBuffer, fileType, filename, onPageCountLoaded]);
 
   // Re-render when page, rotation, filter or zoom changes
   useEffect(() => {
@@ -141,12 +118,13 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
     } else if (documentBuffer && !fileType.includes('pdf')) {
       renderImageBuffer(documentBuffer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, rotation, filterMode, zoomLevel, pdfDoc]);
 
-  const renderPdfPage = async (pdf: any, pageNum: number) => {
-    if (!canvasRef.current || !pdf) return;
+  const renderPdfPage = async (pdf: pdfjsLib.PDFDocumentProxy, pageNum: number) => {
+    if (!canvasRef.current) return;
     try {
-      const page = await pdf.getPage(pageNum);
+      const page = await pdf.getPage(Math.min(pageNum, pdf.numPages));
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
@@ -155,14 +133,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
       canvas.width = viewport.width;
       canvas.height = viewport.height;
 
-      const renderContext = {
-        canvasContext: ctx,
-        viewport: viewport
-      };
-
-      await page.render(renderContext).promise;
-
-      // Apply Post-Process Filters (Grayscale / High Contrast B&W)
+      await page.render({ canvasContext: ctx, viewport }).promise;
       applyCanvasFilter(canvas, ctx);
     } catch (err) {
       console.warn('[SafePrint DRM Viewer] Page render warning:', err);
@@ -178,9 +149,9 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
 
       img.onload = () => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!canvas) { URL.revokeObjectURL(imgUrl); return; }
         const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        if (!ctx) { URL.revokeObjectURL(imgUrl); return; }
 
         const isRotated = rotation === 90 || rotation === 270;
         const width = (isRotated ? img.height : img.width) * zoomLevel;
@@ -202,7 +173,12 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         ctx.restore();
 
         applyCanvasFilter(canvas, ctx);
-        URL.revokeObjectURL(imgUrl); // Immediate cleanup
+        URL.revokeObjectURL(imgUrl);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(imgUrl);
+        setRenderError('Failed to render image. The file may be corrupted.');
       };
 
       img.src = imgUrl;
@@ -213,71 +189,65 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
 
   const applyCanvasFilter = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
     if (filterMode === 'NORMAL') return;
-
     try {
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imgData.data;
 
       for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        // Luminance calculation
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
         if (filterMode === 'GRAYSCALE') {
-          data[i] = gray;
-          data[i + 1] = gray;
-          data[i + 2] = gray;
-        } else if (filterMode === 'BW' || filterMode === 'HIGH_CONTRAST') {
-          // Binary threshold for sharp photocopy
+          data[i] = data[i + 1] = data[i + 2] = gray;
+        } else {
           const threshold = filterMode === 'HIGH_CONTRAST' ? 140 : 128;
           const val = gray > threshold ? 255 : 0;
-          data[i] = val;
-          data[i + 1] = val;
-          data[i + 2] = val;
+          data[i] = data[i + 1] = data[i + 2] = val;
         }
       }
-
       ctx.putImageData(imgData, 0, 0);
     } catch (e) {
-      console.warn('[SafePrint] Filter application error:', e);
+      console.warn('[SafePrint] Filter error:', e);
     }
   };
 
-  const formattedTime = new Date().toISOString().substring(0, 16).replace('T', ' ');
+  const now = new Date();
+  const watermarkTime = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
   return (
     <div
       ref={containerRef}
-      className="drm-canvas-container relative w-full h-[600px] bg-slate-950 rounded-2xl border-2 border-cyan-500/30 overflow-auto flex items-center justify-center p-4 shadow-2xl select-none"
+      className="drm-canvas-container relative w-full min-h-[300px] sm:min-h-[500px] bg-slate-950 rounded-3xl border-2 border-cyan-500/30 overflow-auto flex items-center justify-center p-3 sm:p-4 shadow-2xl select-none"
     >
-      {/* Forensic Watermark Overlay Grid */}
+      {/* Forensic Watermark Overlay */}
       <div className="forensic-watermark-overlay">
-        {Array.from({ length: 35 }).map((_, i) => (
-          <div key={i} className="p-4 opacity-75">
-            SAFEPRINT FORENSIC TRACE • {shopId} • {sessionId.substring(0, 8)} • {formattedTime}
+        {Array.from({ length: 30 }).map((_, i) => (
+          <div key={i} className="p-3 sm:p-4 opacity-75 whitespace-nowrap">
+            SAFEPRINT • {shopId} • {sessionId.substring(0, 8)} • {watermarkTime}
           </div>
         ))}
       </div>
 
-      {/* Screen Capture Deterrent / Blur on Inactive Window */}
+      {/* Window Blur Security Overlay */}
       {isWindowBlurred && (
-        <div className="absolute inset-0 z-30 bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
+        <div className="absolute inset-0 z-30 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
           <EyeOff className="w-12 h-12 text-rose-500 mb-3 animate-bounce" />
           <h3 className="text-lg font-bold text-white mb-1">Display Blurred for Security</h3>
           <p className="text-xs text-slate-400 max-w-sm">
-            SafePrint anti-exfiltration shield activated. Click inside this window to resume viewing.
+            Anti-exfiltration shield active. Click this window to resume viewing.
           </p>
         </div>
       )}
 
-      {/* Sandboxed Canvas */}
+      {/* Canvas Render Area */}
       <div id="print-area" className="relative z-10 max-w-full">
         {loading ? (
-          <div className="flex flex-col items-center gap-3 text-cyan-400 font-mono text-xs">
+          <div className="flex flex-col items-center gap-3 text-cyan-400 font-mono text-xs py-12">
             <div className="w-8 h-8 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
-            <span>Decrypted in RAM. Rendering canvas sandbox...</span>
+            <span>Decrypting and rendering in sandbox...</span>
+          </div>
+        ) : renderError ? (
+          <div className="flex flex-col items-center gap-3 text-rose-400 font-mono text-xs py-12 text-center px-4">
+            <span className="text-lg">⚠️</span>
+            <span>{renderError}</span>
           </div>
         ) : (
           <canvas
@@ -288,10 +258,10 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         )}
       </div>
 
-      {/* DRM Active Floating Badge */}
-      <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/90 border border-emerald-500/40 text-[10px] font-mono text-emerald-300 shadow-lg no-print">
+      {/* DRM Active Badge */}
+      <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/95 border border-emerald-500/40 text-[10px] font-mono text-emerald-300 shadow-lg no-print">
         <Lock className="w-3 h-3 text-emerald-400" />
-        <span>Canvas Sandboxed • Anti-Save Active</span>
+        <span>Canvas Sandboxed • DRM Active</span>
       </div>
     </div>
   );
