@@ -172,6 +172,82 @@ export const TerminalDashboard: React.FC = () => {
           return next;
         });
       },
+      onDocPayload: async (msg) => {
+        const custId = msg.customerId || 'UNKNOWN';
+        const docId = `DOC-${Math.random().toString(36).substring(2, 8)}`;
+        const currentKey = sessionKeyRef.current;
+
+        if (!currentKey) {
+          console.error('[SafePrint] Missing session key for decryption');
+          return;
+        }
+
+        try {
+          const binary = atob(msg.ciphertextBase64);
+          const ciphertextBytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            ciphertextBytes[i] = binary.charCodeAt(i);
+          }
+
+          const iv = new Uint8Array(msg.iv);
+          const plaintextBuffer = await decryptDocument(
+            ciphertextBytes.buffer as ArrayBuffer,
+            iv,
+            currentKey
+          );
+
+          sounds.playEncrypt();
+
+          setCustomers((prev) => {
+            const next = new Map(prev);
+            let cust = next.get(custId);
+            if (!cust) {
+              cust = {
+                customerId: custId,
+                customerName: msg.customerName || `Customer #${next.size + 1}`,
+                joinedAt: Date.now(),
+                lastActive: Date.now(),
+                documents: [],
+                status: 'ACTIVE',
+              };
+              next.set(custId, cust);
+            }
+            cust.status = 'ACTIVE';
+            cust.lastActive = Date.now();
+            cust.documents.push({
+              id: docId,
+              filename: msg.metadata?.filename || 'Document',
+              fileType: msg.metadata?.fileType || 'application/pdf',
+              fileSize: msg.metadata?.fileSize || 0,
+              docHash: msg.metadata?.docHash,
+              watermarkText: msg.metadata?.watermarkText,
+              maxCopies: msg.metadata?.maxCopies || 5,
+              decryptedBuffer: plaintextBuffer,
+              status: 'READY',
+              receivedAt: Date.now(),
+              copies: 1,
+            });
+            return next;
+          });
+
+          setSelectedCustomerId((prev) => prev || custId);
+          setSelectedDocId((prev) => prev || docId);
+
+          if (ledgerRef.current && msg.metadata) {
+            await ledgerRef.current.recordIngest(
+              msg.metadata.docHash || 'UNKNOWN',
+              msg.metadata.filename || 'Document',
+              1,
+              msg.metadata.watermarkText
+            );
+          }
+
+          toast.success('Document Received in RAM', `"${msg.metadata?.filename}" ready to print.`);
+        } catch (err) {
+          console.error('[SafePrint] Decryption failed:', err);
+          toast.error('Decryption Error', 'Failed to decrypt document payload.');
+        }
+      },
       onDocMeta: (msg) => {
         const custId = msg.customerId || 'UNKNOWN';
         const docId = `DOC-${Math.random().toString(36).substring(2, 8)}`;

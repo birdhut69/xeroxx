@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // ── Multi-Customer Ephemeral Relay for Serverless Environments ──
-// All memory is transient — no persistence, no disk storage.
+// All memory is transient in-memory — no persistence, no disk storage.
 
 interface EphemeralMessage {
   id: string;
@@ -29,10 +29,10 @@ interface ServerlessRoom {
 }
 
 const rooms = new Map<string, ServerlessRoom>();
-const MAX_ROOMS = 500;
-const MAX_MESSAGES_PER_ROOM = 250;
-const ROOM_TTL_MS = 20 * 60 * 1000; // 20 min
-const MAX_MESSAGE_SIZE = 512 * 1024; // 512 KB
+const MAX_ROOMS = 1000;
+const MAX_MESSAGES_PER_ROOM = 500;
+const ROOM_TTL_MS = 30 * 60 * 1000; // 30 min TTL
+const MAX_MESSAGE_SIZE = 15 * 1024 * 1024; // 15 MB payload limit
 
 function cleanup() {
   const now = Date.now();
@@ -109,9 +109,19 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     if (action === 'JOIN_CUSTOMER') {
       if (!roomId) return res.status(400).json({ error: 'Missing roomId' });
 
-      const room = rooms.get(roomId);
+      let room = rooms.get(roomId);
+      // Auto create room stub if shop initialized with same roomId
       if (!room) {
-        return res.status(404).json({ error: 'Shop session expired or offline. Please re-scan QR.' });
+        room = {
+          roomId,
+          shopId: 'SHOP-AUTO',
+          shopName: 'SafePrint Express Station',
+          createdAt: Date.now(),
+          lastActivity: Date.now(),
+          customers: new Map(),
+          messages: [],
+        };
+        rooms.set(roomId, room);
       }
 
       const assignedCustId = customerId || `CUST-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
@@ -151,9 +161,18 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       if (!roomId) return res.status(400).json({ error: 'Missing roomId' });
 
       const { targetRole, targetCustomerId, message } = body;
-      const room = rooms.get(roomId);
+      let room = rooms.get(roomId);
       if (!room) {
-        return res.status(404).json({ error: 'Room expired' });
+        room = {
+          roomId,
+          shopId: 'SHOP-AUTO',
+          shopName: 'SafePrint Express Station',
+          createdAt: Date.now(),
+          lastActivity: Date.now(),
+          customers: new Map(),
+          messages: [],
+        };
+        rooms.set(roomId, room);
       }
 
       room.lastActivity = Date.now();
@@ -186,7 +205,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
       const room = rooms.get(roomId);
       if (!room) {
-        return res.status(200).json({ messages: [], roomClosed: true });
+        return res.status(200).json({ messages: [], timestamp: Date.now() });
       }
 
       room.lastActivity = Date.now();
@@ -207,5 +226,5 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  return res.status(200).json({ status: 'ONLINE', service: 'SafePrint Serverless Multi-User Relay' });
+  return res.status(200).json({ status: 'ONLINE', service: 'SafePrint Ephemeral Relay' });
 }

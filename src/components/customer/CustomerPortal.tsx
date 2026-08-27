@@ -223,7 +223,7 @@ export const CustomerPortal: React.FC = () => {
         maxCopies,
       };
 
-      await relayRef.current.sendEncryptedChunks(
+      await relayRef.current.sendEncryptedPayload(
         roomId,
         customerId,
         customerName,

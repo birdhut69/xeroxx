@@ -1,9 +1,14 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { EyeOff, Lock } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { EyeOff, Lock, AlertCircle } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '../shared/ToastContext';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+// Set up pdf.js worker with unpkg fallback
+try {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+} catch {
+  // worker fallback
+}
 
 interface DRMCanvasViewerProps {
   documentBuffer: ArrayBuffer | null;
@@ -53,9 +58,6 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         e.preventDefault();
         onSafePrintTrigger();
       }
-      if (e.key === 'F12' || ((e.ctrlKey || e.metaKey) && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase()))) {
-        e.preventDefault();
-      }
     };
 
     const handleDragStart = (e: DragEvent) => { e.preventDefault(); };
@@ -101,7 +103,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         }
       } catch (err) {
         console.error('[SafePrint DRM Viewer] Load error:', err);
-        if (!cancelled) setRenderError('Failed to load document. The file may be corrupted or unsupported.');
+        if (!cancelled) setRenderError('Could not load document preview.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -153,23 +155,23 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         const ctx = canvas.getContext('2d');
         if (!ctx) { URL.revokeObjectURL(imgUrl); return; }
 
+        const naturalW = img.naturalWidth || 800;
+        const naturalH = img.naturalHeight || 1000;
         const isRotated = rotation === 90 || rotation === 270;
-        const width = (isRotated ? img.height : img.width) * zoomLevel;
-        const height = (isRotated ? img.width : img.height) * zoomLevel;
 
-        canvas.width = width;
-        canvas.height = height;
+        const canvasW = (isRotated ? naturalH : naturalW) * zoomLevel;
+        const canvasH = (isRotated ? naturalW : naturalH) * zoomLevel;
+
+        canvas.width = canvasW;
+        canvas.height = canvasH;
 
         ctx.save();
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate((rotation * Math.PI) / 180);
-        ctx.drawImage(
-          img,
-          -((isRotated ? height : width) / 2),
-          -((isRotated ? width : height) / 2),
-          isRotated ? height : width,
-          isRotated ? width : height
-        );
+
+        const drawW = naturalW * zoomLevel;
+        const drawH = naturalH * zoomLevel;
+        ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
         ctx.restore();
 
         applyCanvasFilter(canvas, ctx);
@@ -178,7 +180,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
 
       img.onerror = () => {
         URL.revokeObjectURL(imgUrl);
-        setRenderError('Failed to render image. The file may be corrupted.');
+        setRenderError('Failed to render image.');
       };
 
       img.src = imgUrl;
@@ -198,7 +200,8 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         if (filterMode === 'GRAYSCALE') {
           data[i] = data[i + 1] = data[i + 2] = gray;
         } else {
-          const threshold = filterMode === 'HIGH_CONTRAST' ? 140 : 128;
+          // Photocopy B&W threshold
+          const threshold = filterMode === 'HIGH_CONTRAST' ? 145 : 128;
           const val = gray > threshold ? 255 : 0;
           data[i] = data[i + 1] = data[i + 2] = val;
         }
@@ -215,53 +218,51 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
   return (
     <div
       ref={containerRef}
-      className="drm-canvas-container relative w-full min-h-[300px] sm:min-h-[500px] bg-slate-950 rounded-3xl border-2 border-cyan-500/30 overflow-auto flex items-center justify-center p-3 sm:p-4 shadow-2xl select-none"
+      className="drm-canvas-container relative w-full min-h-[300px] sm:min-h-[480px] bg-[#54656f] rounded-2xl overflow-auto flex items-center justify-center p-3 sm:p-4 shadow-xl select-none border border-[#d1d7db]"
     >
       {/* Forensic Watermark Overlay */}
       <div className="forensic-watermark-overlay">
-        {Array.from({ length: 30 }).map((_, i) => (
-          <div key={i} className="p-3 sm:p-4 opacity-75 whitespace-nowrap">
+        {Array.from({ length: 24 }).map((_, i) => (
+          <div key={i} className="p-3 opacity-60 whitespace-nowrap">
             SAFEPRINT • {shopId} • {sessionId.substring(0, 8)} • {watermarkTime}
           </div>
         ))}
       </div>
 
-      {/* Window Blur Security Overlay */}
+      {/* Window Blur Shield */}
       {isWindowBlurred && (
-        <div className="absolute inset-0 z-30 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
-          <EyeOff className="w-12 h-12 text-rose-500 mb-3 animate-bounce" />
-          <h3 className="text-lg font-bold text-white mb-1">Display Blurred for Security</h3>
-          <p className="text-xs text-slate-400 max-w-sm">
-            Anti-exfiltration shield active. Click this window to resume viewing.
-          </p>
+        <div className="absolute inset-0 z-30 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 text-white">
+          <EyeOff className="w-10 h-10 text-red-400 mb-2 animate-bounce" />
+          <h4 className="text-sm font-bold">Display Shielded</h4>
+          <p className="text-xs text-slate-300">Click window to resume document viewing.</p>
         </div>
       )}
 
-      {/* Canvas Render Area */}
+      {/* Canvas Print Sandbox Area */}
       <div id="print-area" className="relative z-10 max-w-full">
         {loading ? (
-          <div className="flex flex-col items-center gap-3 text-cyan-400 font-mono text-xs py-12">
-            <div className="w-8 h-8 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
-            <span>Decrypting and rendering in sandbox...</span>
+          <div className="flex flex-col items-center gap-2 text-white font-mono text-xs py-10">
+            <div className="w-7 h-7 rounded-full border-2 border-white border-t-transparent animate-spin" />
+            <span>Rendering in RAM sandbox...</span>
           </div>
         ) : renderError ? (
-          <div className="flex flex-col items-center gap-3 text-rose-400 font-mono text-xs py-12 text-center px-4">
-            <span className="text-lg">⚠️</span>
+          <div className="flex flex-col items-center gap-2 text-red-300 font-mono text-xs py-10 text-center px-4">
+            <AlertCircle className="w-6 h-6" />
             <span>{renderError}</span>
           </div>
         ) : (
           <canvas
             ref={canvasRef}
-            className="print-page-canvas shadow-2xl bg-white rounded transition-transform duration-200"
+            className="print-page-canvas shadow-xl bg-white rounded transition-transform duration-150"
             style={{ maxWidth: '100%', height: 'auto' }}
           />
         )}
       </div>
 
       {/* DRM Active Badge */}
-      <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/95 border border-emerald-500/40 text-[10px] font-mono text-emerald-300 shadow-lg no-print">
-        <Lock className="w-3 h-3 text-emerald-400" />
-        <span>Canvas Sandboxed • DRM Active</span>
+      <div className="absolute bottom-2.5 right-2.5 z-20 flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/75 text-[10px] font-mono text-white shadow-md no-print">
+        <Lock className="w-3 h-3 text-[#25d366]" />
+        <span>DRM Sandboxed • Anti-Save</span>
       </div>
     </div>
   );

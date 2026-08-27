@@ -79,6 +79,27 @@ wss.on('connection', (ws: WebSocket) => {
           break;
         }
 
+        case 'DOC_PAYLOAD': {
+          if (!activeRoomId) return;
+          const session = roomManager.getRoom(activeRoomId);
+          if (session && session.shopSocket && session.shopSocket.readyState === WebSocket.OPEN) {
+            roomManager.touch(activeRoomId);
+            session.shopSocket.send(
+              JSON.stringify({
+                type: 'DOC_PAYLOAD',
+                customerId: msg.customerId || activeCustomerId,
+                customerName: msg.customerName,
+                metadata: msg.metadata,
+                iv: msg.iv,
+                docHash: msg.docHash,
+                ciphertextBase64: msg.ciphertextBase64,
+                timestamp: Date.now(),
+              })
+            );
+          }
+          break;
+        }
+
         case 'DOC_META': {
           if (!activeRoomId) return;
           const session = roomManager.getRoom(activeRoomId);

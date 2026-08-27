@@ -5,6 +5,7 @@ export interface RelaySocketCallbacks {
   onCustomerConnected?: (data: { customerId: string; customerName: string; totalCustomers: number; timestamp: number }) => void;
   onCustomerLeft?: (data: { customerId: string; totalCustomers: number; timestamp: number }) => void;
   onConnectedToShop?: (data: { shopName: string; shopId: string; customerId: string; timestamp: number }) => void;
+  onDocPayload?: (data: { customerId: string; customerName?: string; metadata: any; iv: number[]; docHash: string; ciphertextBase64: string; timestamp: number }) => void;
   onDocMeta?: (data: { customerId?: string; customerName?: string; metadata: any; iv: number[]; docHash: string; timestamp: number }) => void;
   onDocChunk?: (data: { customerId?: string; chunkIndex: number; totalChunks: number; data: string }) => void;
   onDocComplete?: (data: { customerId?: string }) => void;
@@ -14,7 +15,7 @@ export interface RelaySocketCallbacks {
 
 export class RelaySocket {
   private ws: WebSocket | null = null;
-  private url: string;
+  private url: string = '';
   private callbacks: RelaySocketCallbacks = {};
   private pingInterval: any = null;
   private useServerlessFallback: boolean = false;
@@ -24,28 +25,41 @@ export class RelaySocket {
   private activeRoomId: string | null = null;
   private activeCustomerId: string | null = null;
 
-  constructor(url?: string) {
-    if (url) {
-      this.url = url;
-    } else {
+  constructor() {
+    const isLocal =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.') ||
+        window.location.hostname.startsWith('10.'));
+
+    if (isLocal) {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.hostname;
-      const port = window.location.port === '5173' ? '8080' : window.location.port || '8080';
+      const port = '8080';
       this.url = `${protocol}//${host}:${port}/ws`;
+    } else {
+      // Cloud environment (e.g. Vercel) -> Directly use serverless relay
+      this.useServerlessFallback = true;
     }
   }
 
   public connect(callbacks: RelaySocketCallbacks): Promise<void> {
     this.callbacks = callbacks;
     return new Promise((resolve) => {
-      try {
-        console.log(`[SafePrint Relay] Connecting: ${this.url}`);
-        this.ws = new WebSocket(this.url);
+      // If on Vercel or cloud deployment, activate Serverless immediately
+      if (this.useServerlessFallback || !this.url) {
+        this.useServerlessFallback = true;
+        this.callbacks.onOpen?.();
+        resolve();
+        return;
+      }
 
+      try {
+        this.ws = new WebSocket(this.url);
         let resolved = false;
 
         this.ws.onopen = () => {
-          console.log('[SafePrint Relay] WebSocket connection online');
           resolved = true;
           this.startHeartbeat();
           this.callbacks.onOpen?.();
@@ -64,36 +78,33 @@ export class RelaySocket {
         this.ws.onclose = () => {
           this.stopHeartbeat();
           if (!resolved) {
-            this.activateServerlessFallback();
+            this.useServerlessFallback = true;
+            this.callbacks.onOpen?.();
             resolve();
           }
         };
 
         this.ws.onerror = () => {
           if (!resolved) {
-            this.activateServerlessFallback();
+            this.useServerlessFallback = true;
+            this.callbacks.onOpen?.();
             resolve();
           }
         };
 
         setTimeout(() => {
           if (!resolved) {
-            this.activateServerlessFallback();
+            this.useServerlessFallback = true;
+            this.callbacks.onOpen?.();
             resolve();
           }
-        }, 2000);
+        }, 1500);
       } catch {
-        this.activateServerlessFallback();
+        this.useServerlessFallback = true;
+        this.callbacks.onOpen?.();
         resolve();
       }
     });
-  }
-
-  private activateServerlessFallback() {
-    if (this.useServerlessFallback) return;
-    this.useServerlessFallback = true;
-    console.log('[SafePrint Relay] Using Vercel Serverless Multi-User Ephemeral Relay');
-    this.callbacks.onOpen?.();
   }
 
   private startPolling() {
@@ -115,9 +126,9 @@ export class RelaySocket {
           }
         }
       } catch {
-        // quiet polling errors
+        // quiet poll
       }
-    }, 700);
+    }, 450);
   }
 
   private handleMessage(msg: any) {
@@ -131,6 +142,9 @@ export class RelaySocket {
       case 'CONNECTED_TO_SHOP':
         if (msg.customerId) this.activeCustomerId = msg.customerId;
         this.callbacks.onConnectedToShop?.(msg);
+        break;
+      case 'DOC_PAYLOAD':
+        this.callbacks.onDocPayload?.(msg);
         break;
       case 'DOC_META':
         this.callbacks.onDocMeta?.(msg);
@@ -156,9 +170,9 @@ export class RelaySocket {
 
     if (msg.type === 'INIT_TERMINAL') {
       this.role = 'SHOP';
+      this.lastPollTimestamp = Date.now() - 5000;
+      this.startPolling();
       if (this.useServerlessFallback) {
-        this.lastPollTimestamp = Date.now();
-        this.startPolling();
         fetch('/api/relay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -172,9 +186,9 @@ export class RelaySocket {
       }
     } else if (msg.type === 'JOIN_CUSTOMER') {
       this.role = 'CUSTOMER';
+      this.lastPollTimestamp = Date.now() - 5000;
+      this.startPolling();
       if (this.useServerlessFallback) {
-        this.lastPollTimestamp = Date.now();
-        this.startPolling();
         fetch('/api/relay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -218,7 +232,7 @@ export class RelaySocket {
     }
   }
 
-  public async sendEncryptedChunks(
+  public async sendEncryptedPayload(
     roomId: string,
     customerId: string,
     customerName: string,
@@ -228,57 +242,38 @@ export class RelaySocket {
     metadata: any,
     onProgress?: (progress: number) => void
   ) {
-    // 1. Send DOC_META
+    onProgress?.(30);
+
+    // Fast binary to base64 conversion
+    const bytes = new Uint8Array(encryptedBuffer);
+    let binary = '';
+    const sliceSize = 32768;
+    for (let i = 0; i < bytes.length; i += sliceSize) {
+      const slice = bytes.subarray(i, i + sliceSize);
+      binary += String.fromCharCode.apply(null, Array.from(slice));
+      if (bytes.length > 500000 && i % (sliceSize * 4) === 0) {
+        onProgress?.(Math.min(80, Math.round((i / bytes.length) * 80)));
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    }
+    const b64Data = btoa(binary);
+
+    onProgress?.(90);
+
+    // Send single atomic payload message
     this.send({
-      type: 'DOC_META',
+      type: 'DOC_PAYLOAD',
       roomId,
       customerId,
       customerName,
       metadata,
       iv: Array.from(iv),
       docHash,
+      ciphertextBase64: b64Data,
+      timestamp: Date.now(),
     });
 
-    // 2. Chunk buffer into 64KB slices
-    const CHUNK_SIZE = 64 * 1024;
-    const uint8View = new Uint8Array(encryptedBuffer);
-    const totalChunks = Math.ceil(uint8View.length / CHUNK_SIZE);
-
-    for (let i = 0; i < totalChunks; i++) {
-      const start = i * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, uint8View.length);
-      const chunkBytes = uint8View.subarray(start, end);
-
-      let binary = '';
-      for (let j = 0; j < chunkBytes.length; j++) {
-        binary += String.fromCharCode(chunkBytes[j]);
-      }
-      const b64Data = btoa(binary);
-
-      this.send({
-        type: 'DOC_CHUNK',
-        roomId,
-        customerId,
-        chunkIndex: i,
-        totalChunks,
-        data: b64Data,
-      });
-
-      if (onProgress) {
-        onProgress(Math.round(((i + 1) / totalChunks) * 100));
-      }
-
-      if (totalChunks > 5 && i % 4 === 0) {
-        await new Promise((r) => setTimeout(r, 10));
-      }
-    }
-
-    // 3. Send DOC_COMPLETE
-    this.send({
-      type: 'DOC_COMPLETE',
-      roomId,
-      customerId,
-    });
+    onProgress?.(100);
   }
 
   private startHeartbeat() {
