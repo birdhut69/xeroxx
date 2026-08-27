@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ShieldCheck, ShieldAlert, Check, Ban, HardDrive, Key, Lock, EyeOff, Flame } from 'lucide-react';
+import { X, ShieldCheck, Check, Ban, Lock } from 'lucide-react';
 
 interface ComparisonModalProps {
   isOpen: boolean;
@@ -14,91 +14,85 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
       feature: 'Document Storage on Shop PC',
       whatsapp: 'Saved permanently to Downloads / WhatsApp Media folder',
       safeprint: '100% In-Memory RAM buffer (0 KB written to disk)',
-      safe: true
     },
     {
       feature: 'Data Resale / Exfiltration Risk',
-      whatsapp: 'High (Shopkeeper / malware has permanent file access)',
+      whatsapp: 'High (Shopkeeper & malware have permanent file access)',
       safeprint: 'Eliminated (Encrypted stream & Sandboxed DRM Canvas)',
-      safe: true
     },
     {
       feature: 'Document Redaction (Masking Aadhaar/PAN)',
       whatsapp: 'None (Full sensitive ID numbers exposed)',
       safeprint: 'Built-in client-side privacy blackout brush before encryption',
-      safe: true
     },
     {
       feature: 'Unauthorized Extra Copies',
       whatsapp: 'Unrestricted (Shopkeeper can print unlimited copies)',
       safeprint: 'Restricted by cryptographic session permission limits',
-      safe: true
     },
     {
       feature: 'Screenshot / Camera Scraping',
       whatsapp: 'Unprotected',
       safeprint: 'Dynamic Forensic Watermark Grid + Blur heuristics',
-      safe: true
     },
     {
       feature: 'Proof of Document Deletion',
       whatsapp: 'None (Trust-based)',
       safeprint: 'Cryptographic SHA-256 Merkle Destruction Certificate',
-      safe: true
-    }
+    },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto flex items-center justify-center animate-in fade-in duration-200">
-      <div className="glass-panel-glow max-w-2xl w-full rounded-3xl p-6 sm:p-8 relative border border-cyan-500/40 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm p-4 overflow-y-auto flex items-center justify-center animate-in fade-in duration-200">
+      <div className="wa-panel max-w-2xl w-full rounded-2xl p-6 sm:p-8 relative border border-[#d1d7db] shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto text-left">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+          className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-[#f0f2f5] text-[#54656f] transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Header */}
-        <div className="text-left space-y-1.5 pr-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold font-mono">
+        <div className="space-y-1 pr-8">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#d9fdd3] text-[#008069] text-xs font-bold font-mono border border-[#00a884]/30">
             <ShieldCheck className="w-3.5 h-3.5" />
-            SECURITY ARCHITECTURE BRIEF
+            <span>SECURITY ARCHITECTURE</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-white">
+          <h2 className="text-xl font-bold text-[#111b21]">
             Why WhatsApp Fails for Print Shops
           </h2>
-          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            Every year, millions of personal documents are leaked or sold from print shop computers. Here is how SafePrint solves it at the protocol level.
+          <p className="text-xs text-[#667781] leading-relaxed">
+            Every year, millions of Aadhaar cards, marksheets, and legal documents are leaked from print shop computers. Here is how SafePrint fixes it.
           </p>
         </div>
 
         {/* Comparison Table */}
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {comparisonRows.map((row, idx) => (
             <div
               key={idx}
-              className="p-3.5 sm:p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2 text-left"
+              className="p-3.5 rounded-xl bg-[#f0f2f5] border border-[#e9edef] space-y-1.5"
             >
-              <div className="text-xs font-bold text-slate-200">{row.feature}</div>
+              <div className="text-xs font-bold text-[#111b21]">{row.feature}</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div className="p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/30 flex items-start gap-2">
-                  <Ban className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <div className="p-2 rounded-lg bg-[#fee2e2] border border-[#fca5a5] flex items-start gap-2">
+                  <Ban className="w-4 h-4 text-[#dc2626] shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold text-rose-300 block text-[10px] uppercase font-mono">
+                    <span className="font-bold text-[#dc2626] block text-[10px] uppercase font-mono">
                       WhatsApp / Email
                     </span>
-                    <span className="text-slate-300 text-[11px] leading-snug">{row.whatsapp}</span>
+                    <span className="text-[#7f1d1d] text-[11px] leading-snug">{row.whatsapp}</span>
                   </div>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-start gap-2">
-                  <Check className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <div className="p-2 rounded-lg bg-[#d9fdd3] border border-[#86efac] flex items-start gap-2">
+                  <Check className="w-4 h-4 text-[#008069] shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold text-cyan-300 block text-[10px] uppercase font-mono">
+                    <span className="font-bold text-[#008069] block text-[10px] uppercase font-mono">
                       SafePrint Zero-Trust
                     </span>
-                    <span className="text-slate-200 text-[11px] leading-snug">{row.safeprint}</span>
+                    <span className="text-[#14532d] text-[11px] leading-snug">{row.safeprint}</span>
                   </div>
                 </div>
               </div>
@@ -107,17 +101,17 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Summary Footer */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-left border-t border-slate-800">
-          <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
-            <Lock className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-[#e9edef]">
+          <div className="text-[11px] text-[#667781] font-mono flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5 text-[#008069]" />
             <span>RFC 3986 URL Hash Key Exchange • 100% Zero Storage</span>
           </div>
 
           <button
             onClick={onClose}
-            className="btn-cyber-primary w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold"
+            className="btn-wa-primary w-full sm:w-auto px-6 py-2 rounded-xl text-xs font-bold"
           >
-            Got it, Let's Print Securely!
+            Got it, Let's Print!
           </button>
         </div>
       </div>

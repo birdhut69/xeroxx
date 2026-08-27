@@ -1,14 +1,21 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// ── Ephemeral In-Memory Relay for Serverless Environments ──
-// All data is held strictly in memory — no disk, no database, no persistence.
-// Rooms auto-expire after 15 minutes of inactivity.
+// ── Multi-Customer Ephemeral Relay for Serverless Environments ──
+// All memory is transient — no persistence, no disk storage.
 
 interface EphemeralMessage {
   id: string;
   targetRole: 'SHOP' | 'CUSTOMER';
+  targetCustomerId?: string;
   timestamp: number;
   data: Record<string, unknown>;
+}
+
+interface ServerlessCustomer {
+  customerId: string;
+  customerName: string;
+  connectedAt: number;
+  lastActivity: number;
 }
 
 interface ServerlessRoom {
@@ -17,16 +24,16 @@ interface ServerlessRoom {
   shopName: string;
   createdAt: number;
   lastActivity: number;
+  customers: Map<string, ServerlessCustomer>;
   messages: EphemeralMessage[];
 }
 
 const rooms = new Map<string, ServerlessRoom>();
 const MAX_ROOMS = 500;
-const MAX_MESSAGES_PER_ROOM = 200;
-const ROOM_TTL_MS = 15 * 60 * 1000; // 15 min
-const MAX_MESSAGE_SIZE = 512 * 1024; // 512 KB per message
+const MAX_MESSAGES_PER_ROOM = 250;
+const ROOM_TTL_MS = 20 * 60 * 1000; // 20 min
+const MAX_MESSAGE_SIZE = 512 * 1024; // 512 KB
 
-// Auto purge stale rooms
 function cleanup() {
   const now = Date.now();
   for (const [id, room] of rooms.entries()) {
@@ -36,22 +43,12 @@ function cleanup() {
   }
 }
 
-// Basic input validation
-function isValidRoomId(id: unknown): id is string {
-  return typeof id === 'string' && id.length > 0 && id.length <= 128;
-}
-
-function isValidRole(role: unknown): role is 'SHOP' | 'CUSTOMER' {
-  return role === 'SHOP' || role === 'CUSTOMER';
-}
-
 function sanitizeString(input: unknown, maxLen: number = 256): string {
   if (typeof input !== 'string') return '';
   return input.slice(0, maxLen).replace(/[<>"']/g, '');
 }
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -65,13 +62,14 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
   const action = (req.query.action || req.body?.action) as string | undefined;
   const roomId = (req.query.roomId || req.body?.roomId) as string | undefined;
+  const customerId = (req.query.customerId || req.body?.customerId) as string | undefined;
 
-  // ── Health Check ──
+  // Health check
   if (action === 'health' || (req.method === 'GET' && req.url?.includes('health'))) {
     return res.status(200).json({
       status: 'ONLINE',
       mode: 'VERCEL_SERVERLESS_EPHEMERAL_RELAY',
-      persistence: false,
+      multiUser: true,
       activeRooms: rooms.size,
       timestamp: Date.now(),
     });
@@ -81,74 +79,78 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST') {
     const body = req.body || {};
 
-    // Rate limit: max rooms
     if (action === 'INIT_TERMINAL') {
-      if (!isValidRoomId(roomId)) {
-        return res.status(400).json({ error: 'Invalid roomId' });
-      }
-      if (rooms.size >= MAX_ROOMS && !rooms.has(roomId)) {
-        return res.status(503).json({ error: 'Server at capacity. Try again later.' });
-      }
+      if (!roomId) return res.status(400).json({ error: 'Missing roomId' });
 
       const shopId = sanitizeString(body.shopId, 64) || 'SHOP-VERCEL';
       const shopName = sanitizeString(body.shopName, 128) || 'SafePrint Station';
 
-      rooms.set(roomId, {
-        roomId,
-        shopId,
-        shopName,
-        createdAt: Date.now(),
-        lastActivity: Date.now(),
-        messages: [],
-      });
+      let room = rooms.get(roomId);
+      if (!room) {
+        room = {
+          roomId,
+          shopId,
+          shopName,
+          createdAt: Date.now(),
+          lastActivity: Date.now(),
+          customers: new Map(),
+          messages: [],
+        };
+        rooms.set(roomId, room);
+      } else {
+        room.shopId = shopId;
+        room.shopName = shopName;
+        room.lastActivity = Date.now();
+      }
 
       return res.status(200).json({ status: 'OK', roomId });
     }
 
     if (action === 'JOIN_CUSTOMER') {
-      if (!isValidRoomId(roomId)) {
-        return res.status(400).json({ error: 'Invalid roomId' });
-      }
+      if (!roomId) return res.status(400).json({ error: 'Missing roomId' });
 
       const room = rooms.get(roomId);
       if (!room) {
-        return res.status(404).json({ error: 'Room not found or expired. Ask shopkeeper for a new QR code.' });
+        return res.status(404).json({ error: 'Shop session expired or offline. Please re-scan QR.' });
       }
 
+      const assignedCustId = customerId || `CUST-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      const customerName = sanitizeString(body.customerName, 64) || `Customer #${room.customers.size + 1}`;
+
+      room.customers.set(assignedCustId, {
+        customerId: assignedCustId,
+        customerName,
+        connectedAt: Date.now(),
+        lastActivity: Date.now(),
+      });
       room.lastActivity = Date.now();
+
+      // Notify Shopkeeper Terminal
       room.messages.push({
-        id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+        id: Math.random().toString(36).substring(2),
         targetRole: 'SHOP',
         timestamp: Date.now(),
-        data: { type: 'CUSTOMER_CONNECTED', timestamp: Date.now() },
+        data: {
+          type: 'CUSTOMER_CONNECTED',
+          customerId: assignedCustId,
+          customerName,
+          totalCustomers: room.customers.size,
+          timestamp: Date.now(),
+        },
       });
 
       return res.status(200).json({
         status: 'OK',
+        customerId: assignedCustId,
         shopName: room.shopName,
         shopId: room.shopId,
       });
     }
 
     if (action === 'SEND_MESSAGE') {
-      if (!isValidRoomId(roomId)) {
-        return res.status(400).json({ error: 'Invalid roomId' });
-      }
+      if (!roomId) return res.status(400).json({ error: 'Missing roomId' });
 
-      const { targetRole, message } = body;
-      if (!isValidRole(targetRole)) {
-        return res.status(400).json({ error: 'Invalid targetRole' });
-      }
-      if (!message || typeof message !== 'object') {
-        return res.status(400).json({ error: 'Invalid message payload' });
-      }
-
-      // Size check
-      const messageStr = JSON.stringify(message);
-      if (messageStr.length > MAX_MESSAGE_SIZE) {
-        return res.status(413).json({ error: 'Message too large' });
-      }
-
+      const { targetRole, targetCustomerId, message } = body;
       const room = rooms.get(roomId);
       if (!room) {
         return res.status(404).json({ error: 'Room expired' });
@@ -156,13 +158,13 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
       room.lastActivity = Date.now();
       room.messages.push({
-        id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
-        targetRole,
+        id: Math.random().toString(36).substring(2),
+        targetRole: targetRole || 'SHOP',
+        targetCustomerId,
         timestamp: Date.now(),
         data: message,
       });
 
-      // Keep only the last N messages per room
       if (room.messages.length > MAX_MESSAGES_PER_ROOM) {
         room.messages = room.messages.slice(-MAX_MESSAGES_PER_ROOM);
       }
@@ -176,19 +178,11 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   // ── GET Actions ──
   if (req.method === 'GET') {
     if (action === 'POLL') {
-      if (!isValidRoomId(roomId)) {
-        return res.status(400).json({ error: 'Invalid roomId' });
-      }
+      if (!roomId) return res.status(400).json({ error: 'Missing roomId' });
 
-      const role = req.query.role as string;
-      if (!isValidRole(role)) {
-        return res.status(400).json({ error: 'Invalid role' });
-      }
-
+      const role = req.query.role as 'SHOP' | 'CUSTOMER';
+      const custId = req.query.customerId as string | undefined;
       const since = parseInt((req.query.since as string) || '0', 10);
-      if (isNaN(since)) {
-        return res.status(400).json({ error: 'Invalid since timestamp' });
-      }
 
       const room = rooms.get(roomId);
       if (!room) {
@@ -196,9 +190,15 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       room.lastActivity = Date.now();
-      const newMessages = room.messages.filter(
-        (m) => m.targetRole === role && m.timestamp > since
-      );
+
+      const newMessages = room.messages.filter((m) => {
+        if (m.timestamp <= since) return false;
+        if (role === 'SHOP') return m.targetRole === 'SHOP';
+        if (role === 'CUSTOMER') {
+          return m.targetRole === 'CUSTOMER' && (!m.targetCustomerId || m.targetCustomerId === custId);
+        }
+        return false;
+      });
 
       return res.status(200).json({
         messages: newMessages.map((m) => m.data),
@@ -207,5 +207,5 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  return res.status(200).json({ status: 'ONLINE', service: 'SafePrint Serverless Relay' });
+  return res.status(200).json({ status: 'ONLINE', service: 'SafePrint Serverless Multi-User Relay' });
 }

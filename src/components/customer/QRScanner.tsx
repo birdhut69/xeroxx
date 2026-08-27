@@ -9,7 +9,6 @@ interface QRScannerProps {
 
 export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
   const [manualInput, setManualInput] = useState('');
-  const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
@@ -27,16 +26,15 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
       }
     }
 
-    // Initialize in-browser QR camera scanner
     try {
       const scanner = new Html5QrcodeScanner(
         'qr-reader',
         {
           fps: 10,
-          qrbox: { width: 250, height: 250 },
-          rememberLastUsedCamera: true
+          qrbox: { width: 240, height: 240 },
+          rememberLastUsedCamera: true,
         },
-        /* verbose= */ false
+        false
       );
       scannerRef.current = scanner;
 
@@ -44,35 +42,26 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
         (decodedText) => {
           handleDecodedUrl(decodedText);
         },
-        (error) => {
-          // quiet continuous frame errors
-        }
+        () => {}
       );
-      setScanning(true);
-    } catch (err: any) {
-      console.warn('[SafePrint QR Scanner] Camera init note:', err);
-      setScanError('Camera access not permitted or unavailable. Use manual link entry below.');
+    } catch {
+      setScanError('Camera unavailable or permission denied. Use manual link entry below.');
     }
 
     return () => {
-      if (scannerRef.current) {
-        try {
-          scannerRef.current.clear();
-        } catch {}
-      }
+      try {
+        scannerRef.current?.clear();
+      } catch {}
     };
   }, []);
 
   const handleDecodedUrl = (text: string) => {
     try {
       sounds.playConnect();
-      if (scannerRef.current) {
-        try {
-          scannerRef.current.clear();
-        } catch {}
-      }
+      try {
+        scannerRef.current?.clear();
+      } catch {}
 
-      // Parse room and key
       let url: URL;
       if (text.startsWith('http://') || text.startsWith('https://')) {
         url = new URL(text);
@@ -89,7 +78,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
       } else {
         setScanError('Invalid SafePrint QR code format.');
       }
-    } catch (e: any) {
+    } catch {
       setScanError('Failed to parse QR code link.');
     }
   };
@@ -101,41 +90,43 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
   };
 
   return (
-    <div className="glass-panel-glow p-6 sm:p-8 rounded-2xl max-w-md mx-auto text-center relative overflow-hidden">
-      <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center mx-auto mb-3">
+    <div className="wa-panel p-6 sm:p-8 rounded-2xl max-w-md mx-auto text-center relative overflow-hidden shadow-lg space-y-4">
+      <div className="w-12 h-12 rounded-2xl bg-[#d9fdd3] text-[#008069] flex items-center justify-center mx-auto shadow-sm">
         <Camera className="w-6 h-6" />
       </div>
 
-      <h2 className="text-xl font-bold text-white mb-1">Scan Shop QR Code</h2>
-      <p className="text-xs text-slate-300 mb-5">
-        Scan the QR code displayed on the Xerox shop screen to establish an encrypted zero-trust connection.
-      </p>
+      <div className="space-y-1">
+        <h2 className="text-lg font-bold text-[#111b21]">Scan Xerox Shop QR Code</h2>
+        <p className="text-xs text-[#667781] leading-relaxed">
+          Point your camera at the shopkeeper's screen to open an encrypted in-memory chat.
+        </p>
+      </div>
 
-      {/* HTML5 QR Camera Container */}
-      <div className="relative bg-slate-950 rounded-xl overflow-hidden border-2 border-cyan-500/40 mb-5 min-h-[260px] flex items-center justify-center">
-        <div id="qr-reader" className="w-full text-slate-200" />
+      {/* HTML5 QR Camera Box */}
+      <div className="relative bg-[#f0f2f5] rounded-xl overflow-hidden border-2 border-[#00a884]/30 min-h-[260px] flex items-center justify-center">
+        <div id="qr-reader" className="w-full text-[#111b21]" />
       </div>
 
       {scanError && (
-        <div className="p-3 mb-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono">
+        <div className="p-2.5 rounded-lg bg-[#fee2e2] border border-[#fca5a5] text-[#dc2626] text-xs font-mono text-left">
           {scanError}
         </div>
       )}
 
-      {/* Manual Paste Form */}
-      <form onSubmit={handleManualSubmit} className="space-y-3 pt-2 border-t border-slate-800">
-        <div className="text-left text-[11px] text-slate-400 font-medium">Or paste pairing link:</div>
+      {/* Manual Link Input */}
+      <form onSubmit={handleManualSubmit} className="space-y-2 pt-2 border-t border-[#e9edef] text-left">
+        <div className="text-[11px] text-[#667781] font-medium">Or paste pairing link:</div>
         <div className="flex gap-2">
           <input
             type="text"
             value={manualInput}
             onChange={(e) => setManualInput(e.target.value)}
             placeholder="http://.../?room=...#key=..."
-            className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono"
+            className="flex-1 px-3 py-2 rounded-lg bg-[#f0f2f5] border border-[#d1d7db] text-xs text-[#111b21] placeholder-[#8696a0] focus:outline-none focus:border-[#00a884] font-mono"
           />
           <button
             type="submit"
-            className="btn-cyber-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1"
+            className="btn-wa-primary px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1"
           >
             <span>Connect</span>
             <ArrowRight className="w-3.5 h-3.5" />

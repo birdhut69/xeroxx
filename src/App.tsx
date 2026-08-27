@@ -19,7 +19,7 @@ export const AppContent: React.FC = () => {
     }
   }, []);
 
-  // Health check for relay
+  // Health check
   useEffect(() => {
     const checkHealth = async () => {
       try {
@@ -27,7 +27,6 @@ export const AppContent: React.FC = () => {
         const data = await res.json();
         setServerOnline(data.status === 'ONLINE');
       } catch {
-        // Try local dev server
         try {
           const res = await fetch('http://localhost:8080/api/health');
           await res.json();
@@ -42,70 +41,66 @@ export const AppContent: React.FC = () => {
 
   const handleModeChange = useCallback((mode: AppMode) => {
     setCurrentMode(mode);
-    // Clean URL when switching to Terminal mode
     if (mode === 'TERMINAL') {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#080c14] text-slate-100 selection:bg-cyan-500 selection:text-black">
-      {/* Universal SafePrint Header */}
+    <div className="min-h-screen flex flex-col bg-[#f0f2f5] text-[#111b21] selection:bg-[#00a884] selection:text-white">
       <Header
         currentMode={currentMode}
         onModeChange={handleModeChange}
         serverOnline={serverOnline}
       />
 
-      {/* Main View */}
       <main className="flex-1">
         {currentMode === 'TERMINAL' && <TerminalDashboard />}
         {currentMode === 'CUSTOMER' && <CustomerPortal />}
       </main>
 
-      {/* Security Architecture Footer */}
-      <footer className="glass-panel border-t border-slate-800/80 px-4 py-8 mt-12 no-print text-left">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-slate-400">
+      {/* WhatsApp Light Footer */}
+      <footer className="bg-white border-t border-[#e9edef] px-4 py-6 mt-8 no-print text-left">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-[#667781]">
           <div>
-            <div className="flex items-center gap-2 text-white font-bold text-sm mb-2">
-              <ShieldCheck className="w-4 h-4 text-cyan-400" />
-              <span>SafePrint Security Protocol</span>
+            <div className="flex items-center gap-2 text-[#111b21] font-bold text-sm mb-1.5">
+              <ShieldCheck className="w-4 h-4 text-[#008069]" />
+              <span>SafePrint Ephemeral Protocol</span>
             </div>
             <p className="leading-relaxed">
-              Designed to end document theft at xerox & print shops. Documents are encrypted client-side,
-              held only in RAM during print prep, and cryptographically shredded upon completion.
+              Eliminates document leakage at photocopy & print shops. Files are encrypted client-side in RAM,
+              forwarded zero-disk to the printer, and destroyed immediately.
             </p>
           </div>
 
           <div>
-            <div className="flex items-center gap-2 text-white font-bold text-sm mb-2">
-              <Key className="w-4 h-4 text-emerald-400" />
-              <span>Zero-Knowledge Handshake</span>
+            <div className="flex items-center gap-2 text-[#111b21] font-bold text-sm mb-1.5">
+              <Key className="w-4 h-4 text-[#00a884]" />
+              <span>Zero-Knowledge QR Handshake</span>
             </div>
             <p className="leading-relaxed font-mono text-[11px]">
-              Session keys reside strictly in the QR code URL hash (<code className="text-cyan-300">#key=...</code>).
-              Per RFC 3986, hash fragments are never sent to the relay server.
+              AES keys stay strictly in the QR URL fragment (<code className="text-[#008069] bg-[#f0f2f5] px-1 py-0.5 rounded">#key=...</code>).
+              Per RFC standards, hash fragments never touch the relay server.
             </p>
           </div>
 
           <div>
-            <div className="flex items-center gap-2 text-white font-bold text-sm mb-2">
-              <Flame className="w-4 h-4 text-rose-400" />
-              <span>Cryptographic Destruction</span>
+            <div className="flex items-center gap-2 text-[#111b21] font-bold text-sm mb-1.5">
+              <Flame className="w-4 h-4 text-[#dc2626]" />
+              <span>Cryptographic Destruction Proof</span>
             </div>
             <p className="leading-relaxed">
-              Upon printing, document byte arrays are actively zeroized with{' '}
-              <code className="text-rose-300 font-mono">crypto.getRandomValues()</code> and committed to an
-              immutable SHA-256 Merkle audit block.
+              Upon printing, document byte arrays are actively wiped with{' '}
+              <code className="text-[#dc2626] font-mono bg-[#fef2f2] px-1 py-0.5 rounded">crypto.getRandomValues()</code> and committed to an immutable Merkle ledger block.
             </p>
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto mt-6 pt-4 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 font-mono">
+        <div className="max-w-6xl mx-auto mt-6 pt-4 border-t border-[#e9edef] flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#8696a0] font-mono">
           <div>© {new Date().getFullYear()} SafePrint • 100% In-Memory Architecture</div>
           <div className="flex items-center gap-3 mt-2 sm:mt-0">
-            <span className="text-emerald-400 font-bold">✓ Zero Server Disk I/O</span>
-            <span className="text-cyan-400 font-bold">✓ Web Crypto AES-256</span>
+            <span className="text-[#008069] font-bold">✓ 0 KB Server Disk I/O</span>
+            <span className="text-[#00a884] font-bold">✓ Web Crypto AES-256-GCM</span>
           </div>
         </div>
       </footer>

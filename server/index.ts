@@ -12,7 +12,6 @@ app.use(express.json());
 
 const roomManager = new RoomManager();
 
-// Health check and Zero-Storage verification endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ONLINE',
@@ -20,7 +19,7 @@ app.get('/api/health', (req, res) => {
     timestamp: Date.now(),
     persistence: false,
     diskWrites: 0,
-    version: '1.0.0'
+    version: '2.0.0',
   });
 });
 
@@ -30,11 +29,12 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 wss.on('connection', (ws: WebSocket) => {
   let userRole: 'SHOP' | 'CUSTOMER' | null = null;
   let activeRoomId: string | null = null;
+  let activeCustomerId: string | null = null;
 
   ws.on('message', (messageData: string | Buffer) => {
     try {
       const msg = JSON.parse(messageData.toString());
-      const { type, roomId } = msg;
+      const { type, roomId, customerId } = msg;
 
       switch (type) {
         case 'INIT_TERMINAL': {
@@ -46,24 +46,35 @@ wss.on('connection', (ws: WebSocket) => {
             msg.shopName || 'Secure Print Station',
             ws
           );
-          ws.send(JSON.stringify({
-            type: 'TERMINAL_INITIALIZED',
-            roomId: session.roomId,
-            shopId: session.shopId,
-            shopName: session.shopName
-          }));
+          ws.send(
+            JSON.stringify({
+              type: 'TERMINAL_INITIALIZED',
+              roomId: session.roomId,
+              shopId: session.shopId,
+              shopName: session.shopName,
+            })
+          );
           break;
         }
 
         case 'JOIN_CUSTOMER': {
           userRole = 'CUSTOMER';
           activeRoomId = roomId;
-          const joined = roomManager.joinCustomer(roomId, ws);
+          const assignedCustId: string = customerId || `CUST-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+          activeCustomerId = assignedCustId;
+          const joined = roomManager.joinCustomer(
+            roomId,
+            assignedCustId,
+            msg.customerName,
+            ws
+          );
           if (!joined) {
-            ws.send(JSON.stringify({
-              type: 'ERROR',
-              message: 'Terminal session expired, invalid, or offline. Please re-scan QR.'
-            }));
+            ws.send(
+              JSON.stringify({
+                type: 'ERROR',
+                message: 'Terminal session expired, invalid, or offline. Please re-scan QR.',
+              })
+            );
           }
           break;
         }
@@ -72,16 +83,17 @@ wss.on('connection', (ws: WebSocket) => {
           if (!activeRoomId) return;
           const session = roomManager.getRoom(activeRoomId);
           if (session && session.shopSocket && session.shopSocket.readyState === WebSocket.OPEN) {
-            roomManager.updateStatus(activeRoomId, 'STREAMING', msg.metadata);
-            session.shopSocket.send(JSON.stringify({
-              type: 'DOC_META',
-              metadata: msg.metadata,
-              iv: msg.iv,
-              salt: msg.salt,
-              docHash: msg.docHash,
-              authTag: msg.authTag,
-              timestamp: Date.now()
-            }));
+            session.shopSocket.send(
+              JSON.stringify({
+                type: 'DOC_META',
+                customerId: msg.customerId || activeCustomerId,
+                customerName: msg.customerName,
+                metadata: msg.metadata,
+                iv: msg.iv,
+                docHash: msg.docHash,
+                timestamp: Date.now(),
+              })
+            );
           }
           break;
         }
@@ -91,13 +103,15 @@ wss.on('connection', (ws: WebSocket) => {
           const session = roomManager.getRoom(activeRoomId);
           if (session && session.shopSocket && session.shopSocket.readyState === WebSocket.OPEN) {
             roomManager.touch(activeRoomId);
-            // Pure in-memory forwarding of encrypted chunk
-            session.shopSocket.send(JSON.stringify({
-              type: 'DOC_CHUNK',
-              chunkIndex: msg.chunkIndex,
-              totalChunks: msg.totalChunks,
-              data: msg.data
-            }));
+            session.shopSocket.send(
+              JSON.stringify({
+                type: 'DOC_CHUNK',
+                customerId: msg.customerId || activeCustomerId,
+                chunkIndex: msg.chunkIndex,
+                totalChunks: msg.totalChunks,
+                data: msg.data,
+              })
+            );
           }
           break;
         }
@@ -106,11 +120,13 @@ wss.on('connection', (ws: WebSocket) => {
           if (!activeRoomId) return;
           const session = roomManager.getRoom(activeRoomId);
           if (session && session.shopSocket && session.shopSocket.readyState === WebSocket.OPEN) {
-            roomManager.updateStatus(activeRoomId, 'RECEIVED');
-            session.shopSocket.send(JSON.stringify({
-              type: 'DOC_COMPLETE',
-              timestamp: Date.now()
-            }));
+            session.shopSocket.send(
+              JSON.stringify({
+                type: 'DOC_COMPLETE',
+                customerId: msg.customerId || activeCustomerId,
+                timestamp: Date.now(),
+              })
+            );
           }
           break;
         }
@@ -118,15 +134,29 @@ wss.on('connection', (ws: WebSocket) => {
         case 'PRINT_STATUS_UPDATE': {
           if (!activeRoomId) return;
           const session = roomManager.getRoom(activeRoomId);
-          if (session && session.customerSocket && session.customerSocket.readyState === WebSocket.OPEN) {
-            roomManager.updateStatus(activeRoomId, msg.status);
-            session.customerSocket.send(JSON.stringify({
-              type: 'PRINT_STATUS_UPDATE',
-              status: msg.status,
-              pagesPrinted: msg.pagesPrinted,
-              copies: msg.copies,
-              timestamp: Date.now()
-            }));
+          if (session) {
+            const targetCustId = msg.customerId;
+            if (targetCustId) {
+              const cust = session.customers.get(targetCustId);
+              if (cust && cust.socket.readyState === WebSocket.OPEN) {
+                cust.socket.send(
+                  JSON.stringify({
+                    type: 'PRINT_STATUS_UPDATE',
+                    status: msg.status,
+                    pagesPrinted: msg.pagesPrinted,
+                    copies: msg.copies,
+                    timestamp: Date.now(),
+                  })
+                );
+              }
+            } else {
+              // Broadcast to all customers
+              for (const cust of session.customers.values()) {
+                if (cust.socket.readyState === WebSocket.OPEN) {
+                  cust.socket.send(JSON.stringify(msg));
+                }
+              }
+            }
           }
           break;
         }
@@ -134,21 +164,22 @@ wss.on('connection', (ws: WebSocket) => {
         case 'SHRED_CONFIRMED': {
           if (!activeRoomId) return;
           const session = roomManager.getRoom(activeRoomId);
-          if (session && session.customerSocket && session.customerSocket.readyState === WebSocket.OPEN) {
-            roomManager.updateStatus(activeRoomId, 'SHREDDED');
-            session.customerSocket.send(JSON.stringify({
-              type: 'SHRED_CONFIRMED',
-              certificate: msg.certificate,
-              ledgerBlock: msg.ledgerBlock,
-              timestamp: Date.now()
-            }));
-          }
-          // After shred confirmed, close the room cleanly after 5 seconds
-          setTimeout(() => {
-            if (activeRoomId) {
-              roomManager.closeRoom(activeRoomId, 'SHRED_COMPLETE');
+          if (session) {
+            const targetCustId = msg.customerId;
+            if (targetCustId) {
+              const cust = session.customers.get(targetCustId);
+              if (cust && cust.socket.readyState === WebSocket.OPEN) {
+                cust.socket.send(
+                  JSON.stringify({
+                    type: 'SHRED_CONFIRMED',
+                    certificate: msg.certificate,
+                    ledgerBlock: msg.ledgerBlock,
+                    timestamp: Date.now(),
+                  })
+                );
+              }
             }
-          }, 5000);
+          }
           break;
         }
 
@@ -156,9 +187,6 @@ wss.on('connection', (ws: WebSocket) => {
           ws.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
           break;
         }
-
-        default:
-          console.warn(`[SafePrint Relay] Unrecognized message type: ${type}`);
       }
     } catch (err: any) {
       console.error('[SafePrint Relay Error]:', err.message);
@@ -166,8 +194,12 @@ wss.on('connection', (ws: WebSocket) => {
   });
 
   ws.on('close', () => {
-    if (activeRoomId && userRole === 'SHOP') {
-      roomManager.closeRoom(activeRoomId, 'SHOP_DISCONNECTED');
+    if (activeRoomId) {
+      if (userRole === 'SHOP') {
+        roomManager.closeRoom(activeRoomId, 'SHOP_DISCONNECTED');
+      } else if (userRole === 'CUSTOMER' && activeCustomerId) {
+        roomManager.removeCustomer(activeRoomId, activeCustomerId);
+      }
     }
   });
 
@@ -178,9 +210,8 @@ wss.on('connection', (ws: WebSocket) => {
 
 server.listen(port, () => {
   console.log(`\n======================================================`);
-  console.log(`  🛡️  SafePrint Zero-Trust Ephemeral Relay Server`);
+  console.log(`  🛡️  SafePrint WhatsApp-Style Multi-Customer Relay`);
   console.log(`  ⚡  Port: ${port}`);
-  console.log(`  🔒  Storage Policy: 100% In-Memory (Zero Disk Writes)`);
-  console.log(`  🌐  WebSocket Path: ws://localhost:${port}/ws`);
+  console.log(`  👥  Multi-Customer Queuing Active`);
   console.log(`======================================================\n`);
 });

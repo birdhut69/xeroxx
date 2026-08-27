@@ -2,11 +2,12 @@ export interface RelaySocketCallbacks {
   onOpen?: () => void;
   onClose?: (reason: string) => void;
   onError?: (err: any) => void;
-  onCustomerConnected?: (data: { timestamp: number }) => void;
-  onConnectedToShop?: (data: { shopName: string; shopId: string; timestamp: number }) => void;
-  onDocMeta?: (data: { metadata: any; iv: number[]; docHash: string; timestamp: number }) => void;
-  onDocChunk?: (data: { chunkIndex: number; totalChunks: number; data: string }) => void;
-  onDocComplete?: () => void;
+  onCustomerConnected?: (data: { customerId: string; customerName: string; totalCustomers: number; timestamp: number }) => void;
+  onCustomerLeft?: (data: { customerId: string; totalCustomers: number; timestamp: number }) => void;
+  onConnectedToShop?: (data: { shopName: string; shopId: string; customerId: string; timestamp: number }) => void;
+  onDocMeta?: (data: { customerId?: string; customerName?: string; metadata: any; iv: number[]; docHash: string; timestamp: number }) => void;
+  onDocChunk?: (data: { customerId?: string; chunkIndex: number; totalChunks: number; data: string }) => void;
+  onDocComplete?: (data: { customerId?: string }) => void;
   onPrintStatus?: (data: { status: string; pagesPrinted: number; copies: number }) => void;
   onShredConfirmed?: (data: { certificate: any; ledgerBlock: any }) => void;
 }
@@ -21,6 +22,7 @@ export class RelaySocket {
   private lastPollTimestamp: number = 0;
   private role: 'SHOP' | 'CUSTOMER' | null = null;
   private activeRoomId: string | null = null;
+  private activeCustomerId: string | null = null;
 
   constructor(url?: string) {
     if (url) {
@@ -37,16 +39,16 @@ export class RelaySocket {
     this.callbacks = callbacks;
     return new Promise((resolve) => {
       try {
-        console.log(`[SafePrint RelaySocket] Connecting to: ${this.url}`);
+        console.log(`[SafePrint Relay] Connecting: ${this.url}`);
         this.ws = new WebSocket(this.url);
 
         let resolved = false;
 
         this.ws.onopen = () => {
-          console.log('[SafePrint RelaySocket] WebSocket connection established');
+          console.log('[SafePrint Relay] WebSocket connection online');
           resolved = true;
           this.startHeartbeat();
-          if (this.callbacks.onOpen) this.callbacks.onOpen();
+          this.callbacks.onOpen?.();
           resolve();
         };
 
@@ -55,14 +57,13 @@ export class RelaySocket {
             const msg = JSON.parse(event.data);
             this.handleMessage(msg);
           } catch (err) {
-            console.error('[SafePrint RelaySocket] Message parse error:', err);
+            console.error('[SafePrint Relay] Parse error:', err);
           }
         };
 
         this.ws.onclose = () => {
           this.stopHeartbeat();
           if (!resolved) {
-            // Activate Serverless Fallback
             this.activateServerlessFallback();
             resolve();
           }
@@ -75,14 +76,13 @@ export class RelaySocket {
           }
         };
 
-        // If WS doesn't connect within 2.5s, activate serverless fallback
         setTimeout(() => {
           if (!resolved) {
             this.activateServerlessFallback();
             resolve();
           }
-        }, 2500);
-      } catch (e) {
+        }, 2000);
+      } catch {
         this.activateServerlessFallback();
         resolve();
       }
@@ -92,8 +92,8 @@ export class RelaySocket {
   private activateServerlessFallback() {
     if (this.useServerlessFallback) return;
     this.useServerlessFallback = true;
-    console.log('[SafePrint Relay] Activating Vercel Serverless Ephemeral Relay Fallback');
-    if (this.callbacks.onOpen) this.callbacks.onOpen();
+    console.log('[SafePrint Relay] Using Vercel Serverless Multi-User Ephemeral Relay');
+    this.callbacks.onOpen?.();
   }
 
   private startPolling() {
@@ -101,8 +101,9 @@ export class RelaySocket {
     this.pollInterval = setInterval(async () => {
       if (!this.activeRoomId || !this.role) return;
       try {
+        const custParam = this.activeCustomerId ? `&customerId=${encodeURIComponent(this.activeCustomerId)}` : '';
         const res = await fetch(
-          `/api/relay?action=POLL&roomId=${encodeURIComponent(this.activeRoomId)}&role=${this.role}&since=${this.lastPollTimestamp}`
+          `/api/relay?action=POLL&roomId=${encodeURIComponent(this.activeRoomId)}&role=${this.role}${custParam}&since=${this.lastPollTimestamp}`
         );
         if (res.ok) {
           const data = await res.json();
@@ -114,9 +115,9 @@ export class RelaySocket {
           }
         }
       } catch {
-        // quiet poll errors
+        // quiet polling errors
       }
-    }, 800);
+    }, 700);
   }
 
   private handleMessage(msg: any) {
@@ -124,7 +125,11 @@ export class RelaySocket {
       case 'CUSTOMER_CONNECTED':
         this.callbacks.onCustomerConnected?.(msg);
         break;
+      case 'CUSTOMER_LEFT':
+        this.callbacks.onCustomerLeft?.(msg);
+        break;
       case 'CONNECTED_TO_SHOP':
+        if (msg.customerId) this.activeCustomerId = msg.customerId;
         this.callbacks.onConnectedToShop?.(msg);
         break;
       case 'DOC_META':
@@ -134,7 +139,7 @@ export class RelaySocket {
         this.callbacks.onDocChunk?.(msg);
         break;
       case 'DOC_COMPLETE':
-        this.callbacks.onDocComplete?.();
+        this.callbacks.onDocComplete?.(msg);
         break;
       case 'PRINT_STATUS_UPDATE':
         this.callbacks.onPrintStatus?.(msg);
@@ -147,6 +152,7 @@ export class RelaySocket {
 
   public send(msg: any) {
     if (msg.roomId) this.activeRoomId = msg.roomId;
+    if (msg.customerId) this.activeCustomerId = msg.customerId;
 
     if (msg.type === 'INIT_TERMINAL') {
       this.role = 'SHOP';
@@ -160,8 +166,8 @@ export class RelaySocket {
             action: 'INIT_TERMINAL',
             roomId: msg.roomId,
             shopId: msg.shopId,
-            shopName: msg.shopName
-          })
+            shopName: msg.shopName,
+          }),
         });
       }
     } else if (msg.type === 'JOIN_CUSTOMER') {
@@ -174,16 +180,20 @@ export class RelaySocket {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'JOIN_CUSTOMER',
-            roomId: msg.roomId
-          })
+            roomId: msg.roomId,
+            customerId: msg.customerId,
+            customerName: msg.customerName,
+          }),
         })
           .then((r) => r.json())
           .then((data) => {
             if (data.status === 'OK') {
+              if (data.customerId) this.activeCustomerId = data.customerId;
               this.callbacks.onConnectedToShop?.({
                 shopName: data.shopName,
                 shopId: data.shopId,
-                timestamp: Date.now()
+                customerId: data.customerId,
+                timestamp: Date.now(),
               });
             }
           });
@@ -201,14 +211,17 @@ export class RelaySocket {
           action: 'SEND_MESSAGE',
           roomId: this.activeRoomId,
           targetRole,
-          message: msg
-        })
+          targetCustomerId: msg.customerId,
+          message: msg,
+        }),
       });
     }
   }
 
   public async sendEncryptedChunks(
     roomId: string,
+    customerId: string,
+    customerName: string,
     encryptedBuffer: ArrayBuffer,
     iv: Uint8Array,
     docHash: string,
@@ -219,9 +232,11 @@ export class RelaySocket {
     this.send({
       type: 'DOC_META',
       roomId,
+      customerId,
+      customerName,
       metadata,
       iv: Array.from(iv),
-      docHash
+      docHash,
     });
 
     // 2. Chunk buffer into 64KB slices
@@ -243,16 +258,17 @@ export class RelaySocket {
       this.send({
         type: 'DOC_CHUNK',
         roomId,
+        customerId,
         chunkIndex: i,
         totalChunks,
-        data: b64Data
+        data: b64Data,
       });
 
       if (onProgress) {
         onProgress(Math.round(((i + 1) / totalChunks) * 100));
       }
 
-      if (totalChunks > 5 && i % 5 === 0) {
+      if (totalChunks > 5 && i % 4 === 0) {
         await new Promise((r) => setTimeout(r, 10));
       }
     }
@@ -260,7 +276,8 @@ export class RelaySocket {
     // 3. Send DOC_COMPLETE
     this.send({
       type: 'DOC_COMPLETE',
-      roomId
+      roomId,
+      customerId,
     });
   }
 

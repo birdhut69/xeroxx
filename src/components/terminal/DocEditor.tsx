@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCw, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Sliders, Layers, Printer, FileText, Sparkles } from 'lucide-react';
+import { RotateCw, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 
 interface DocEditorProps {
   currentPage: number;
@@ -30,76 +30,76 @@ export const DocEditor: React.FC<DocEditorProps> = ({
   onFilterChange,
   onZoomChange,
   onResetZoom,
-  onCopiesChange
+  onCopiesChange,
 }) => {
   return (
-    <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-700/80 flex flex-wrap items-center justify-between gap-4 no-print shadow-xl">
+    <div className="wa-panel p-3 sm:p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-3 no-print shadow-sm">
       {/* Page Navigation */}
-      <div className="flex items-center gap-2 bg-slate-900/90 px-3 py-2 rounded-xl border border-slate-800 shadow-inner">
+      <div className="flex items-center gap-1.5 bg-[#f0f2f5] px-2.5 py-1 rounded-lg border border-[#e9edef]">
         <button
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
           disabled={currentPage <= 1}
-          className="p-1.5 rounded-lg hover:bg-slate-800 disabled:opacity-25 text-slate-300 transition-colors active:scale-95"
+          className="p-1 rounded hover:bg-[#e9edef] disabled:opacity-30 text-[#54656f] transition-colors"
           title="Previous Page"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
 
-        <span className="text-xs font-mono text-cyan-300 font-bold px-2 whitespace-nowrap">
+        <span className="text-xs font-mono text-[#111b21] font-bold px-2 whitespace-nowrap">
           Page {currentPage} of {totalPages}
         </span>
 
         <button
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage >= totalPages}
-          className="p-1.5 rounded-lg hover:bg-slate-800 disabled:opacity-25 text-slate-300 transition-colors active:scale-95"
+          className="p-1 rounded hover:bg-[#e9edef] disabled:opacity-30 text-[#54656f] transition-colors"
           title="Next Page"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Rotation & Filters */}
+      {/* Rotation & Filter Mode */}
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={onRotate}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition-all active:scale-95 shadow-sm"
-          title="Rotate 90° Clockwise"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#e9edef] border border-[#e9edef] text-xs font-bold text-[#111b21] transition-all"
+          title="Rotate 90°"
         >
-          <RotateCw className="w-4 h-4 text-cyan-400" />
+          <RotateCw className="w-3.5 h-3.5 text-[#00a884]" />
           <span>Rotate ({rotation}°)</span>
         </button>
 
-        {/* Photocopy Filter Mode Segmented Buttons */}
-        <div className="flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs shadow-inner">
+        {/* Filter Mode Selector */}
+        <div className="flex items-center bg-[#f0f2f5] p-0.5 rounded-lg border border-[#e9edef] text-xs">
           <button
             onClick={() => onFilterChange('NORMAL')}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+            className={`px-2.5 py-1 rounded-md font-bold transition-all ${
               filterMode === 'NORMAL'
-                ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#00a884] text-white shadow-sm'
+                : 'text-[#54656f] hover:text-[#111b21]'
             }`}
           >
             Color
           </button>
           <button
             onClick={() => onFilterChange('GRAYSCALE')}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+            className={`px-2.5 py-1 rounded-md font-bold transition-all ${
               filterMode === 'GRAYSCALE'
-                ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#00a884] text-white shadow-sm'
+                : 'text-[#54656f] hover:text-[#111b21]'
             }`}
           >
             Grayscale
           </button>
           <button
             onClick={() => onFilterChange('HIGH_CONTRAST')}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1 ${
+            className={`px-2.5 py-1 rounded-md font-bold transition-all flex items-center gap-1 ${
               filterMode === 'HIGH_CONTRAST'
-                ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#00a884] text-white shadow-sm'
+                : 'text-[#54656f] hover:text-[#111b21]'
             }`}
-            title="High contrast photocopy filter for sharp text"
+            title="Photocopy Black & White for crisp sharp text"
           >
             <Sparkles className="w-3 h-3" />
             <span>Photocopy B&W</span>
@@ -108,39 +108,39 @@ export const DocEditor: React.FC<DocEditorProps> = ({
       </div>
 
       {/* Zoom Controls */}
-      <div className="flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1.5 rounded-xl border border-slate-800 shadow-inner">
+      <div className="flex items-center gap-1 bg-[#f0f2f5] px-2 py-1 rounded-lg border border-[#e9edef]">
         <button
           onClick={() => onZoomChange(-0.15)}
-          disabled={zoomLevel <= 0.6}
-          className="p-1 rounded-lg hover:bg-slate-800 disabled:opacity-25 text-slate-300 active:scale-95"
+          disabled={zoomLevel <= 0.5}
+          className="p-1 rounded hover:bg-[#e9edef] disabled:opacity-30 text-[#54656f]"
           title="Zoom Out"
         >
-          <ZoomOut className="w-4 h-4" />
+          <ZoomOut className="w-3.5 h-3.5" />
         </button>
         <span
           onClick={onResetZoom}
-          className="text-xs font-mono font-bold text-slate-200 cursor-pointer hover:text-cyan-400 px-2 select-none"
-          title="Click to reset zoom to 100%"
+          className="text-xs font-mono font-bold text-[#111b21] cursor-pointer hover:text-[#00a884] px-1.5 select-none"
+          title="Reset Zoom to 100%"
         >
           {Math.round(zoomLevel * 100)}%
         </span>
         <button
           onClick={() => onZoomChange(0.15)}
           disabled={zoomLevel >= 2.5}
-          className="p-1 rounded-lg hover:bg-slate-800 disabled:opacity-25 text-slate-300 active:scale-95"
+          className="p-1 rounded hover:bg-[#e9edef] disabled:opacity-30 text-[#54656f]"
           title="Zoom In"
         >
-          <ZoomIn className="w-4 h-4" />
+          <ZoomIn className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* Copies Selector */}
-      <div className="flex items-center gap-2 bg-slate-900/90 px-3.5 py-1.5 rounded-xl border border-slate-800 text-xs shadow-inner">
-        <span className="text-slate-400 font-medium">Copies:</span>
+      <div className="flex items-center gap-1.5 bg-[#f0f2f5] px-3 py-1 rounded-lg border border-[#e9edef] text-xs">
+        <span className="text-[#54656f] font-medium">Copies:</span>
         <select
           value={copies}
-          onChange={(e) => onCopiesChange(parseInt(e.target.value))}
-          className="bg-slate-800 text-cyan-300 font-bold font-mono px-2.5 py-1 rounded-lg border border-slate-700 outline-none cursor-pointer"
+          onChange={(e) => onCopiesChange(parseInt(e.target.value, 10))}
+          className="bg-white text-[#008069] font-bold font-mono px-2 py-0.5 rounded border border-[#d1d7db] outline-none cursor-pointer"
         >
           {Array.from({ length: Math.min(10, maxAllowedCopies) }).map((_, i) => (
             <option key={i + 1} value={i + 1}>

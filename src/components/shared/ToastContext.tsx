@@ -57,35 +57,35 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <ToastContext.Provider value={{ showToast, success, error, info, shield }}>
       {children}
       {/* Toast Notification Layer */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full px-4 sm:px-0 pointer-events-none">
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full px-3 sm:px-0 pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`pointer-events-auto p-4 rounded-2xl border shadow-2xl backdrop-blur-xl transition-all duration-300 transform translate-y-0 opacity-100 flex items-start gap-3 text-left ${
+            className={`pointer-events-auto p-3.5 rounded-xl border shadow-xl transition-all duration-200 flex items-start gap-2.5 text-left ${
               t.type === 'shield'
-                ? 'bg-slate-900/95 border-cyan-500/50 shadow-cyan-500/20 text-slate-100'
+                ? 'bg-white border-[#00a884] text-[#111b21]'
                 : t.type === 'success'
-                ? 'bg-slate-900/95 border-emerald-500/50 shadow-emerald-500/20 text-slate-100'
+                ? 'bg-white border-[#25d366] text-[#111b21]'
                 : t.type === 'error'
-                ? 'bg-slate-900/95 border-rose-500/50 shadow-rose-500/20 text-slate-100'
-                : 'bg-slate-900/95 border-indigo-500/50 shadow-indigo-500/20 text-slate-100'
+                ? 'bg-[#fee2e2] border-[#fca5a5] text-[#991b1b]'
+                : 'bg-white border-[#d1d7db] text-[#111b21]'
             }`}
           >
             <div className="shrink-0 mt-0.5">
-              {t.type === 'shield' && <ShieldCheck className="w-5 h-5 text-cyan-400 animate-pulse" />}
-              {t.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
-              {t.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-400" />}
-              {t.type === 'info' && <Info className="w-5 h-5 text-indigo-400" />}
+              {t.type === 'shield' && <ShieldCheck className="w-5 h-5 text-[#008069]" />}
+              {t.type === 'success' && <CheckCircle2 className="w-5 h-5 text-[#25d366]" />}
+              {t.type === 'error' && <AlertCircle className="w-5 h-5 text-[#dc2626]" />}
+              {t.type === 'info' && <Info className="w-5 h-5 text-[#0284c7]" />}
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold tracking-tight text-white">{t.title}</div>
-              {t.message && <div className="text-[11px] text-slate-300 mt-0.5 leading-snug">{t.message}</div>}
+              <div className="text-xs font-bold">{t.title}</div>
+              {t.message && <div className="text-[11px] text-[#667781] mt-0.5 leading-snug">{t.message}</div>}
             </div>
 
             <button
               onClick={() => removeToast(t.id)}
-              className="shrink-0 p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              className="shrink-0 p-1 rounded hover:bg-[#f0f2f5] text-[#8696a0] hover:text-[#111b21] transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>

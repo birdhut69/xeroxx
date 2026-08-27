@@ -1,16 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #080c14;
-  --bg-secondary: #0f172a;
-  --bg-card: rgba(15, 23, 42, 0.75);
-  --bg-glass: rgba(30, 41, 59, 0.6);
-  --border-glass: rgba(255, 255, 255, 0.12);
-  --cyan-glow: #00ffcc;
-  --emerald-glow: #10b981;
-  --amber-glow: #f59e0b;
-  --rose-glow: #f43f5e;
-  --indigo-glow: #6366f1;
+  --wa-teal-dark: #075e54;
+  --wa-teal: #008069;
+  --wa-teal-light: #00a884;
+  --wa-green: #25d366;
+  --wa-chat-bg: #efeae2;
+  --wa-panel-bg: #f0f2f5;
+  --wa-card-bg: #ffffff;
+  --wa-bubble-out: #d9fdd3;
+  --wa-bubble-in: #ffffff;
+  --wa-text-primary: #111b21;
+  --wa-text-secondary: #667781;
+  --wa-border: #e9edef;
+  --wa-tick-blue: #53bdeb;
+  --wa-danger: #ea0038;
 }
 
 * {
@@ -20,114 +24,110 @@
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--bg-primary);
-  color: #f1f5f9;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--wa-panel-bg);
+  color: var(--wa-text-primary);
   min-height: 100vh;
   overflow-x: hidden;
   position: relative;
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(0, 255, 204, 0.05) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.06) 0%, transparent 40%),
-    linear-gradient(to bottom, rgba(8, 12, 20, 0.95), rgba(8, 12, 20, 0.98)),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 40px),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 40px);
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Outfit', sans-serif;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 code, .font-mono {
   font-family: 'Fira Code', 'JetBrains Mono', monospace;
 }
 
-/* Glassmorphism Styles */
-.glass-panel {
-  background: var(--bg-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-glass);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+/* WhatsApp Doodle Wallpaper */
+.wa-chat-wallpaper {
+  background-color: #efeae2;
+  background-image: 
+    radial-gradient(#d1c7b7 0.75px, transparent 0.75px),
+    radial-gradient(#d1c7b7 0.75px, #efeae2 0.75px);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
 }
 
-.glass-panel-glow {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 255, 204, 0.3);
-  box-shadow: 0 0 25px rgba(0, 255, 204, 0.15), 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+/* WhatsApp Card & Panel Styles */
+.wa-panel {
+  background-color: var(--wa-card-bg);
+  border: 1px solid var(--wa-border);
+  box-shadow: 0 1px 3px rgba(11, 20, 26, 0.08);
 }
 
-.glass-panel-danger {
-  background: rgba(30, 10, 18, 0.85);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(244, 63, 94, 0.35);
-  box-shadow: 0 0 25px rgba(244, 63, 94, 0.15);
+.wa-panel-elevated {
+  background-color: var(--wa-card-bg);
+  border: 1px solid var(--wa-border);
+  box-shadow: 0 4px 20px rgba(11, 20, 26, 0.1);
 }
 
-/* Cyber Button Styles */
-.btn-cyber-primary {
-  background: linear-gradient(135deg, #00ffcc 0%, #0284c7 100%);
-  color: #041018;
-  font-weight: 700;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 20px rgba(0, 255, 204, 0.35);
-}
-
-.btn-cyber-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 0 30px rgba(0, 255, 204, 0.6);
-  filter: brightness(1.1);
-}
-
-.btn-cyber-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  filter: grayscale(0.8);
-}
-
-.btn-cyber-danger {
-  background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%);
+.wa-header {
+  background-color: var(--wa-teal);
   color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 0 20px rgba(244, 63, 94, 0.35);
-  transition: all 0.25s ease;
 }
 
-.btn-cyber-danger:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 0 30px rgba(244, 63, 94, 0.6);
+/* WhatsApp Buttons */
+.btn-wa-primary {
+  background-color: var(--wa-teal-light);
+  color: #ffffff;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0, 168, 132, 0.3);
 }
 
-/* Pulse Animations */
-@keyframes cyber-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.05); }
+.btn-wa-primary:hover:not(:disabled) {
+  background-color: #008f6f;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 168, 132, 0.4);
 }
 
-.animate-cyber-pulse {
-  animation: cyber-pulse 2s infinite ease-in-out;
+.btn-wa-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(1000%); }
+.btn-wa-danger {
+  background-color: #fee2e2;
+  color: #dc2626;
+  font-weight: 600;
+  border: 1px solid #fca5a5;
+  transition: all 0.2s ease;
 }
 
-.scanline-effect {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 8px;
-  background: linear-gradient(to bottom, transparent, rgba(0, 255, 204, 0.4), transparent);
-  animation: scanline 4s linear infinite;
-  pointer-events: none;
+.btn-wa-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+  color: #ffffff;
 }
 
-/* Watermark Forensic Grid */
+/* Chat Message Bubbles */
+.wa-bubble-out {
+  background-color: var(--wa-bubble-out);
+  border-radius: 12px 12px 2px 12px;
+  box-shadow: 0 1px 1.5px rgba(11, 20, 26, 0.13);
+}
+
+.wa-bubble-in {
+  background-color: var(--wa-bubble-in);
+  border-radius: 12px 12px 12px 2px;
+  box-shadow: 0 1px 1.5px rgba(11, 20, 26, 0.13);
+}
+
+.wa-system-pill {
+  background-color: rgba(255, 255, 255, 0.92);
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.12);
+  color: #54656f;
+  font-size: 11.5px;
+  padding: 5px 12px;
+  text-align: center;
+  max-width: 90%;
+  margin: 0 auto;
+}
+
+/* Forensic Watermark Overlay on Canvas */
 .forensic-watermark-overlay {
   position: absolute;
   inset: 0;
@@ -135,7 +135,7 @@ code, .font-mono {
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
-  opacity: 0.18;
+  opacity: 0.12;
   display: flex;
   flex-wrap: wrap;
   align-content: space-around;
@@ -143,7 +143,7 @@ code, .font-mono {
   font-family: 'Fira Code', monospace;
   font-size: 11px;
   font-weight: 700;
-  color: rgba(220, 38, 38, 0.85);
+  color: #000000;
   transform: rotate(-18deg) scale(1.3);
   z-index: 20;
 }
@@ -153,16 +153,17 @@ code, .font-mono {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  background-color: #54656f;
 }
 
 .drm-canvas-container canvas {
   pointer-events: auto;
   user-select: none;
   -webkit-user-select: none;
-  border-radius: 4px;
+  border-radius: 2px;
 }
 
-/* PRINT MEDIA STYLES - Direct to printer cleanly */
+/* Print CSS */
 @media print {
   body {
     background: #ffffff !important;
@@ -171,8 +172,7 @@ code, .font-mono {
     margin: 0 !important;
   }
 
-  /* Hide everything except the print canvas */
-  header, nav, .no-print, .terminal-sidebar, .terminal-controls, button, .glass-panel, .forensic-watermark-overlay, .scanline-effect {
+  header, nav, .no-print, .terminal-sidebar, .terminal-controls, button, .forensic-watermark-overlay {
     display: none !important;
   }
 
@@ -197,18 +197,18 @@ code, .font-mono {
   }
 }
 
-/* Custom Scrollbars */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: #cbd5e1;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 255, 204, 0.5);
+  background: #94a3b8;
 }

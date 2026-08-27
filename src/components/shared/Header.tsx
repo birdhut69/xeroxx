@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Volume2, VolumeX, Smartphone, Monitor, HelpCircle, Menu, X } from 'lucide-react';
+import { ShieldCheck, Lock, Volume2, VolumeX, Smartphone, Monitor, HelpCircle, Menu, X, Shield } from 'lucide-react';
 import { sounds } from '../../services/AudioEffects';
 import { ComparisonModal } from './ComparisonModal';
 
@@ -29,128 +29,115 @@ export const Header: React.FC<HeaderProps> = ({ currentMode, onModeChange, serve
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full glass-panel border-b border-cyan-500/20 px-4 py-3 sm:px-6 transition-all duration-300">
+      <header className="sticky top-0 z-40 w-full bg-[#008069] text-white px-4 py-2.5 sm:px-6 shadow-md transition-all duration-300 no-print">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           {/* Brand & Security Guarantee */}
           <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/30 border border-cyan-400/40 shadow-lg shadow-cyan-500/20 shrink-0">
-              <ShieldCheck className="w-6 h-6 text-cyan-400" />
-              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400" />
+            <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-white/15 border border-white/30 shadow-sm shrink-0">
+              <ShieldCheck className="w-5 h-5 text-white" />
             </div>
             <div className="text-left">
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400 bg-clip-text text-transparent">
+                <span className="font-extrabold text-lg tracking-tight text-white">
                   SafePrint
                 </span>
-                <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
+                <span className="hidden sm:inline-block text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30">
                   Zero-Trust E2EE
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 hidden sm:flex items-center gap-1.5 font-mono">
-                <Lock className="w-3 h-3 text-emerald-400 inline" />
-                100% In-Memory • Ephemeral Shredder
+              <p className="text-[11px] text-white/80 hidden sm:flex items-center gap-1.5 font-mono">
+                <Lock className="w-3 h-3 text-white inline" />
+                100% In-Memory RAM • Zero-Disk Storage
               </p>
             </div>
           </div>
 
-          {/* Desktop Mode Navigation Tabs */}
-          <nav className="hidden md:flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-700/60 shadow-inner">
+          {/* Desktop Navigation Tabs */}
+          <nav className="hidden md:flex items-center bg-black/15 p-1 rounded-xl border border-white/20">
             <button
               onClick={() => handleSelectMode('TERMINAL')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 currentMode === 'TERMINAL'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30 font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-[#008069] shadow-sm'
+                  : 'text-white/90 hover:text-white hover:bg-white/10'
               }`}
             >
               <Monitor className="w-3.5 h-3.5" />
-              <span>Xerox Terminal</span>
+              <span>Xerox Terminal (Admin)</span>
             </button>
 
             <button
               onClick={() => handleSelectMode('CUSTOMER')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 currentMode === 'CUSTOMER'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30 font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-[#008069] shadow-sm'
+                  : 'text-white/90 hover:text-white hover:bg-white/10'
               }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
-              <span>Customer Mobile</span>
+              <span>Customer Mobile (Chat)</span>
             </button>
           </nav>
 
-          {/* Right Action Controls */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Compare WhatsApp vs SafePrint */}
+          {/* Right Actions */}
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setShowComparison(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 text-xs font-medium transition-all hover:border-cyan-500/40 active:scale-95"
-              title="See why SafePrint is safer than WhatsApp"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 border border-white/30 text-white text-xs font-medium transition-all"
+              title="Why SafePrint is safer than WhatsApp"
             >
-              <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
+              <HelpCircle className="w-3.5 h-3.5 text-white" />
               <span className="hidden sm:inline">Why SafePrint?</span>
             </button>
 
-            {/* Server Status */}
-            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700/50 text-xs font-mono text-slate-300">
-              <span className={`w-2 h-2 rounded-full ${serverOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`} />
-              <span className="text-[11px]">{serverOnline ? 'Relay Active' : 'Relay Offline'}</span>
-            </div>
-
-            {/* Audio Toggle */}
             <button
               onClick={toggleAudio}
               title={audioEnabled ? 'Mute Sound FX' : 'Enable Sound FX'}
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 text-slate-300 transition-colors active:scale-95"
+              className="p-2 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-colors"
             >
-              {audioEnabled ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+              {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 opacity-60" />}
             </button>
 
-            {/* Mobile Hamburger */}
+            {/* Mobile Menu */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl bg-slate-800/80 text-slate-300 hover:text-white"
+              className="md:hidden p-2 rounded-lg bg-white/15 text-white"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
+        {/* Mobile Dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden pt-3 pb-2 space-y-2 border-t border-slate-800/80 mt-3 animate-in slide-in-from-top duration-200">
-            <div className="grid grid-cols-2 gap-1.5 bg-slate-900/90 p-1.5 rounded-xl border border-slate-800">
+          <div className="md:hidden pt-2.5 pb-1 space-y-2 border-t border-white/20 mt-2.5">
+            <div className="grid grid-cols-2 gap-1.5 bg-black/15 p-1 rounded-xl">
               <button
                 onClick={() => handleSelectMode('TERMINAL')}
-                className={`py-2.5 px-2 rounded-lg text-xs font-bold text-center flex flex-col items-center gap-1.5 transition-all ${
-                  currentMode === 'TERMINAL' ? 'bg-cyan-500 text-slate-950 shadow-md' : 'text-slate-400'
+                className={`py-2 px-2 rounded-lg text-xs font-bold text-center flex flex-col items-center gap-1 ${
+                  currentMode === 'TERMINAL' ? 'bg-white text-[#008069]' : 'text-white'
                 }`}
               >
                 <Monitor className="w-4 h-4" />
-                <span>Terminal</span>
+                <span>Terminal (Shop)</span>
               </button>
 
               <button
                 onClick={() => handleSelectMode('CUSTOMER')}
-                className={`py-2.5 px-2 rounded-lg text-xs font-bold text-center flex flex-col items-center gap-1.5 transition-all ${
-                  currentMode === 'CUSTOMER' ? 'bg-cyan-500 text-slate-950 shadow-md' : 'text-slate-400'
+                className={`py-2 px-2 rounded-lg text-xs font-bold text-center flex flex-col items-center gap-1 ${
+                  currentMode === 'CUSTOMER' ? 'bg-white text-[#008069]' : 'text-white'
                 }`}
               >
                 <Smartphone className="w-4 h-4" />
-                <span>Mobile</span>
+                <span>Mobile (Chat)</span>
               </button>
             </div>
           </div>
         )}
       </header>
 
-      {/* WhatsApp vs SafePrint Comparison Modal */}
-      <ComparisonModal
-        isOpen={showComparison}
-        onClose={() => setShowComparison(false)}
-      />
+      {/* WhatsApp Comparison Modal */}
+      <ComparisonModal isOpen={showComparison} onClose={() => setShowComparison(false)} />
     </>
   );
 };
