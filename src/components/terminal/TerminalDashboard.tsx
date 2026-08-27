@@ -9,6 +9,7 @@ import {
   Shield,
   RotateCw,
   ChevronRight,
+  ChevronLeft,
   Smartphone,
   Copy,
   Check,
@@ -87,6 +88,7 @@ export const TerminalDashboard: React.FC = () => {
   const [filterTab, setFilterTab] = useState<'ALL' | 'PENDING' | 'PRINTED'>('ALL');
   const [showQRModal, setShowQRModal] = useState(false);
   const [copiedQR, setCopiedQR] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'QUEUE' | 'WORKSPACE'>('QUEUE');
 
   // Editor State for currently viewed document
   const [currentPage, setCurrentPage] = useState(1);
@@ -123,6 +125,7 @@ export const TerminalDashboard: React.FC = () => {
     setCustomers(new Map());
     setSelectedCustomerId(null);
     setSelectedDocId(null);
+    setMobileTab('QUEUE');
 
     const ledger = new EphemeralLedger(newSessionId, shopId, shopName);
     await ledger.initGenesis();
@@ -403,7 +406,11 @@ export const TerminalDashboard: React.FC = () => {
       {/* ── 2-COLUMN BALANCED WHATSAPP WEB SHELL ── */}
       <div className="wa-panel-elevated rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 flex-1 border border-[#d1d7db] shadow-2xl bg-white">
         {/* ── LEFT PANE: WHATSAPP CHATS & LARGE COUNTER QR (4 Cols on Desktop) ── */}
-        <div className="lg:col-span-4 bg-white border-r border-[#e9edef] flex flex-col no-print h-full overflow-hidden">
+        <div
+          className={`lg:col-span-4 bg-white border-r border-[#e9edef] flex flex-col no-print h-full overflow-hidden ${
+            mobileTab === 'WORKSPACE' && selectedCustomerId ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
           {/* Top WhatsApp Profile Bar */}
           <div className="bg-[#008069] text-white px-4 py-3 flex items-center justify-between shadow-sm shrink-0">
             <div className="flex items-center gap-2.5">
@@ -566,6 +573,7 @@ export const TerminalDashboard: React.FC = () => {
                       if (cust.documents.length > 0) {
                         setSelectedDocId(cust.documents[0].id);
                       }
+                      setMobileTab('WORKSPACE');
                     }}
                     className={`p-3 flex items-center gap-3 cursor-pointer transition-colors text-left ${
                       isSelected
@@ -631,7 +639,11 @@ export const TerminalDashboard: React.FC = () => {
         </div>
 
         {/* ── RIGHT PANE: WHATSAPP ACTIVE CHAT & DRM WORKSPACE (8 Cols) ── */}
-        <div className="lg:col-span-8 flex flex-col bg-white h-full overflow-hidden">
+        <div
+          className={`lg:col-span-8 flex flex-col bg-white h-full overflow-hidden ${
+            mobileTab === 'QUEUE' && !selectedCustomerId ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
           {!selectedCustomer ? (
             /* WhatsApp Web Default Welcome Screen WITH LARGE QR STATION */
             <div className="flex-1 wa-chat-wallpaper flex flex-col items-center justify-center p-6 text-center border-b-8 border-[#00a884] overflow-y-auto">
@@ -691,23 +703,32 @@ export const TerminalDashboard: React.FC = () => {
             <div className="flex-1 flex flex-col min-h-0 bg-[#efeae2]">
               {/* WhatsApp Active Chat Top Header */}
               <div className="bg-[#f0f2f5] px-4 py-2.5 border-b border-[#e9edef] flex items-center justify-between shadow-sm shrink-0">
-                <div className="flex items-center gap-3 text-left">
-                  <div className="w-10 h-10 rounded-full bg-[#008069] text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                <div className="flex items-center gap-2 sm:gap-3 text-left min-w-0">
+                  {/* Mobile Back to Queue Button */}
+                  <button
+                    onClick={() => setMobileTab('QUEUE')}
+                    className="lg:hidden p-1.5 rounded-full hover:bg-black/10 text-[#54656f] shrink-0"
+                    title="Back to Queue"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+
+                  <div className="w-10 h-10 rounded-full bg-[#008069] text-white font-bold flex items-center justify-center text-sm shadow-sm shrink-0">
                     {selectedCustomer.customerName.charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <div className="text-xs sm:text-sm font-bold text-[#111b21] flex items-center gap-1.5">
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-bold text-[#111b21] flex items-center gap-1.5 truncate">
                       <span>{selectedCustomer.customerName}</span>
                       <span className="text-[10px] font-mono text-[#667781]">({selectedCustomer.customerId})</span>
                     </div>
                     <div className="text-[11px] text-[#008069] font-medium flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-[#25d366] inline-block" />
-                      <span>Online • {selectedCustomer.documents.length} document(s) in RAM</span>
+                      <span className="w-2 h-2 rounded-full bg-[#25d366] inline-block shrink-0" />
+                      <span className="truncate">Online • {selectedCustomer.documents.length} document(s) in RAM</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => handleShredCustomer(selectedCustomer.customerId)}
                     disabled={isShredding}
