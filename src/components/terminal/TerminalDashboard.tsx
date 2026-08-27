@@ -73,7 +73,7 @@ type FilterMode = 'NORMAL' | 'BW' | 'GRAYSCALE' | 'HIGH_CONTRAST';
 export const TerminalDashboard: React.FC = () => {
   const toast = useToast();
 
-  // Session & Cryptography
+  // Stable Session & Cryptography State
   const [sessionId, setSessionId] = useState('');
   const [sessionKeyHex, setSessionKeyHex] = useState('');
   const [shopId] = useState(() => `XEROX-${Math.random().toString(36).substring(2, 7).toUpperCase()}`);
@@ -98,7 +98,7 @@ export const TerminalDashboard: React.FC = () => {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isShredding, setIsShredding] = useState(false);
 
-  // Refs
+  // Stable Refs (never trigger re-renders)
   const ledgerRef = useRef<EphemeralLedger | null>(null);
   const relayRef = useRef<RelaySocket | null>(null);
   const sessionKeyRef = useRef<CryptoKey | null>(null);
@@ -109,14 +109,8 @@ export const TerminalDashboard: React.FC = () => {
     ? `${window.location.origin}/?room=${sessionId}#key=${sessionKeyHex}`
     : '';
 
-  // Initialize Terminal Master Session
+  // Initialize Terminal Master Session ONCE on mount
   const initTerminal = useCallback(async () => {
-    for (const cust of customers.values()) {
-      for (const doc of cust.documents) {
-        if (doc.decryptedBuffer) zeroizeBuffer(doc.decryptedBuffer);
-      }
-    }
-
     const newSessionId = generateRandomSessionId();
     const newKey = await generateSessionKey();
     const newKeyHex = await exportKeyToHash(newKey);
@@ -189,6 +183,7 @@ export const TerminalDashboard: React.FC = () => {
         }
 
         try {
+          // Decode Base64 ciphertext into Uint8Array
           const binary = atob(msg.ciphertextBase64);
           const ciphertextBytes = new Uint8Array(binary.length);
           for (let i = 0; i < binary.length; i++) {
@@ -250,12 +245,12 @@ export const TerminalDashboard: React.FC = () => {
 
           toast.success('Document Received in RAM', `"${msg.metadata?.filename}" ready to print.`);
         } catch (err) {
-          console.error('[SafePrint] Decryption failed:', err);
-          toast.error('Decryption Error', 'Failed to decrypt incoming document.');
+          console.error('[SafePrint] Decryption error:', err);
+          toast.error('Decryption Error', 'Failed to decrypt document payload.');
         }
       },
     });
-  }, [shopId, shopName, customers, toast]);
+  }, [shopId, shopName, toast]);
 
   useEffect(() => {
     initTerminal();
@@ -406,18 +401,18 @@ export const TerminalDashboard: React.FC = () => {
   return (
     <div className="max-w-[1720px] mx-auto px-2 sm:px-4 py-3 h-[calc(100vh-65px)] flex flex-col">
       {/* ── 2-COLUMN BALANCED WHATSAPP WEB SHELL ── */}
-      <div className="wa-panel-elevated rounded-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 flex-1 border border-[#d1d7db] shadow-2xl bg-white">
+      <div className="wa-panel-elevated rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 flex-1 border border-[#d1d7db] shadow-2xl bg-white">
         {/* ── LEFT PANE: WHATSAPP CHATS & LARGE COUNTER QR (4 Cols on Desktop) ── */}
-        <div className="lg:col-span-4 bg-white border-r border-[#e9edef] flex flex-col no-print h-full">
+        <div className="lg:col-span-4 bg-white border-r border-[#e9edef] flex flex-col no-print h-full overflow-hidden">
           {/* Top WhatsApp Profile Bar */}
-          <div className="bg-[#008069] text-white p-3 flex items-center justify-between shadow-sm shrink-0">
+          <div className="bg-[#008069] text-white px-4 py-3 flex items-center justify-between shadow-sm shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40 text-white flex items-center justify-center text-sm font-bold shadow-sm">
                 <Printer className="w-5 h-5" />
               </div>
               <div className="text-left">
-                <div className="text-sm font-bold">{shopName}</div>
-                <div className="text-[11px] text-white/85 font-mono flex items-center gap-1">
+                <div className="text-sm font-bold truncate">{shopName}</div>
+                <div className="text-[11px] text-white/85 font-mono flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-[#25d366] inline-block" />
                   <span>Station: {shopId}</span>
                 </div>
@@ -448,7 +443,7 @@ export const TerminalDashboard: React.FC = () => {
             <div className="flex items-center justify-between text-[11px] font-bold text-[#008069]">
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#25d366] animate-ping" />
-                <span className="tracking-wide">SCAN TO SEND DOCUMENTS</span>
+                <span className="tracking-wide uppercase">Scan to Send Documents</span>
               </span>
               <span className="text-[10px] text-[#54656f] font-mono">No App Needed</span>
             </div>
@@ -461,7 +456,7 @@ export const TerminalDashboard: React.FC = () => {
             >
               <QRCodeSVG
                 value={customerUrl}
-                size={165}
+                size={160}
                 level="H"
                 includeMargin={false}
                 imageSettings={{
@@ -474,7 +469,7 @@ export const TerminalDashboard: React.FC = () => {
                 }}
               />
               <div className="text-[9px] font-bold text-[#008069] mt-1 group-hover:underline flex items-center justify-center gap-1">
-                <span>🔍 Click to expand</span>
+                <span>🔍 Click to expand QR</span>
               </div>
             </div>
 
@@ -581,7 +576,7 @@ export const TerminalDashboard: React.FC = () => {
                     {/* WhatsApp Avatar */}
                     <div className="relative shrink-0">
                       <div className="w-11 h-11 rounded-full bg-[#dfe5e7] text-[#54656f] font-bold flex items-center justify-center text-sm shadow-inner">
-                        #{idx + 1}
+                        {cust.customerName.charAt(0).toUpperCase()}
                       </div>
                       <span
                         className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
@@ -636,7 +631,7 @@ export const TerminalDashboard: React.FC = () => {
         </div>
 
         {/* ── RIGHT PANE: WHATSAPP ACTIVE CHAT & DRM WORKSPACE (8 Cols) ── */}
-        <div className="lg:col-span-8 flex flex-col bg-white h-full">
+        <div className="lg:col-span-8 flex flex-col bg-white h-full overflow-hidden">
           {!selectedCustomer ? (
             /* WhatsApp Web Default Welcome Screen WITH LARGE QR STATION */
             <div className="flex-1 wa-chat-wallpaper flex flex-col items-center justify-center p-6 text-center border-b-8 border-[#00a884] overflow-y-auto">

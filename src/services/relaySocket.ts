@@ -24,6 +24,7 @@ export class RelaySocket {
   private pollInterval: any = null;
   private lastPollTimestamp: number = 0;
   private shopInfo: { shopName: string; shopId: string } = { shopName: 'SafePrint Station', shopId: '' };
+  private isPeerInitialized: boolean = false;
 
   constructor() {
     try {
@@ -32,7 +33,7 @@ export class RelaySocket {
         this.handleMessage(event.data);
       };
     } catch {
-      // BroadcastChannel not supported in some webviews
+      // BroadcastChannel fallback
     }
   }
 
@@ -45,20 +46,25 @@ export class RelaySocket {
   }
 
   public initShopTerminal(roomId: string, shopId: string, shopName: string) {
+    if (this.isPeerInitialized && this.activeRoomId === roomId && this.role === 'SHOP') {
+      return;
+    }
+
     this.role = 'SHOP';
     this.activeRoomId = roomId;
     this.shopInfo = { shopName, shopId };
+    this.isPeerInitialized = true;
 
-    // Format a clean, valid PeerJS ID from the room ID
     const peerId = `safeprint-shop-${roomId.replace(/[^a-zA-Z0-9]/g, '')}`;
 
     try {
       if (this.peer) {
         try { this.peer.destroy(); } catch {}
+        this.peer = null;
       }
 
       this.peer = new Peer(peerId, {
-        debug: 1,
+        debug: 0,
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -68,7 +74,7 @@ export class RelaySocket {
       });
 
       this.peer.on('open', (id) => {
-        console.log(`[SafePrint WebRTC] Shop Terminal Peer online: ${id}`);
+        console.log(`[SafePrint WebRTC] Shop Terminal Online: ${id}`);
         this.callbacks.onOpen?.();
       });
 
@@ -101,20 +107,24 @@ export class RelaySocket {
       });
 
       this.peer.on('error', (err) => {
-        console.warn('[SafePrint WebRTC] Peer note:', err.type);
+        console.warn('[SafePrint WebRTC] Peer event:', err.type);
       });
     } catch (err) {
       console.warn('[SafePrint] WebRTC init note:', err);
     }
 
-    // Start serverless polling as backup
     this.startServerlessPolling();
   }
 
   public joinCustomerToShop(roomId: string, customerId: string, customerName: string) {
+    if (this.isPeerInitialized && this.activeRoomId === roomId && this.role === 'CUSTOMER') {
+      return;
+    }
+
     this.role = 'CUSTOMER';
     this.activeRoomId = roomId;
     this.activeCustomerId = customerId;
+    this.isPeerInitialized = true;
 
     const shopPeerId = `safeprint-shop-${roomId.replace(/[^a-zA-Z0-9]/g, '')}`;
     const myPeerId = `safeprint-cust-${customerId.replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -122,10 +132,11 @@ export class RelaySocket {
     try {
       if (this.peer) {
         try { this.peer.destroy(); } catch {}
+        this.peer = null;
       }
 
       this.peer = new Peer(myPeerId, {
-        debug: 1,
+        debug: 0,
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -139,7 +150,7 @@ export class RelaySocket {
         this.customerConnection = conn;
 
         conn.on('open', () => {
-          console.log('[SafePrint WebRTC] Direct P2P connection to Shopkeeper established!');
+          console.log('[SafePrint WebRTC] Direct P2P Channel to Shopkeeper online');
           conn.send({
             type: 'CUSTOMER_CONNECTED',
             customerId,
@@ -154,16 +165,14 @@ export class RelaySocket {
       });
 
       this.peer.on('error', (err) => {
-        console.warn('[SafePrint WebRTC] Peer note:', err.type);
+        console.warn('[SafePrint WebRTC] Customer peer event:', err.type);
       });
     } catch (err) {
       console.warn('[SafePrint] Customer WebRTC init note:', err);
     }
 
-    // Start serverless polling as backup
     this.startServerlessPolling();
 
-    // Notify via broadcast channel
     this.broadcastChannel?.postMessage({
       type: 'CUSTOMER_CONNECTED',
       customerId,
@@ -191,7 +200,7 @@ export class RelaySocket {
           }
         }
       } catch {
-        // silent fallback
+        // quiet fallback
       }
     }, 500);
   }
@@ -232,7 +241,7 @@ export class RelaySocket {
       this.joinCustomerToShop(msg.roomId, msg.customerId, msg.customerName);
     }
 
-    // 1. Send via direct WebRTC connection
+    // 1. Direct WebRTC
     if (this.role === 'CUSTOMER' && this.customerConnection && this.customerConnection.open) {
       this.customerConnection.send(msg);
     } else if (this.role === 'SHOP' && msg.customerId) {
@@ -242,12 +251,12 @@ export class RelaySocket {
       }
     }
 
-    // 2. Send via BroadcastChannel for same-device tabs
+    // 2. BroadcastChannel
     try {
       this.broadcastChannel?.postMessage(msg);
     } catch {}
 
-    // 3. Send via Serverless Relay HTTP POST
+    // 3. Serverless HTTP
     if (this.activeRoomId) {
       const targetRole = this.role === 'SHOP' ? 'CUSTOMER' : 'SHOP';
       fetch('/api/relay', {
@@ -276,7 +285,6 @@ export class RelaySocket {
   ) {
     onProgress?.(30);
 
-    // Fast binary to base64 conversion
     const bytes = new Uint8Array(encryptedBuffer);
     let binary = '';
     const sliceSize = 32768;
@@ -309,6 +317,7 @@ export class RelaySocket {
   }
 
   public close() {
+    this.isPeerInitialized = false;
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
       this.pollInterval = null;
