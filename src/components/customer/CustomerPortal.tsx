@@ -14,8 +14,11 @@ import {
   ChevronLeft,
   ShieldAlert,
   Camera,
-  Upload,
-  UserCheck
+  Paperclip,
+  Smile,
+  SlidersHorizontal,
+  UserCheck,
+  MoreVertical
 } from 'lucide-react';
 import { QRScanner } from './QRScanner';
 import { RedactionStudio } from './RedactionStudio';
@@ -47,7 +50,7 @@ export const CustomerPortal: React.FC = () => {
   // Session & Pairing
   const [roomId, setRoomId] = useState<string | null>(null);
   const [keyHex, setKeyHex] = useState<string | null>(null);
-  const [shopName, setShopName] = useState('SafePrint Station');
+  const [shopName, setShopName] = useState('SafePrint Express Station');
   const [shopId, setShopId] = useState('');
   const [customerId] = useState(() => `CUST-${Math.random().toString(36).substring(2, 7).toUpperCase()}`);
   const [customerName, setCustomerName] = useState('My Phone');
@@ -65,6 +68,7 @@ export const CustomerPortal: React.FC = () => {
 
   // UI state
   const [showSettings, setShowSettings] = useState(false);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showRedactionStudio, setShowRedactionStudio] = useState(false);
   const [activeCert, setActiveCert] = useState<DestructionCertificate | null>(null);
 
@@ -166,6 +170,7 @@ export const CustomerPortal: React.FC = () => {
       size: file.size,
       buffer,
     });
+    setShowAttachmentMenu(false);
 
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (cameraInputRef.current) cameraInputRef.current.value = '';
@@ -265,54 +270,57 @@ export const CustomerPortal: React.FC = () => {
           <QRScanner onSessionDecoded={handleSessionDecoded} />
         </div>
       ) : (
-        /* ── STEP 2: WhatsApp Chat Interface ── */
-        <div className="wa-panel-elevated rounded-2xl overflow-hidden flex flex-col h-[calc(100dvh-125px)] sm:h-[680px] border border-[#d1d7db] shadow-xl">
+        /* ── STEP 2: Authentic WhatsApp Chat Interface ── */
+        <div className="wa-panel-elevated rounded-2xl overflow-hidden flex flex-col h-[calc(100dvh-120px)] sm:h-[680px] border border-[#d1d7db] shadow-2xl relative">
           {/* WhatsApp Chat Top Header */}
           <div className="bg-[#008069] text-white px-3 py-2.5 sm:py-3 flex items-center justify-between shadow-md shrink-0">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
               <button
                 onClick={handleReset}
                 className="p-1 rounded-full hover:bg-white/20 text-white transition-colors"
                 title="Disconnect"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-6 h-6" />
               </button>
 
               <div className="relative shrink-0">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/20 border border-white/40 flex items-center justify-center font-bold text-white text-sm">
+                <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40 flex items-center justify-center font-bold text-white text-sm shadow-sm">
                   <Printer className="w-5 h-5" />
                 </div>
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#25d366] border-2 border-[#008069]" />
+                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#25d366] border-2 border-[#008069]" />
               </div>
 
               <div className="text-left min-w-0">
-                <div className="text-xs sm:text-sm font-bold truncate">
-                  {shopName}
+                <div className="text-sm font-bold truncate flex items-center gap-1">
+                  <span>{shopName}</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#25d366]" />
                 </div>
-                <div className="text-[10px] text-white/85 font-mono flex items-center gap-1">
-                  <span>🟢 Connected to Queue</span>
+                <div className="text-[11px] text-white/85 flex items-center gap-1 font-mono">
+                  <span>🟢 Online • Encrypted RAM</span>
                 </div>
               </div>
             </div>
 
-            {/* Header Right Profile & Preferences */}
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-                showSettings ? 'bg-white/30 text-white' : 'bg-white/15 hover:bg-white/25 text-white'
-              }`}
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Preferences</span>
-            </button>
+            {/* Header Right Settings */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className={`p-2 rounded-full transition-colors ${
+                  showSettings ? 'bg-white/30 text-white' : 'hover:bg-white/15 text-white'
+                }`}
+                title="Printing & Watermark Options"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Quick Settings Dropdown */}
           {showSettings && (
-            <div className="bg-white p-3 border-b border-[#e9edef] shadow-inner text-left animate-in slide-in-from-top duration-200 space-y-2.5 shrink-0">
+            <div className="bg-white p-3 border-b border-[#e9edef] shadow-md text-left animate-in slide-in-from-top duration-200 space-y-3 shrink-0">
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-[#54656f] block">
-                  Your Name / Token (Displayed in Shopkeeper's Queue):
+                  Your Display Name (shown to shopkeeper):
                 </label>
                 <input
                   type="text"
@@ -348,7 +356,7 @@ export const CustomerPortal: React.FC = () => {
 
               return (
                 <div key={doc.id} className="flex justify-end animate-in fade-in duration-150">
-                  <div className="wa-bubble-out max-w-[90%] sm:max-w-sm p-3 space-y-2 border border-[#d1d7db]/40">
+                  <div className="wa-bubble-out max-w-[92%] sm:max-w-sm p-3 space-y-2 border border-[#d1d7db]/40">
                     <div className="p-2.5 rounded-lg bg-white flex items-center gap-3 border border-[#00a884]/20 shadow-sm">
                       <div className="p-2 rounded-lg bg-[#00a884]/15 text-[#008069] shrink-0">
                         {isPdf ? <FileText className="w-6 h-6" /> : <ImageIcon className="w-6 h-6" />}
@@ -400,7 +408,7 @@ export const CustomerPortal: React.FC = () => {
 
                         {doc.status === 'STREAMING' && (
                           <span className="text-[#008069] flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" /> Streaming
+                            <Check className="w-3.5 h-3.5" /> Sending
                           </span>
                         )}
 
@@ -440,7 +448,7 @@ export const CustomerPortal: React.FC = () => {
             {/* Staged File Preview */}
             {selectedFile && (
               <div className="flex justify-end animate-in zoom-in-95 duration-150">
-                <div className="wa-bubble-out max-w-[90%] sm:max-w-sm p-3 space-y-2.5 border-2 border-[#00a884] shadow-md">
+                <div className="wa-bubble-out max-w-[92%] sm:max-w-sm p-3 space-y-2.5 border-2 border-[#00a884] shadow-md">
                   <div className="text-[11px] font-bold text-[#008069] flex items-center justify-between">
                     <span>Ready to Encrypt & Send</span>
                     <button
@@ -479,9 +487,44 @@ export const CustomerPortal: React.FC = () => {
             <div ref={chatBottomRef} />
           </div>
 
-          {/* ── CHAT INPUT ATTACHMENT BAR (WhatsApp Style) ── */}
-          <div className="bg-[#f0f2f5] p-2 sm:p-2.5 flex items-center gap-1.5 sm:gap-2 border-t border-[#e9edef] shrink-0">
-            {/* File Pickers */}
+          {/* WhatsApp Attachment Sheet Popover */}
+          {showAttachmentMenu && (
+            <div className="absolute bottom-16 left-3 bg-white rounded-2xl p-3 shadow-2xl border border-[#d1d7db] flex gap-4 animate-in slide-in-from-bottom duration-150 z-30">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#8f3985] text-white flex items-center justify-center shadow-md">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <span className="text-[11px] text-[#54656f] font-semibold">Document</span>
+              </button>
+
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#d3396d] text-white flex items-center justify-center shadow-md">
+                  <Camera className="w-6 h-6" />
+                </div>
+                <span className="text-[11px] text-[#54656f] font-semibold">Camera</span>
+              </button>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#ac44cf] text-white flex items-center justify-center shadow-md">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+                <span className="text-[11px] text-[#54656f] font-semibold">Gallery</span>
+              </button>
+            </div>
+          )}
+
+          {/* ── AUTHENTIC WHATSAPP INPUT BAR ── */}
+          <div className="bg-[#f0f2f5] p-2 sm:p-2.5 flex items-center gap-2 border-t border-[#e9edef] shrink-0">
+            {/* Hidden native pickers */}
             <input
               ref={fileInputRef}
               type="file"
@@ -498,42 +541,41 @@ export const CustomerPortal: React.FC = () => {
               className="hidden"
             />
 
-            {/* Document Picker Button */}
+            {/* Smiley Emoji Icon */}
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="p-2 sm:p-2.5 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors"
-              title="Attach Document (PDF, Image)"
+              onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+              className="p-1.5 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors"
             >
-              <Plus className="w-5 h-5 text-[#54656f]" />
+              <Smile className="w-6 h-6 text-[#54656f]" />
             </button>
 
-            {/* Camera Capture Button */}
+            {/* Paperclip Attachment Button */}
             <button
-              onClick={() => cameraInputRef.current?.click()}
-              className="p-2 sm:p-2.5 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors"
-              title="Scan with Camera"
+              onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+              className="p-1.5 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors"
+              title="Attach Document / Camera"
             >
-              <Camera className="w-5 h-5 text-[#54656f]" />
+              <Paperclip className="w-5 h-5 text-[#54656f]" />
             </button>
 
-            {/* Input Bar Trigger */}
+            {/* Input Bubble */}
             <div
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-1 bg-white px-3 py-2 rounded-2xl text-xs text-[#667781] border border-[#e9edef] cursor-pointer hover:border-[#00a884] transition-colors truncate"
+              onClick={() => setShowAttachmentMenu(true)}
+              className="flex-1 bg-white px-3.5 py-2.5 rounded-2xl text-xs text-[#667781] border border-[#e9edef] cursor-pointer hover:border-[#00a884] transition-colors truncate"
             >
               {selectedFile ? (
-                <span className="text-[#111b21] font-semibold">{selectedFile.name}</span>
+                <span className="text-[#111b21] font-semibold truncate block">{selectedFile.name}</span>
               ) : (
-                <span>Tap (+) or camera to select document...</span>
+                <span>Type a message or attach document...</span>
               )}
             </div>
 
-            {/* WhatsApp Send Button */}
+            {/* WhatsApp Send / Mic Button */}
             <button
               onClick={handleSendDocument}
               disabled={!selectedFile}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 disabled:cursor-not-allowed shrink-0"
-              title="Encrypt & Send to Shop"
+              className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 disabled:cursor-not-allowed shrink-0"
+              title="Send to Xerox Shop"
             >
               <Send className="w-4 h-4 ml-0.5" />
             </button>
