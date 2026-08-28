@@ -207,8 +207,21 @@ export class RelaySocket {
     }, 450);
   }
 
+  private processedMessageIds: Set<string> = new Set();
+  private processedDocHashes: Set<string> = new Set();
+
   private handleMessage(msg: any) {
     if (!msg || typeof msg !== 'object') return;
+
+    // Deduplicate by explicit message ID if present
+    if (msg.id) {
+      if (this.processedMessageIds.has(msg.id)) return;
+      this.processedMessageIds.add(msg.id);
+      if (this.processedMessageIds.size > 500) {
+        const first = this.processedMessageIds.values().next().value;
+        if (first) this.processedMessageIds.delete(first);
+      }
+    }
 
     switch (msg.type) {
       case 'CUSTOMER_CONNECTED':
@@ -222,6 +235,10 @@ export class RelaySocket {
         this.callbacks.onConnectedToShop?.(msg);
         break;
       case 'DOC_PAYLOAD':
+        if (msg.docHash) {
+          if (this.processedDocHashes.has(msg.docHash)) return;
+          this.processedDocHashes.add(msg.docHash);
+        }
         this.callbacks.onDocPayload?.(msg);
         break;
       case 'DOC_PAYLOAD_CHUNK':
@@ -241,6 +258,10 @@ export class RelaySocket {
 
   private handlePayloadChunk(msg: any) {
     const key = `${msg.customerId}_${msg.docHash}`;
+    
+    // If this full docHash was already completed and dispatched, skip any redundant chunks
+    if (this.processedDocHashes.has(msg.docHash)) return;
+
     let assembly = this.chunkAssemblyMap.get(key);
     if (!assembly) {
       assembly = {
@@ -268,6 +289,7 @@ export class RelaySocket {
     if (complete) {
       const fullBase64 = assembly.chunks.join('');
       this.chunkAssemblyMap.delete(key);
+      this.processedDocHashes.add(msg.docHash);
 
       this.callbacks.onDocPayload?.({
         customerId: assembly.custId,

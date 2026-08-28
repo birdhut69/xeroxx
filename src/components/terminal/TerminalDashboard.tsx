@@ -260,8 +260,18 @@ export const TerminalDashboard: React.FC = () => {
               };
               next.set(custId, cust);
             }
-            cust.status = 'ACTIVE';
-            cust.lastActive = Date.now();
+            // Deduplicate: check if document already exists by docHash or filename & size
+            const existingDocIndex = cust.documents.findIndex(
+              (d) => (msg.metadata?.docHash && d.docHash === msg.metadata.docHash) ||
+                     (d.filename === (msg.metadata?.filename || 'Document') && d.fileSize === (msg.metadata?.fileSize || 0))
+            );
+
+            if (existingDocIndex >= 0) {
+              cust.documents[existingDocIndex].decryptedBuffer = plaintextBuffer;
+              cust.documents[existingDocIndex].status = 'READY';
+              return next;
+            }
+
             cust.documents.push({
               id: docId,
               filename: msg.metadata?.filename || 'Document',
@@ -276,12 +286,15 @@ export const TerminalDashboard: React.FC = () => {
               copies: 1,
             });
 
-            cust.messages.push({
-              id: `DOC-MSG-${Date.now()}`,
-              sender: 'CUSTOMER',
-              docId,
-              timestamp: Date.now(),
-            });
+            // Prevent duplicate DOC-MSG
+            if (!cust.messages.some((m) => m.docId === docId)) {
+              cust.messages.push({
+                id: `DOC-MSG-${docId}`,
+                sender: 'CUSTOMER',
+                docId,
+                timestamp: Date.now(),
+              });
+            }
 
             return next;
           });
