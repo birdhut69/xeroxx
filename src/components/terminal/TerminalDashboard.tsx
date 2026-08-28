@@ -34,6 +34,7 @@ import {
 } from '../../crypto/e2ee';
 import { zeroizeBuffer } from '../../crypto/zeroize';
 import { EphemeralLedger } from '../../crypto/ledger';
+import { SecurityGuards } from '../../crypto/securityGuards';
 import { RelaySocket } from '../../services/relaySocket';
 import { sounds } from '../../services/AudioEffects';
 import { useToast } from '../shared/ToastContext';
@@ -190,10 +191,13 @@ export const TerminalDashboard: React.FC = () => {
       },
       onChatMessage: (msg) => {
         sounds.playSuccess();
+        const safeText = SecurityGuards.sanitizeText(msg.text || '');
+        const safeName = SecurityGuards.sanitizeText(msg.customerName || '');
+
         setCustomers((prev) => {
           const next = new Map(prev);
           let cust = next.get(msg.customerId);
-          const displayName = msg.customerName || `Customer #${next.size + 1}`;
+          const displayName = safeName || `Customer #${next.size + 1}`;
 
           if (!cust) {
             cust = {
@@ -206,8 +210,8 @@ export const TerminalDashboard: React.FC = () => {
               status: 'ACTIVE',
             };
             next.set(msg.customerId, cust);
-          } else if (msg.customerName) {
-            cust.customerName = msg.customerName;
+          } else if (safeName) {
+            cust.customerName = safeName;
           }
 
           cust.lastActive = Date.now();
@@ -217,7 +221,7 @@ export const TerminalDashboard: React.FC = () => {
             cust.messages.push({
               id: msg.id || `MSG-${Date.now()}`,
               sender: msg.sender,
-              text: msg.text,
+              text: safeText,
               timestamp: msg.timestamp || Date.now(),
             });
           }
@@ -231,6 +235,8 @@ export const TerminalDashboard: React.FC = () => {
         const custId = msg.customerId || 'UNKNOWN';
         const docId = `DOC-${Math.random().toString(36).substring(2, 8)}`;
         const currentKey = sessionKeyRef.current;
+        const safeFilename = SecurityGuards.sanitizeFilename(msg.metadata?.filename || 'Document');
+        const safeCustomerName = SecurityGuards.sanitizeText(msg.customerName || '');
 
         if (!currentKey) {
           console.error('[SafePrint] Missing session key for decryption');
@@ -256,7 +262,7 @@ export const TerminalDashboard: React.FC = () => {
           setCustomers((prev) => {
             const next = new Map(prev);
             let cust = next.get(custId);
-            const displayName = msg.customerName || `Customer #${next.size + 1}`;
+            const displayName = safeCustomerName || `Customer #${next.size + 1}`;
             if (!cust) {
               cust = {
                 customerId: custId,
@@ -268,8 +274,8 @@ export const TerminalDashboard: React.FC = () => {
                 status: 'ACTIVE',
               };
               next.set(custId, cust);
-            } else if (msg.customerName) {
-              cust.customerName = msg.customerName;
+            } else if (safeCustomerName) {
+              cust.customerName = safeCustomerName;
             }
 
             cust.status = 'ACTIVE';
@@ -278,7 +284,7 @@ export const TerminalDashboard: React.FC = () => {
             // Deduplicate: check if document already exists
             const existingDocIndex = cust.documents.findIndex(
               (d) => (msg.docHash && d.docHash === msg.docHash) ||
-                     (d.filename === (msg.metadata?.filename || 'Document') && d.fileSize === (msg.metadata?.fileSize || 0))
+                     (d.filename === safeFilename && d.fileSize === (msg.metadata?.fileSize || 0))
             );
 
             if (existingDocIndex >= 0) {
@@ -289,11 +295,11 @@ export const TerminalDashboard: React.FC = () => {
 
             cust.documents.push({
               id: docId,
-              filename: msg.metadata?.filename || 'Document',
+              filename: safeFilename,
               fileType: msg.metadata?.fileType || 'application/pdf',
               fileSize: msg.metadata?.fileSize || 0,
               docHash: msg.docHash,
-              watermarkText: msg.metadata?.watermarkText,
+              watermarkText: SecurityGuards.sanitizeText(msg.metadata?.watermarkText || ''),
               maxCopies: msg.metadata?.maxCopies || 5,
               decryptedBuffer: plaintextBuffer,
               status: 'READY',

@@ -19,6 +19,7 @@ import {
   X
 } from 'lucide-react';
 import { importKeyFromHash, encryptDocument } from '../../crypto/e2ee';
+import { SecurityGuards } from '../../crypto/securityGuards';
 import { RelaySocket } from '../../services/relaySocket';
 import { sounds } from '../../services/AudioEffects';
 import { useToast } from '../shared/ToastContext';
@@ -181,21 +182,22 @@ export const CustomerPortal: React.FC = () => {
   };
 
   const processIncomingFile = async (file: File) => {
-    if (file.size > 50 * 1024 * 1024) {
+    if (!SecurityGuards.validateFileSize(file.size)) {
       toast.error('File Too Large', 'Maximum file size is 50 MB.');
       return;
     }
 
+    const safeFilename = SecurityGuards.sanitizeFilename(file.name);
     const buffer = await file.arrayBuffer();
     setSelectedFile({
-      name: file.name,
+      name: safeFilename,
       type: file.type || 'application/pdf',
       size: file.size,
       buffer,
     });
     setShowAttachmentMenu(false);
     sounds.playSuccess();
-    toast.success('Document Ready', `${file.name} staged in memory.`);
+    toast.success('Document Ready', `${safeFilename} staged in memory.`);
   };
 
   const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {

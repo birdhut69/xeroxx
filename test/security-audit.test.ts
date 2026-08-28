@@ -1,6 +1,7 @@
 import { generateSessionKey, exportKeyToHash, importKeyFromHash, encryptDocument, decryptDocument, computeSHA256 } from '../src/crypto/e2ee';
 import { zeroizeBuffer } from '../src/crypto/zeroize';
 import { EphemeralLedger } from '../src/crypto/ledger';
+import { SecurityGuards } from '../src/crypto/securityGuards';
 
 async function runSecurityAudit() {
   console.log('\n===============================================================');
@@ -87,6 +88,37 @@ async function runSecurityAudit() {
   } catch (err: any) {
     console.error('Ledger Test Exception:', err);
     assert(false, 'Blockchain ledger verification succeeded');
+  }
+
+  // 4. Attack Vector Defense Guards (XSS, MitM, Replay, DoS)
+  console.log('\n--- 4. Attack Defense Guards & Sanitization ---');
+  try {
+    // XSS defense
+    const maliciousInput = '<script>alert("XSS")</script><img src=x onerror=alert(1)>';
+    const sanitized = SecurityGuards.sanitizeText(maliciousInput);
+    assert(!sanitized.includes('<script>') && !sanitized.includes('<img'), 'XSS tags properly neutralized and encoded');
+
+    // Path traversal defense
+    const maliciousFilename = '../../../../etc/passwd;evil.pdf';
+    const safeFilename = SecurityGuards.sanitizeFilename(maliciousFilename);
+    assert(!safeFilename.includes('..') && !safeFilename.includes('/'), 'Directory traversal in filename neutralized');
+
+    // Replay attack defense (timestamp expiry)
+    const oldTimestamp = Date.now() - (10 * 60 * 1000); // 10 mins ago
+    assert(SecurityGuards.validateTimestamp(oldTimestamp) === false, 'Expired messages (>5 min) rejected to prevent Replay attacks');
+    assert(SecurityGuards.validateTimestamp(Date.now()) === true, 'Fresh messages validated successfully');
+
+    // Nonce replay defense
+    const nonce = SecurityGuards.generateCryptoToken(16);
+    assert(SecurityGuards.validateAndRecordNonce(nonce) === true, 'Unique nonce accepted on first use');
+    assert(SecurityGuards.validateAndRecordNonce(nonce) === false, 'Duplicate nonce rejected to prevent replay tampering');
+
+    // DoS / Payload size defense
+    assert(SecurityGuards.validateFileSize(1024 * 1024) === true, 'Valid 1MB payload accepted');
+    assert(SecurityGuards.validateFileSize(100 * 1024 * 1024) === false, 'Excessive >50MB payload rejected to prevent DoS memory exhaustion');
+  } catch (err: any) {
+    console.error('Defense Guards Exception:', err);
+    assert(false, 'Security guards verification succeeded');
   }
 
   console.log('\n===============================================================');
