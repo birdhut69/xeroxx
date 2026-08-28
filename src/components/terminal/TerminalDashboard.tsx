@@ -13,14 +13,18 @@ import {
   Copy,
   Check,
   RefreshCw,
-  FileCheck,
   Lock,
   X,
   FileSpreadsheet,
   CheckCheck,
   Maximize2,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  QrCode,
+  ShieldCheck,
+  Sparkles,
+  SlidersHorizontal,
+  MoreVertical
 } from 'lucide-react';
 import {
   generateSessionKey,
@@ -177,7 +181,6 @@ export const TerminalDashboard: React.FC = () => {
         }
 
         try {
-          // Decode Base64 ciphertext into Uint8Array
           const binary = atob(msg.ciphertextBase64);
           const ciphertextBytes = new Uint8Array(binary.length);
           for (let i = 0; i < binary.length; i++) {
@@ -393,123 +396,110 @@ export const TerminalDashboard: React.FC = () => {
     .sort((a, b) => b.lastActive - a.lastActive);
 
   return (
-    <div className="flex-1 min-h-0 w-full p-2 sm:p-3 flex flex-col overflow-hidden bg-[#efeae2]">
-      {/* ── 2-COLUMN BALANCED WHATSAPP WEB SHELL ── */}
-      <div className="w-full h-full rounded-2xl bg-white border border-[#d1d7db] shadow-xl flex flex-col lg:flex-row overflow-hidden">
-        {/* ── LEFT PANE: WHATSAPP CHATS & COUNTER QR (380px on Desktop) ── */}
+    <div className="flex-1 min-h-0 w-full h-full flex flex-col overflow-hidden">
+      {/* ── AUTHENTIC WHATSAPP WEB SHELL ── */}
+      <div className="w-full h-full bg-white rounded-none lg:rounded-[10px] shadow-[0_6px_18px_rgba(11,20,26,0.05)] border border-[#d1d7db] flex overflow-hidden">
+        {/* ── LEFT PANE: WHATSAPP CHAT LIST (380px Desktop) ── */}
         <div
-          className={`w-full lg:w-[380px] xl:w-[400px] shrink-0 bg-white border-r border-[#e9edef] flex flex-col no-print h-full overflow-hidden ${
+          className={`w-full lg:w-[380px] xl:w-[410px] shrink-0 bg-white border-r border-[#d1d7db] flex flex-col no-print h-full overflow-hidden ${
             mobileTab === 'WORKSPACE' && selectedCustomerId ? 'hidden lg:flex' : 'flex'
           }`}
         >
-          {/* Top WhatsApp Profile Bar */}
-          <div className="bg-[#008069] text-white px-4 py-3 flex items-center justify-between shadow-sm shrink-0 h-14">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-white/20 border border-white/40 text-white flex items-center justify-center text-sm font-bold shadow-inner shrink-0">
-                <Printer className="w-4 h-4" />
+          {/* Top WhatsApp Web Header */}
+          <div className="bg-[#f0f2f5] px-4 py-2.5 flex items-center justify-between border-b border-[#d1d7db] shrink-0 h-[60px]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#00a884] text-white flex items-center justify-center font-bold text-base shadow-sm">
+                <Printer className="w-5 h-5" />
               </div>
-              <div className="text-left min-w-0">
-                <div className="text-sm font-bold truncate leading-tight">{shopName}</div>
-                <div className="text-[11px] text-white/90 font-mono flex items-center gap-1 mt-0.5">
-                  <span className="w-2 h-2 rounded-full bg-[#25d366] inline-block shadow-sm" />
-                  <span className="truncate">Station: {shopId}</span>
+              <div className="text-left leading-tight">
+                <div className="text-[15px] font-semibold text-[#111b21] truncate max-w-[170px]">{shopName}</div>
+                <div className="text-[12px] text-[#00a884] font-medium flex items-center gap-1.5 mt-0.5">
+                  <span className="w-2 h-2 rounded-full bg-[#25d366] inline-block" />
+                  <span>{shopId} • Online</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1 text-[#54656f]">
               <button
                 onClick={() => setShowQRModal(true)}
-                className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors"
-                title="Open Fullscreen Counter QR"
+                className="p-2 rounded-full hover:bg-black/5 transition-colors"
+                title="Show Fullscreen Counter QR"
               >
-                <Maximize2 className="w-4 h-4" />
+                <QrCode className="w-5 h-5" />
               </button>
 
               <button
                 onClick={initTerminal}
-                className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors"
-                title="Reset Session Keys"
+                className="p-2 rounded-full hover:bg-black/5 transition-colors"
+                title="Refresh Session Keys"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* 📸 COMPACT & CLEAN COUNTER QR CARD 📸 */}
-          <div className="p-3 bg-[#f8fafc] border-b border-[#e9edef] text-center shrink-0 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-[#008069]">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#25d366] animate-ping" />
-                <span className="tracking-wide uppercase text-[11px]">Scan to Send Files</span>
-              </span>
-              <span className="text-[11px] text-[#54656f] font-mono">No App Needed</span>
-            </div>
-
-            {/* QR Code */}
+          {/* 📲 WhatsApp "Get Connected" Banner Card 📲 */}
+          <div className="bg-[#e7f8ff] p-3.5 border-b border-[#d1d7db] flex items-center gap-3 shrink-0">
             <div
               onClick={() => setShowQRModal(true)}
-              className="p-2 bg-white rounded-xl border border-[#00a884] shadow-sm inline-block mx-auto cursor-pointer hover:shadow-md transition-all group"
+              className="p-1 bg-white rounded-lg border border-[#00a884]/40 shadow-sm cursor-pointer shrink-0 hover:scale-105 transition-transform"
               title="Click to expand QR Code"
             >
               <QRCodeSVG
                 value={customerUrl}
-                size={120}
-                level="H"
+                size={54}
+                level="M"
                 includeMargin={false}
-                imageSettings={{
-                  src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23008069' stroke='%23ffffff' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>",
-                  x: undefined,
-                  y: undefined,
-                  height: 24,
-                  width: 24,
-                  excavate: true,
-                }}
               />
-              <div className="text-[10px] font-bold text-[#008069] mt-1 group-hover:underline flex items-center justify-center gap-1">
-                <span>🔍 Click to expand</span>
-              </div>
             </div>
 
-            {/* Quick Action Buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={handleCopyLink}
-                className="flex-1 h-8 rounded-lg bg-white hover:bg-[#f0f2f5] text-[#111b21] text-xs font-bold flex items-center justify-center gap-1 transition-colors border border-[#d1d7db] shadow-sm"
-              >
-                {copiedQR ? <Check className="w-3.5 h-3.5 text-[#00a884]" /> : <Copy className="w-3.5 h-3.5 text-[#54656f]" />}
-                <span>{copiedQR ? 'Copied!' : 'Copy Link'}</span>
-              </button>
+            <div className="flex-1 min-w-0 text-left">
+              <div className="text-[13px] font-bold text-[#111b21] flex items-center justify-between">
+                <span>Scan to Send Files</span>
+                <span className="text-[11px] font-mono text-[#0284c7] bg-white px-1.5 py-0.5 rounded border border-[#0284c7]/20">No App</span>
+              </div>
+              <p className="text-[11px] text-[#54656f] mt-0.5 truncate">Point camera to transfer in RAM</p>
 
-              <button
-                onClick={() => window.open(customerUrl, '_blank')}
-                className="h-8 px-3 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center justify-center gap-1 transition-colors shadow-sm"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>Test Phone</span>
-              </button>
+              <div className="flex gap-2 mt-1.5">
+                <button
+                  onClick={handleCopyLink}
+                  className="px-2 py-0.5 rounded bg-white hover:bg-[#f0f2f5] text-[#111b21] text-[11px] font-semibold flex items-center gap-1 border border-[#d1d7db] shadow-xs"
+                >
+                  {copiedQR ? <Check className="w-3 h-3 text-[#00a884]" /> : <Copy className="w-3 h-3 text-[#54656f]" />}
+                  <span>{copiedQR ? 'Copied' : 'Copy'}</span>
+                </button>
+
+                <button
+                  onClick={() => window.open(customerUrl, '_blank')}
+                  className="px-2.5 py-0.5 rounded bg-[#00a884] hover:bg-[#008f6f] text-white text-[11px] font-semibold flex items-center gap-1 shadow-xs"
+                >
+                  <Smartphone className="w-3 h-3" />
+                  <span>Test Mobile</span>
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Search & Filter Bar */}
-          <div className="p-2.5 bg-white border-b border-[#e9edef] space-y-2 shrink-0">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#667781]" />
+          <div className="bg-white p-2.5 border-b border-[#e9edef] space-y-2 shrink-0">
+            <div className="bg-[#f0f2f5] rounded-lg h-9 flex items-center px-3 gap-2.5">
+              <Search className="w-4 h-4 text-[#54656f] shrink-0" />
               <input
                 type="text"
-                placeholder="Search connected customers..."
+                placeholder="Search or start new chat"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 h-9 text-xs sm:text-sm bg-[#f0f2f5] border-none rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00a884] text-[#111b21] placeholder-[#667781]"
+                className="w-full text-[13px] bg-transparent border-none focus:outline-none text-[#111b21] placeholder-[#667781]"
               />
             </div>
 
-            <div className="flex items-center gap-1 text-xs">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setFilterTab('ALL')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1 rounded-full text-[12px] font-semibold transition-all ${
                   filterTab === 'ALL'
-                    ? 'bg-[#00a884] text-white shadow-sm'
+                    ? 'bg-[#d9fdd3] text-[#008069] border border-[#00a884]/30'
                     : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e9edef]'
                 }`}
               >
@@ -517,9 +507,9 @@ export const TerminalDashboard: React.FC = () => {
               </button>
               <button
                 onClick={() => setFilterTab('PENDING')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1 rounded-full text-[12px] font-semibold transition-all ${
                   filterTab === 'PENDING'
-                    ? 'bg-[#00a884] text-white shadow-sm'
+                    ? 'bg-[#d9fdd3] text-[#008069] border border-[#00a884]/30'
                     : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e9edef]'
                 }`}
               >
@@ -527,9 +517,9 @@ export const TerminalDashboard: React.FC = () => {
               </button>
               <button
                 onClick={() => setFilterTab('PRINTED')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1 rounded-full text-[12px] font-semibold transition-all ${
                   filterTab === 'PRINTED'
-                    ? 'bg-[#00a884] text-white shadow-sm'
+                    ? 'bg-[#d9fdd3] text-[#008069] border border-[#00a884]/30'
                     : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e9edef]'
                 }`}
               >
@@ -538,16 +528,16 @@ export const TerminalDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Customer Chat Queue List */}
+          {/* Customer Chat Rows List */}
           <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#f0f2f5]">
             {customerList.length === 0 ? (
-              <div className="p-6 text-center text-[#667781] space-y-2">
-                <div className="w-10 h-10 rounded-full bg-[#f0f2f5] flex items-center justify-center mx-auto text-[#00a884]">
-                  <Users className="w-5 h-5" />
+              <div className="p-8 text-center text-[#667781] space-y-2.5 my-auto">
+                <div className="w-12 h-12 rounded-full bg-[#f0f2f5] flex items-center justify-center mx-auto text-[#00a884]">
+                  <Users className="w-6 h-6" />
                 </div>
-                <div className="text-xs sm:text-sm font-bold text-[#111b21]">Queue is Empty</div>
-                <p className="text-xs text-[#54656f] leading-relaxed max-w-xs mx-auto">
-                  Customers scan your counter QR code above to beam documents directly into this queue.
+                <div className="text-[15px] font-bold text-[#111b21]">No Customers in Queue</div>
+                <p className="text-[13px] text-[#667781] leading-relaxed max-w-xs mx-auto">
+                  Customers scan your counter QR code to send documents directly into this queue.
                 </p>
               </div>
             ) : (
@@ -566,57 +556,57 @@ export const TerminalDashboard: React.FC = () => {
                       }
                       setMobileTab('WORKSPACE');
                     }}
-                    className={`p-3 sm:p-3.5 flex items-center gap-3 cursor-pointer transition-colors text-left ${
+                    className={`h-[72px] px-4 flex items-center gap-3.5 cursor-pointer transition-colors text-left ${
                       isSelected
                         ? 'bg-[#f0f2f5] border-l-4 border-[#00a884]'
                         : 'hover:bg-[#f5f6f6]'
                     }`}
                   >
-                    {/* WhatsApp Avatar */}
+                    {/* WhatsApp Circular Avatar */}
                     <div className="relative shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-[#dfe5e7] text-[#54656f] font-bold flex items-center justify-center text-sm shadow-inner">
+                      <div className="w-12 h-12 rounded-full bg-[#dfe5e7] text-[#54656f] font-bold flex items-center justify-center text-base shadow-xs">
                         {cust.customerName.charAt(0).toUpperCase()}
                       </div>
                       <span
-                        className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                        className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${
                           readyDocs.length > 0 ? 'bg-[#25d366]' : 'bg-[#8696a0]'
                         }`}
                       />
                     </div>
 
-                    {/* Chat Line */}
+                    {/* Middle Chat Details */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-bold text-[#111b21] truncate">
+                        <span className="text-[16px] font-normal text-[#111b21] truncate leading-5">
                           {cust.customerName}
                         </span>
-                        <span className="text-[11px] text-[#667781] font-mono">
+                        <span className="text-[12px] text-[#667781]">
                           {new Date(cust.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between mt-0.5">
-                        <div className="text-xs text-[#667781] truncate flex items-center gap-1 max-w-[160px]">
+                      <div className="flex items-center justify-between mt-1">
+                        <div className="text-[13px] text-[#667781] truncate flex items-center gap-1 max-w-[170px]">
                           {lastDoc ? (
                             <>
-                              <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb] shrink-0" />
+                              <CheckCheck className="w-4 h-4 text-[#53bdeb] shrink-0" />
                               <span className="truncate">{lastDoc.filename}</span>
                             </>
                           ) : (
-                            <span className="italic">Connected • Staging file</span>
+                            <span className="italic">Connected • Staging</span>
                           )}
                         </div>
 
                         {readyDocs.length > 0 ? (
-                          <span className="px-2 py-0.5 rounded-full bg-[#25d366] text-white text-[11px] font-bold flex items-center gap-0.5 shrink-0 shadow-sm">
-                            {readyDocs.length} Ready
+                          <span className="w-5 h-5 rounded-full bg-[#25d366] text-white text-[11px] font-bold flex items-center justify-center shrink-0 shadow-xs">
+                            {readyDocs.length}
                           </span>
                         ) : cust.status === 'PRINTED' ? (
-                          <span className="px-2 py-0.5 rounded-full bg-[#e7f8ff] text-[#0284c7] text-[11px] font-bold shrink-0">
+                          <span className="px-2 py-0.5 rounded-full bg-[#e7f8ff] text-[#0284c7] text-[11px] font-semibold shrink-0">
                             Printed
                           </span>
                         ) : cust.status === 'COMPLETED' ? (
-                          <span className="px-2 py-0.5 rounded-full bg-[#fee2e2] text-[#dc2626] text-[11px] font-bold shrink-0">
+                          <span className="px-2 py-0.5 rounded-full bg-[#fee2e2] text-[#dc2626] text-[11px] font-semibold shrink-0">
                             Shredded
                           </span>
                         ) : null}
@@ -636,44 +626,42 @@ export const TerminalDashboard: React.FC = () => {
           }`}
         >
           {!selectedCustomer ? (
-            /* WhatsApp Web Default Welcome Screen WITH LARGE QR STATION */
-            <div className="flex-1 min-h-0 wa-chat-wallpaper flex flex-col items-center justify-center p-4 sm:p-6 text-center overflow-y-auto">
-              <div className="max-w-md w-full p-6 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-[#d1d7db] space-y-3.5 my-auto">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#d9fdd3] text-[#008069] text-xs font-bold font-mono">
-                  <span className="w-2 h-2 rounded-full bg-[#25d366] animate-pulse" />
-                  <span>XEROX COUNTER ACTIVE • READY FOR SCANS</span>
+            /* 🖥️ WHATSAPP WEB SIGNATURE WELCOME SCREEN 🖥️ */
+            <div className="flex-1 min-h-0 wa-chat-wallpaper flex flex-col items-center justify-center p-6 text-center overflow-y-auto">
+              <div className="max-w-md w-full p-8 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-[#d1d7db] space-y-4 my-auto">
+                <div className="w-16 h-16 rounded-full bg-[#d9fdd3] text-[#008069] flex items-center justify-center mx-auto shadow-sm">
+                  <Printer className="w-8 h-8" />
                 </div>
 
-                <h3 className="text-lg sm:text-xl font-bold text-[#111b21]">
-                  Point Camera to Send Files
-                </h3>
+                <div>
+                  <h3 className="text-xl font-bold text-[#111b21]">SafePrint for Xerox & Print Shops</h3>
+                  <p className="text-[13px] text-[#667781] mt-1 leading-relaxed">
+                    Zero-disk ephemeral transmission. Print documents directly from RAM without saving customer files to your desktop or downloads.
+                  </p>
+                </div>
 
-                {/* Center 170px QR Code */}
-                <div className="p-3 bg-[#f8fafc] rounded-2xl border-2 border-[#00a884] shadow-md inline-block mx-auto">
+                {/* Big Center QR Code */}
+                <div className="p-4 bg-[#f8fafc] rounded-2xl border-2 border-[#00a884] shadow-md inline-block mx-auto">
                   <QRCodeSVG
                     value={customerUrl}
-                    size={170}
+                    size={180}
                     level="H"
                     includeMargin={false}
                     imageSettings={{
                       src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23008069' stroke='%23ffffff' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>",
                       x: undefined,
                       y: undefined,
-                      height: 32,
-                      width: 32,
+                      height: 36,
+                      width: 36,
                       excavate: true,
                     }}
                   />
                 </div>
 
-                <p className="text-xs text-[#54656f] max-w-sm mx-auto leading-relaxed">
-                  Customers scan this QR code with their mobile camera to open WhatsApp-style encrypted beaming directly into your RAM queue.
-                </p>
-
-                <div className="flex gap-2 justify-center pt-1">
+                <div className="flex gap-2.5 justify-center pt-2">
                   <button
                     onClick={handleCopyLink}
-                    className="py-2 px-3.5 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] text-[#111b21] text-xs font-bold flex items-center gap-1.5 transition-colors border border-[#d1d7db]"
+                    className="py-2.5 px-4 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] text-[#111b21] text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors border border-[#d1d7db]"
                   >
                     {copiedQR ? <Check className="w-4 h-4 text-[#00a884]" /> : <Copy className="w-4 h-4 text-[#54656f]" />}
                     <span>{copiedQR ? 'Link Copied!' : 'Copy Pairing Link'}</span>
@@ -681,11 +669,16 @@ export const TerminalDashboard: React.FC = () => {
 
                   <button
                     onClick={() => window.open(customerUrl, '_blank')}
-                    className="py-2 px-4 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-md"
+                    className="py-2.5 px-5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-md"
                   >
                     <Smartphone className="w-4 h-4" />
-                    <span>Open Test Customer Tab</span>
+                    <span>Open Test Customer</span>
                   </button>
+                </div>
+
+                <div className="pt-3 border-t border-[#e9edef] flex items-center justify-center gap-1.5 text-[12px] text-[#667781]">
+                  <Lock className="w-3.5 h-3.5 text-[#54656f]" />
+                  <span>End-to-end encrypted • Zero disk storage</span>
                 </div>
               </div>
             </div>
@@ -693,9 +686,8 @@ export const TerminalDashboard: React.FC = () => {
             /* Active Customer WhatsApp Conversation */
             <div className="flex-1 min-h-0 flex flex-col bg-[#efeae2] overflow-hidden">
               {/* WhatsApp Active Chat Top Header */}
-              <div className="bg-[#f0f2f5] px-4 py-2.5 border-b border-[#e9edef] flex items-center justify-between shadow-sm shrink-0 h-14">
-                <div className="flex items-center gap-2.5 text-left min-w-0">
-                  {/* Mobile Back to Queue Button */}
+              <div className="bg-[#f0f2f5] px-4 py-2.5 border-b border-[#d1d7db] flex items-center justify-between shadow-xs shrink-0 h-[60px]">
+                <div className="flex items-center gap-3 text-left min-w-0">
                   <button
                     onClick={() => setMobileTab('QUEUE')}
                     className="lg:hidden p-1.5 rounded-full hover:bg-black/10 text-[#54656f] shrink-0"
@@ -704,17 +696,17 @@ export const TerminalDashboard: React.FC = () => {
                     <ChevronLeft className="w-5 h-5" />
                   </button>
 
-                  <div className="w-9 h-9 rounded-full bg-[#008069] text-white font-bold flex items-center justify-center text-sm shadow-sm shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-[#008069] text-white font-bold flex items-center justify-center text-sm shadow-xs shrink-0">
                     {selectedCustomer.customerName.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-xs sm:text-sm font-bold text-[#111b21] flex items-center gap-1.5 truncate">
+                    <div className="text-[16px] font-medium text-[#111b21] flex items-center gap-2 truncate">
                       <span>{selectedCustomer.customerName}</span>
                       <span className="text-[11px] font-mono text-[#667781]">({selectedCustomer.customerId})</span>
                     </div>
-                    <div className="text-[11px] text-[#008069] font-semibold flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-[#25d366] inline-block shrink-0 shadow-sm" />
-                      <span className="truncate">Online • {selectedCustomer.documents.length} document(s) in RAM</span>
+                    <div className="text-[12px] text-[#008069] font-normal flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#25d366] inline-block shrink-0" />
+                      <span className="truncate">online • {selectedCustomer.documents.length} document(s) in RAM</span>
                     </div>
                   </div>
                 </div>
@@ -723,10 +715,10 @@ export const TerminalDashboard: React.FC = () => {
                   <button
                     onClick={() => handleShredCustomer(selectedCustomer.customerId)}
                     disabled={isShredding}
-                    className="btn-wa-danger px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm"
+                    className="btn-wa-danger px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs"
                     title="Zeroize all RAM for this customer"
                   >
-                    <Flame className="w-3.5 h-3.5" />
+                    <Flame className="w-4 h-4" />
                     <span>Shred Session</span>
                   </button>
                 </div>
@@ -734,14 +726,14 @@ export const TerminalDashboard: React.FC = () => {
 
               {/* Multi-document Selection Bar */}
               {selectedCustomer.documents.length > 0 && (
-                <div className="bg-white px-4 py-2 border-b border-[#e9edef] flex items-center gap-2 overflow-x-auto shrink-0 shadow-sm">
+                <div className="bg-white px-4 py-2 border-b border-[#e9edef] flex items-center gap-2 overflow-x-auto shrink-0 shadow-xs">
                   <span className="text-xs font-bold text-[#667781] uppercase tracking-wider shrink-0">Files:</span>
                   {selectedCustomer.documents.map((doc) => (
                     <div
                       key={doc.id}
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 border ${
                         selectedDoc?.id === doc.id
-                          ? 'bg-[#008069] text-white border-[#008069] shadow-sm'
+                          ? 'bg-[#008069] text-white border-[#008069] shadow-xs'
                           : 'bg-[#f0f2f5] text-[#54656f] border-[#d1d7db] hover:bg-[#e9edef]'
                       }`}
                     >
@@ -769,9 +761,9 @@ export const TerminalDashboard: React.FC = () => {
               )}
 
               {/* Main Workspace Feed */}
-              <div className="flex-1 min-h-0 wa-chat-wallpaper overflow-y-auto p-3 sm:p-4 space-y-3 text-left">
+              <div className="flex-1 min-h-0 wa-chat-wallpaper overflow-y-auto p-4 sm:p-5 space-y-3.5 text-left">
                 {/* WhatsApp System Encryption Notice */}
-                <div className="wa-system-pill flex items-center justify-center gap-1.5 text-center text-xs py-1.5 px-3 shadow-sm">
+                <div className="wa-system-pill flex items-center justify-center gap-2 text-center text-xs py-2 px-4 shadow-xs">
                   <Lock className="w-3.5 h-3.5 text-[#54656f] shrink-0" />
                   <span>
                     🔒 Documents sent in this chat are AES-256 encrypted directly in printer RAM.
@@ -794,17 +786,17 @@ export const TerminalDashboard: React.FC = () => {
                         <div
                           key={doc.id}
                           onClick={() => setSelectedDocId(doc.id)}
-                          className="p-3 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] border border-[#d1d7db] cursor-pointer flex items-center justify-between gap-3 transition-colors shadow-sm"
+                          className="p-3.5 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] border border-[#d1d7db] cursor-pointer flex items-center justify-between gap-3 transition-colors shadow-xs"
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex items-center gap-3 min-w-0">
                             <FileText className="w-5 h-5 text-[#008069] shrink-0" />
                             <div className="min-w-0">
-                              <div className="text-xs font-bold text-[#111b21] truncate">{doc.filename}</div>
-                              <div className="text-[11px] text-[#667781] font-mono">{(doc.fileSize / 1024).toFixed(1)} KB • In RAM</div>
+                              <div className="text-sm font-bold text-[#111b21] truncate">{doc.filename}</div>
+                              <div className="text-xs text-[#667781] font-mono mt-0.5">{(doc.fileSize / 1024).toFixed(1)} KB • In RAM</div>
                             </div>
                           </div>
 
-                          <button className="btn-wa-primary px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 shadow-sm">
+                          <button className="btn-wa-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold shrink-0 shadow-xs">
                             Open & Print
                           </button>
                         </div>
@@ -814,16 +806,16 @@ export const TerminalDashboard: React.FC = () => {
                 ) : !selectedDoc.decryptedBuffer ? (
                   <div className="wa-panel p-8 rounded-2xl text-center max-w-sm mx-auto my-8 space-y-2 shadow-lg">
                     <Clock className="w-8 h-8 text-[#0284c7] mx-auto animate-pulse" />
-                    <div className="text-xs font-bold text-[#111b21]">Decrypting Document...</div>
-                    <p className="text-[11px] text-[#667781]">Loading AES-256 payload into RAM.</p>
+                    <div className="text-sm font-bold text-[#111b21]">Decrypting Document...</div>
+                    <p className="text-xs text-[#667781]">Loading AES-256 payload into RAM.</p>
                   </div>
                 ) : (
                   <div className="space-y-3 flex flex-col">
                     {/* Unified Document Print & Adjustment Toolbar */}
-                    <div className="wa-panel p-3 rounded-xl flex flex-wrap items-center justify-between gap-2.5 shadow-sm border border-[#d1d7db]">
+                    <div className="wa-panel p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-2.5 shadow-sm border border-[#d1d7db]">
                       {/* Left: Document Info & Page Navigator */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1 bg-[#f0f2f5] px-2 py-1 rounded-lg border border-[#d1d7db]">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-1 bg-[#f0f2f5] px-2.5 py-1 rounded-lg border border-[#d1d7db]">
                           <button
                             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                             disabled={currentPage <= 1}
@@ -867,19 +859,19 @@ export const TerminalDashboard: React.FC = () => {
                         <div className="flex items-center bg-[#f0f2f5] p-0.5 rounded-lg border border-[#d1d7db] text-xs font-semibold">
                           <button
                             onClick={() => setFilterMode('NORMAL')}
-                            className={`px-2.5 py-0.5 rounded-md ${filterMode === 'NORMAL' ? 'bg-[#008069] text-white shadow-sm' : 'text-[#54656f]'}`}
+                            className={`px-2.5 py-0.5 rounded-md ${filterMode === 'NORMAL' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
                           >
                             Color
                           </button>
                           <button
                             onClick={() => setFilterMode('GRAYSCALE')}
-                            className={`px-2.5 py-0.5 rounded-md ${filterMode === 'GRAYSCALE' ? 'bg-[#008069] text-white shadow-sm' : 'text-[#54656f]'}`}
+                            className={`px-2.5 py-0.5 rounded-md ${filterMode === 'GRAYSCALE' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
                           >
                             Grayscale
                           </button>
                           <button
                             onClick={() => setFilterMode('BW')}
-                            className={`px-2.5 py-0.5 rounded-md ${filterMode === 'BW' ? 'bg-[#008069] text-white shadow-sm' : 'text-[#54656f]'}`}
+                            className={`px-2.5 py-0.5 rounded-md ${filterMode === 'BW' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
                           >
                             Photocopy B&W
                           </button>

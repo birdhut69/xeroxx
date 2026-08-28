@@ -72,7 +72,7 @@ export const AppContent: React.FC = () => {
   return (
     <div className={`flex flex-col text-[#111b21] selection:bg-[#00a884] selection:text-white ${
       currentMode === 'TERMINAL' && isAdminAuthenticated
-        ? 'h-screen overflow-hidden bg-[#efeae2]'
+        ? 'h-screen overflow-hidden wa-web-backdrop p-0 lg:p-4'
         : 'min-h-screen bg-[#f0f2f5]'
     }`}>
       <Header
@@ -84,7 +84,7 @@ export const AppContent: React.FC = () => {
         onAdminLogout={handleAdminLogout}
       />
 
-      <main className={`flex-1 ${currentMode === 'TERMINAL' && isAdminAuthenticated ? 'min-h-0 flex flex-col' : ''}`}>
+      <main className={`flex-1 ${currentMode === 'TERMINAL' && isAdminAuthenticated ? 'min-h-0 flex flex-col max-w-[1720px] w-full mx-auto' : ''}`}>
         {currentMode === 'TERMINAL' && isAdminAuthenticated && <TerminalDashboard />}
         {currentMode === 'CUSTOMER' && <CustomerPortal />}
       </main>
