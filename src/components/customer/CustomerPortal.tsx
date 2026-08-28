@@ -516,10 +516,10 @@ export const CustomerPortal: React.FC = () => {
                   <div
                     className={`${
                       isMe ? 'wa-bubble-out' : 'wa-bubble-in'
-                    } max-w-[85%] sm:max-w-md p-3 space-y-1 shadow-xs border border-[#d1d7db]/40`}
+                    } max-w-[85%] sm:max-w-md px-4 py-2.5 space-y-1 shadow-sm border border-[#d1d7db]/40`}
                   >
-                    <div className="text-[14px] text-[#111b21] leading-relaxed break-words">{msg.text}</div>
-                    <div className="flex items-center justify-end gap-1 text-[10px] text-[#667781] font-mono">
+                    <div className="text-[14.5px] text-[#111b21] leading-relaxed break-words font-normal">{msg.text}</div>
+                    <div className="flex items-center justify-end gap-1 text-[11px] text-[#667781] font-mono mt-0.5">
                       <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       {isMe && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
                     </div>
@@ -620,7 +620,7 @@ export const CustomerPortal: React.FC = () => {
           )}
 
           {/* ── AUTHENTIC WHATSAPP INPUT BAR ── */}
-          <div className="bg-[#f0f2f5] p-2 sm:p-2.5 flex items-center gap-2 border-t border-[#e9edef] shrink-0">
+          <div className="bg-[#f0f2f5] p-2.5 sm:p-3 flex items-center gap-2.5 border-t border-[#e9edef] shrink-0">
             {/* Hidden native pickers */}
             <input
               ref={fileInputRef}
@@ -641,21 +641,21 @@ export const CustomerPortal: React.FC = () => {
             {/* Paperclip Attachment Button */}
             <button
               onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-              className="p-2 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors"
+              className="p-2 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors cursor-pointer"
               title="Attach Document / Camera"
             >
               <Paperclip className="w-5 h-5 text-[#54656f]" />
             </button>
 
             {/* Real WhatsApp Text Input */}
-            <div className="flex-1 bg-white px-3.5 py-1.5 rounded-2xl border border-[#d1d7db] flex items-center focus-within:border-[#00a884]">
+            <div className="flex-1 bg-white px-4 h-11 rounded-2xl border border-[#d1d7db] flex items-center focus-within:border-[#00a884] shadow-xs">
               <input
                 type="text"
                 placeholder={selectedFile ? `Add print instruction for ${selectedFile.name}...` : "Type message or print note..."}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessageOrFile()}
-                className="w-full text-xs sm:text-sm bg-transparent border-none focus:outline-none text-[#111b21] placeholder-[#667781]"
+                className="w-full text-sm bg-transparent border-none focus:outline-none text-[#111b21] placeholder-[#667781]"
               />
             </div>
 
@@ -663,10 +663,10 @@ export const CustomerPortal: React.FC = () => {
             <button
               onClick={handleSendMessageOrFile}
               disabled={!selectedFile && !inputText.trim()}
-              className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 disabled:cursor-not-allowed shrink-0"
+              className="w-11 h-11 rounded-full bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 disabled:cursor-not-allowed shrink-0 cursor-pointer"
               title="Send to Xerox Shop"
             >
-              <Send className="w-4 h-4 ml-0.5" />
+              <Send className="w-5 h-5 ml-0.5" />
             </button>
           </div>
         </div>

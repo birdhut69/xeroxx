@@ -102,31 +102,32 @@ html, body {
 
 /* WhatsApp Message Bubbles */
 .wa-bubble-out {
-  background-color: var(--wa-bubble-out);
-  border-radius: 8px 8px 2px 8px;
-  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  background-color: #d9fdd3;
+  border-radius: 12px 12px 2px 12px;
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.12);
   position: relative;
 }
 
 .wa-bubble-in {
-  background-color: var(--wa-bubble-in);
-  border-radius: 8px 8px 8px 2px;
-  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  background-color: #ffffff;
+  border-radius: 12px 12px 12px 2px;
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.12);
   position: relative;
 }
 
 .wa-system-pill {
   background-color: rgba(255, 255, 255, 0.95);
-  border-radius: 8px;
-  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.1);
   color: #54656f;
-  font-size: 12px;
-  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 6px 16px;
   text-align: center;
   max-width: 90%;
   margin: 0 auto;
   line-height: 1.45;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 /* Forensic Watermark Overlay on Canvas */
