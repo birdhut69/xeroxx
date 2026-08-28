@@ -79,6 +79,16 @@ wss.on('connection', (ws: WebSocket) => {
           break;
         }
 
+        case 'DOC_PAYLOAD_CHUNK': {
+          if (!activeRoomId) return;
+          const session = roomManager.getRoom(activeRoomId);
+          if (session && session.shopSocket && session.shopSocket.readyState === WebSocket.OPEN) {
+            roomManager.touch(activeRoomId);
+            session.shopSocket.send(JSON.stringify(msg));
+          }
+          break;
+        }
+
         case 'DOC_PAYLOAD': {
           if (!activeRoomId) return;
           const session = roomManager.getRoom(activeRoomId);

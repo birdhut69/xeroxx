@@ -25,6 +25,7 @@ export class RelaySocket {
   private lastPollTimestamp: number = 0;
   private shopInfo: { shopName: string; shopId: string } = { shopName: 'SafePrint Station', shopId: '' };
   private isPeerInitialized: boolean = false;
+  private chunkAssemblyMap: Map<string, { chunks: string[]; total: number; meta: any; iv: number[]; custId: string; custName?: string }> = new Map();
 
   constructor() {
     try {
@@ -107,7 +108,7 @@ export class RelaySocket {
       });
 
       this.peer.on('error', (err) => {
-        console.warn('[SafePrint WebRTC] Peer event:', err.type);
+        console.warn('[SafePrint WebRTC] Peer note:', err.type);
       });
     } catch (err) {
       console.warn('[SafePrint] WebRTC init note:', err);
@@ -150,7 +151,7 @@ export class RelaySocket {
         this.customerConnection = conn;
 
         conn.on('open', () => {
-          console.log('[SafePrint WebRTC] Direct P2P Channel to Shopkeeper online');
+          console.log('[SafePrint WebRTC] Direct P2P Channel to Shop online');
           conn.send({
             type: 'CUSTOMER_CONNECTED',
             customerId,
@@ -202,7 +203,7 @@ export class RelaySocket {
       } catch {
         // quiet fallback
       }
-    }, 500);
+    }, 450);
   }
 
   private handleMessage(msg: any) {
@@ -222,12 +223,57 @@ export class RelaySocket {
       case 'DOC_PAYLOAD':
         this.callbacks.onDocPayload?.(msg);
         break;
+      case 'DOC_PAYLOAD_CHUNK':
+        this.handlePayloadChunk(msg);
+        break;
       case 'PRINT_STATUS_UPDATE':
         this.callbacks.onPrintStatus?.(msg);
         break;
       case 'SHRED_CONFIRMED':
         this.callbacks.onShredConfirmed?.(msg);
         break;
+    }
+  }
+
+  private handlePayloadChunk(msg: any) {
+    const key = `${msg.customerId}_${msg.docHash}`;
+    let assembly = this.chunkAssemblyMap.get(key);
+    if (!assembly) {
+      assembly = {
+        chunks: new Array(msg.totalChunks),
+        total: msg.totalChunks,
+        meta: msg.metadata,
+        iv: msg.iv,
+        custId: msg.customerId,
+        custName: msg.customerName,
+      };
+      this.chunkAssemblyMap.set(key, assembly);
+    }
+
+    assembly.chunks[msg.chunkIndex] = msg.chunkData;
+
+    // Check if all chunks received
+    let complete = true;
+    for (let i = 0; i < assembly.total; i++) {
+      if (!assembly.chunks[i]) {
+        complete = false;
+        break;
+      }
+    }
+
+    if (complete) {
+      const fullBase64 = assembly.chunks.join('');
+      this.chunkAssemblyMap.delete(key);
+
+      this.callbacks.onDocPayload?.({
+        customerId: assembly.custId,
+        customerName: assembly.custName,
+        metadata: assembly.meta,
+        iv: assembly.iv,
+        docHash: msg.docHash,
+        ciphertextBase64: fullBase64,
+        timestamp: Date.now(),
+      });
     }
   }
 
@@ -243,11 +289,19 @@ export class RelaySocket {
 
     // 1. Direct WebRTC
     if (this.role === 'CUSTOMER' && this.customerConnection && this.customerConnection.open) {
-      this.customerConnection.send(msg);
+      try {
+        this.customerConnection.send(msg);
+      } catch (err) {
+        console.warn('[SafePrint WebRTC] Send note:', err);
+      }
     } else if (this.role === 'SHOP' && msg.customerId) {
       const conn = this.connections.get(msg.customerId);
       if (conn && conn.open) {
-        conn.send(msg);
+        try {
+          conn.send(msg);
+        } catch (err) {
+          console.warn('[SafePrint WebRTC] Shop send note:', err);
+        }
       }
     }
 
@@ -283,8 +337,9 @@ export class RelaySocket {
     metadata: any,
     onProgress?: (progress: number) => void
   ) {
-    onProgress?.(30);
+    onProgress?.(15);
 
+    // Fast binary to base64 conversion
     const bytes = new Uint8Array(encryptedBuffer);
     let binary = '';
     const sliceSize = 32768;
@@ -292,27 +347,47 @@ export class RelaySocket {
       const slice = bytes.subarray(i, i + sliceSize);
       binary += String.fromCharCode.apply(null, Array.from(slice));
       if (bytes.length > 500000 && i % (sliceSize * 4) === 0) {
-        onProgress?.(Math.min(80, Math.round((i / bytes.length) * 80)));
+        onProgress?.(Math.min(50, Math.round((i / bytes.length) * 50)));
         await new Promise((r) => setTimeout(r, 0));
       }
     }
     const b64Data = btoa(binary);
 
-    onProgress?.(90);
+    onProgress?.(55);
 
-    const payload = {
-      type: 'DOC_PAYLOAD',
-      roomId,
-      customerId,
-      customerName,
-      metadata,
-      iv: Array.from(iv),
-      docHash,
-      ciphertextBase64: b64Data,
-      timestamp: Date.now(),
-    };
+    // Chunk base64 into safe 48KB pieces to avoid WebRTC buffer overflow and HTTP limits
+    const CHUNK_SIZE = 48 * 1024;
+    const totalChunks = Math.ceil(b64Data.length / CHUNK_SIZE);
 
-    this.send(payload);
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, b64Data.length);
+      const chunkStr = b64Data.substring(start, end);
+
+      const chunkMsg = {
+        type: 'DOC_PAYLOAD_CHUNK',
+        roomId,
+        customerId,
+        customerName,
+        metadata,
+        iv: Array.from(iv),
+        docHash,
+        chunkIndex: i,
+        totalChunks,
+        chunkData: chunkStr,
+        timestamp: Date.now(),
+      };
+
+      this.send(chunkMsg);
+
+      const percent = Math.min(99, Math.round(55 + ((i + 1) / totalChunks) * 44));
+      onProgress?.(percent);
+
+      if (totalChunks > 1) {
+        await new Promise((r) => setTimeout(r, 10));
+      }
+    }
+
     onProgress?.(100);
   }
 
