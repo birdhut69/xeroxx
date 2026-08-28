@@ -176,6 +176,123 @@ export const CustomerPortal: React.FC = () => {
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
+  const handleLoadDemoDocument = (docType: 'AADHAAR' | 'PASSPORT' | 'MARKSHEET' | 'INVOICE') => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 1050;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 800, 1050);
+
+    // Border
+    ctx.strokeStyle = '#008069';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(20, 20, 760, 1010);
+
+    // Header Bar
+    ctx.fillStyle = '#008069';
+    ctx.fillRect(20, 20, 760, 80);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('SAFEPRINT SECURE DEMO DOCUMENT', 50, 70);
+
+    if (docType === 'AADHAAR') {
+      ctx.fillStyle = '#111b21';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText('SAMPLE AADHAAR IDENTIFICATION CARD', 50, 150);
+
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fillRect(50, 180, 180, 220);
+      ctx.fillStyle = '#475569';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText('ID PHOTO', 105, 295);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = '16px sans-serif';
+      ctx.fillText('Name: ALEX KUMAR DOE', 260, 210);
+      ctx.fillText('DOB: 15/08/1996', 260, 250);
+      ctx.fillText('Gender: MALE', 260, 290);
+      ctx.fillText('Address: 42 MG Road, Cyber City, Bangalore - 560001', 260, 330);
+
+      ctx.fillStyle = '#fef2f2';
+      ctx.fillRect(50, 440, 700, 80);
+      ctx.strokeStyle = '#ef4444';
+      ctx.strokeRect(50, 440, 700, 80);
+      ctx.fillStyle = '#b91c1c';
+      ctx.font = 'bold 28px monospace';
+      ctx.fillText('8921  •  4490  •  7712', 220, 492);
+      ctx.font = '12px sans-serif';
+      ctx.fillText('(Sensitive Aadhaar Number — Mask with Redaction Studio)', 200, 512);
+    } else if (docType === 'PASSPORT') {
+      ctx.fillStyle = '#111b21';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText('REPUBLIC OF PASSPORT DOCUMENT (SAMPLE)', 50, 150);
+
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fillRect(50, 180, 180, 220);
+      ctx.fillStyle = '#475569';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText('PASSPORT PHOTO', 80, 295);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = '16px sans-serif';
+      ctx.fillText('Passport No: Z88921004', 260, 210);
+      ctx.fillText('Surname: DOE', 260, 250);
+      ctx.fillText('Given Name: ALEX KUMAR', 260, 290);
+      ctx.fillText('Nationality: INDIAN', 260, 330);
+    } else if (docType === 'MARKSHEET') {
+      ctx.fillStyle = '#111b21';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText('UNIVERSITY DEGREE & MARKSHEET (SAMPLE)', 50, 150);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = '16px sans-serif';
+      ctx.fillText('Candidate: ALEX DOE', 50, 200);
+      ctx.fillText('Roll No: 2026-ENG-491', 50, 235);
+      ctx.fillText('Degree: Bachelor of Computer Engineering (First Class with Distinction)', 50, 270);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(50, 310, 700, 200);
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.strokeRect(50, 310, 700, 200);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText('Subject                    Max Marks     Obtained', 70, 340);
+      ctx.font = '14px monospace';
+      ctx.fillText('Data Structures & Algo        100           98', 70, 375);
+      ctx.fillText('Cryptography & Security       100           99', 70, 410);
+      ctx.fillText('Operating Systems             100           95', 70, 445);
+    } else {
+      ctx.fillStyle = '#111b21';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText('TAX INVOICE & PROOF OF BILLING', 50, 150);
+      ctx.fillStyle = '#1e293b';
+      ctx.font = '16px sans-serif';
+      ctx.fillText('Invoice No: INV-2026-8841', 50, 200);
+      ctx.fillText('Date: 28/08/2026', 50, 235);
+      ctx.fillText('Client: Alex Doe | Total: $1,450.00 (PAID)', 50, 270);
+    }
+
+    // Convert canvas to Blob
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      blob.arrayBuffer().then((buf) => {
+        setSelectedFile({
+          name: `Sample_${docType.charAt(0) + docType.slice(1).toLowerCase()}.png`,
+          type: 'image/png',
+          size: buf.byteLength,
+          buffer: buf,
+        });
+        setShowAttachmentMenu(false);
+        sounds.playConnect();
+        toast.info('Demo Injected', `Loaded synthetic ${docType} document.`);
+      });
+    }, 'image/png');
+  };
+
   const handleApplyRedaction = (newBuffer: ArrayBuffer) => {
     if (selectedFile) {
       setSelectedFile({
@@ -489,36 +606,69 @@ export const CustomerPortal: React.FC = () => {
 
           {/* WhatsApp Attachment Sheet Popover */}
           {showAttachmentMenu && (
-            <div className="absolute bottom-16 left-3 bg-white rounded-2xl p-3 shadow-2xl border border-[#d1d7db] flex gap-4 animate-in slide-in-from-bottom duration-150 z-30">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#8f3985] text-white flex items-center justify-center shadow-md">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] text-[#54656f] font-semibold">Document</span>
-              </button>
+            <div className="absolute bottom-16 left-3 bg-white rounded-2xl p-3 shadow-2xl border border-[#d1d7db] flex flex-col gap-3 animate-in slide-in-from-bottom duration-150 z-30 max-w-xs">
+              <div className="flex gap-4 items-center justify-between">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
+                >
+                  <div className="w-11 h-11 rounded-full bg-[#8f3985] text-white flex items-center justify-center shadow-md">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] text-[#54656f] font-semibold">Document</span>
+                </button>
 
-              <button
-                onClick={() => cameraInputRef.current?.click()}
-                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#d3396d] text-white flex items-center justify-center shadow-md">
-                  <Camera className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] text-[#54656f] font-semibold">Camera</span>
-              </button>
+                <button
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
+                >
+                  <div className="w-11 h-11 rounded-full bg-[#d3396d] text-white flex items-center justify-center shadow-md">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] text-[#54656f] font-semibold">Camera</span>
+                </button>
 
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#ac44cf] text-white flex items-center justify-center shadow-md">
-                  <ImageIcon className="w-6 h-6" />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
+                >
+                  <div className="w-11 h-11 rounded-full bg-[#ac44cf] text-white flex items-center justify-center shadow-md">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] text-[#54656f] font-semibold">Gallery</span>
+                </button>
+              </div>
+
+              {/* Instant 1-Click Synthetic Demo Documents */}
+              <div className="pt-2 border-t border-[#e9edef] space-y-1.5 text-left">
+                <div className="text-[10px] font-bold text-[#008069] uppercase tracking-wider">Instant Demo Documents:</div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => handleLoadDemoDocument('AADHAAR')}
+                    className="px-2 py-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#d9fdd3] text-[#111b21] text-[10px] font-semibold transition-colors text-left truncate border border-[#d1d7db]"
+                  >
+                    🪪 Aadhaar Card
+                  </button>
+                  <button
+                    onClick={() => handleLoadDemoDocument('PASSPORT')}
+                    className="px-2 py-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#d9fdd3] text-[#111b21] text-[10px] font-semibold transition-colors text-left truncate border border-[#d1d7db]"
+                  >
+                    🛂 Passport
+                  </button>
+                  <button
+                    onClick={() => handleLoadDemoDocument('MARKSHEET')}
+                    className="px-2 py-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#d9fdd3] text-[#111b21] text-[10px] font-semibold transition-colors text-left truncate border border-[#d1d7db]"
+                  >
+                    📜 Marksheet
+                  </button>
+                  <button
+                    onClick={() => handleLoadDemoDocument('INVOICE')}
+                    className="px-2 py-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#d9fdd3] text-[#111b21] text-[10px] font-semibold transition-colors text-left truncate border border-[#d1d7db]"
+                  >
+                    🧾 Tax Invoice
+                  </button>
                 </div>
-                <span className="text-[11px] text-[#54656f] font-semibold">Gallery</span>
-              </button>
+              </div>
             </div>
           )}
 
