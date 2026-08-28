@@ -21,16 +21,23 @@ import {
   ZoomIn,
   ZoomOut,
   QrCode,
-  ShieldCheck,
+  Send,
   Sparkles,
-  SlidersHorizontal,
-  MoreVertical
+  Paperclip,
+  Smile,
+  ShieldCheck,
+  Eye,
+  Trash2,
+  MoreVertical,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import {
   generateSessionKey,
   exportKeyToHash,
   generateRandomSessionId,
   decryptDocument,
+  encryptDocument
 } from '../../crypto/e2ee';
 import { zeroizeBuffer } from '../../crypto/zeroize';
 import { EphemeralLedger } from '../../crypto/ledger';
@@ -55,12 +62,21 @@ interface QueuedDocument {
   copies: number;
 }
 
+interface ChatMessage {
+  id: string;
+  sender: 'CUSTOMER' | 'SHOP' | 'SYSTEM';
+  text?: string;
+  docId?: string;
+  timestamp: number;
+}
+
 interface QueuedCustomer {
   customerId: string;
   customerName: string;
   joinedAt: number;
   lastActive: number;
   documents: QueuedDocument[];
+  messages: ChatMessage[];
   status: 'WAITING' | 'ACTIVE' | 'PRINTED' | 'COMPLETED';
 }
 
@@ -84,6 +100,8 @@ export const TerminalDashboard: React.FC = () => {
   const [showQRModal, setShowQRModal] = useState(false);
   const [copiedQR, setCopiedQR] = useState(false);
   const [mobileTab, setMobileTab] = useState<'QUEUE' | 'WORKSPACE'>('QUEUE');
+  const [replyText, setReplyText] = useState('');
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   // Editor State for currently viewed document
   const [currentPage, setCurrentPage] = useState(1);
@@ -95,16 +113,22 @@ export const TerminalDashboard: React.FC = () => {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isShredding, setIsShredding] = useState(false);
 
-  // Stable Refs (never trigger re-renders)
+  // Stable Refs
   const ledgerRef = useRef<EphemeralLedger | null>(null);
   const relayRef = useRef<RelaySocket | null>(null);
   const sessionKeyRef = useRef<CryptoKey | null>(null);
   const sessionIdRef = useRef('');
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   // Pairing URL for QR Code
   const customerUrl = sessionId
     ? `${window.location.origin}/?room=${sessionId}#key=${sessionKeyHex}`
     : '';
+
+  // Auto-scroll chat when messages change
+  useEffect(() => {
+    chatScrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [customers, selectedCustomerId]);
 
   // Initialize Terminal Master Session ONCE on mount
   const initTerminal = useCallback(async () => {
@@ -153,6 +177,14 @@ export const TerminalDashboard: React.FC = () => {
               joinedAt: data.timestamp || Date.now(),
               lastActive: Date.now(),
               documents: [],
+              messages: [
+                {
+                  id: `MSG-${Date.now()}`,
+                  sender: 'SYSTEM',
+                  text: '🔒 End-to-end encrypted session established. Documents sent will be stored strictly in printer volatile RAM.',
+                  timestamp: Date.now(),
+                }
+              ],
               status: 'WAITING',
             });
           }
@@ -166,6 +198,23 @@ export const TerminalDashboard: React.FC = () => {
           const cust = next.get(data.customerId);
           if (cust && cust.documents.length === 0) {
             next.delete(data.customerId);
+          }
+          return next;
+        });
+      },
+      onChatMessage: (msg) => {
+        sounds.playSuccess();
+        setCustomers((prev) => {
+          const next = new Map(prev);
+          const cust = next.get(msg.customerId);
+          if (cust) {
+            cust.lastActive = Date.now();
+            cust.messages.push({
+              id: msg.id || `MSG-${Date.now()}`,
+              sender: msg.sender,
+              text: msg.text,
+              timestamp: msg.timestamp || Date.now(),
+            });
           }
           return next;
         });
@@ -206,6 +255,7 @@ export const TerminalDashboard: React.FC = () => {
                 joinedAt: Date.now(),
                 lastActive: Date.now(),
                 documents: [],
+                messages: [],
                 status: 'ACTIVE',
               };
               next.set(custId, cust);
@@ -225,11 +275,20 @@ export const TerminalDashboard: React.FC = () => {
               receivedAt: Date.now(),
               copies: 1,
             });
+
+            cust.messages.push({
+              id: `DOC-MSG-${Date.now()}`,
+              sender: 'CUSTOMER',
+              docId,
+              timestamp: Date.now(),
+            });
+
             return next;
           });
 
           setSelectedCustomerId((prev) => prev || custId);
-          setSelectedDocId((prev) => prev || docId);
+          setSelectedDocId(docId);
+          setIsViewerOpen(true);
 
           if (ledgerRef.current && msg.metadata) {
             await ledgerRef.current.recordIngest(
@@ -240,7 +299,7 @@ export const TerminalDashboard: React.FC = () => {
             );
           }
 
-          toast.success('Document Ready in RAM', `"${msg.metadata?.filename}" ready to print.`);
+          toast.success('Document Received in RAM', `"${msg.metadata?.filename}" ready to print.`);
         } catch (err) {
           console.error('[SafePrint] Decryption error:', err);
           toast.error('Decryption Error', 'Failed to decrypt document payload.');
@@ -259,6 +318,45 @@ export const TerminalDashboard: React.FC = () => {
 
   const selectedCustomer = selectedCustomerId ? customers.get(selectedCustomerId) : null;
   const selectedDoc = selectedCustomer?.documents.find((d) => d.id === selectedDocId) || null;
+
+  // Send WhatsApp reply to customer
+  const handleSendReply = (textToSend?: string) => {
+    const text = textToSend || replyText.trim();
+    if (!text || !selectedCustomer) return;
+
+    const msgId = `MSG-${Date.now()}`;
+    const timestamp = Date.now();
+
+    // Append to local state
+    setCustomers((prev) => {
+      const next = new Map(prev);
+      const cust = next.get(selectedCustomer.customerId);
+      if (cust) {
+        cust.lastActive = timestamp;
+        cust.messages.push({
+          id: msgId,
+          sender: 'SHOP',
+          text,
+          timestamp,
+        });
+      }
+      return next;
+    });
+
+    // Send over WebRTC / Relay
+    relayRef.current?.send({
+      type: 'CHAT_MESSAGE',
+      roomId: sessionIdRef.current,
+      customerId: selectedCustomer.customerId,
+      id: msgId,
+      sender: 'SHOP',
+      text,
+      timestamp,
+    });
+
+    sounds.playSuccess();
+    if (!textToSend) setReplyText('');
+  };
 
   // Print execution
   const handlePrint = useCallback(async () => {
@@ -289,6 +387,12 @@ export const TerminalDashboard: React.FC = () => {
           const doc = cust.documents.find((d) => d.id === selectedDoc.id);
           if (doc) doc.status = 'PRINTED';
           cust.status = cust.documents.every((d) => d.status === 'PRINTED' || d.status === 'SHREDDED') ? 'PRINTED' : cust.status;
+          cust.messages.push({
+            id: `PRINT-${Date.now()}`,
+            sender: 'SYSTEM',
+            text: `🖨️ Document "${selectedDoc.filename}" successfully printed (${totalPages} page(s) × ${copies} copies).`,
+            timestamp: Date.now(),
+          });
         }
         return next;
       });
@@ -322,12 +426,19 @@ export const TerminalDashboard: React.FC = () => {
       const cust = next.get(selectedCustomer.customerId);
       if (cust) {
         cust.documents = cust.documents.filter((d) => d.id !== docId);
+        cust.messages.push({
+          id: `SHRED-DOC-${Date.now()}`,
+          sender: 'SYSTEM',
+          text: `🔥 Document "${doc?.filename || 'File'}" zeroized from RAM.`,
+          timestamp: Date.now(),
+        });
       }
       return next;
     });
 
     if (selectedDocId === docId) {
       setSelectedDocId(null);
+      setIsViewerOpen(false);
     }
     toast.info('File Shredded', 'Document buffer wiped from RAM.');
   };
@@ -364,13 +475,123 @@ export const TerminalDashboard: React.FC = () => {
     setCustomers((prev) => {
       const next = new Map(prev);
       const target = next.get(custId);
-      if (target) target.status = 'COMPLETED';
+      if (target) {
+        target.status = 'COMPLETED';
+        target.messages.push({
+          id: `SHRED-${Date.now()}`,
+          sender: 'SYSTEM',
+          text: `🔥 Session terminated. All plaintext buffers wiped and Certificate of Destruction issued.`,
+          timestamp: Date.now(),
+        });
+      }
       return next;
     });
 
     toast.shield('RAM Zeroized', 'Customer documents permanently shredded.');
     setIsShredding(false);
   }, [customers, toast]);
+
+  // ✨ Interactive Live Customer Simulator ✨
+  const handleSimulateCustomer = async () => {
+    sounds.playConnect();
+    const mockNames = ['Rahul Sharma', 'Priya Patel', 'Ananya Iyer', 'Vikram Singh', 'Dr. Meera Nair'];
+    const randomName = mockNames[Math.floor(Math.random() * mockNames.length)];
+    const mockCustId = `CUST-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    // Create synthetic demo image buffer
+    const canvas = document.createElement('canvas');
+    canvas.width = 900;
+    canvas.height = 600;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 900, 600);
+    ctx.fillStyle = '#008069';
+    ctx.fillRect(0, 0, 900, 70);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('SAFEPRINT SECURE DEMO DOCUMENT', 30, 45);
+
+    ctx.fillStyle = '#111b21';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(`SAMPLE IDENTITY CARD — ${randomName.toUpperCase()}`, 30, 120);
+
+    ctx.fillStyle = '#f0f2f5';
+    ctx.fillRect(30, 150, 160, 200);
+    ctx.fillStyle = '#667781';
+    ctx.font = '14px monospace';
+    ctx.fillText('SECURE PHOTO', 55, 255);
+
+    ctx.fillStyle = '#111b21';
+    ctx.font = '16px sans-serif';
+    ctx.fillText(`Name: ${randomName}`, 220, 180);
+    ctx.fillText('DOB: 15/08/1996', 220, 215);
+    ctx.fillText('Gender: Verified', 220, 250);
+    ctx.fillText('UID: 8921 • 4490 • 7712', 220, 285);
+
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(30, 480, 840, 50);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillText('CONFIDENTIAL DOCUMENT — IN-MEMORY DRM PROTECTED', 50, 512);
+
+    const blob = await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), 'image/png'));
+    const docBuffer = await blob.arrayBuffer();
+    const docId = `DOC-${Math.random().toString(36).substring(2, 8)}`;
+
+    const newCust: QueuedCustomer = {
+      customerId: mockCustId,
+      customerName: randomName,
+      joinedAt: Date.now(),
+      lastActive: Date.now(),
+      documents: [
+        {
+          id: docId,
+          filename: `Aadhaar_${randomName.replace(' ', '_')}.png`,
+          fileType: 'image/png',
+          fileSize: docBuffer.byteLength,
+          docHash: 'SHA256-SIMULATED-VERIFIED',
+          watermarkText: 'OFFICIAL PHOTOCOPY ONLY',
+          maxCopies: 2,
+          decryptedBuffer: docBuffer,
+          status: 'READY',
+          receivedAt: Date.now(),
+          copies: 2,
+        }
+      ],
+      messages: [
+        {
+          id: `MSG-1`,
+          sender: 'SYSTEM',
+          text: '🔒 End-to-end encrypted session established. Documents sent will be stored strictly in printer volatile RAM.',
+          timestamp: Date.now() - 4000,
+        },
+        {
+          id: `DOC-MSG-1`,
+          sender: 'CUSTOMER',
+          docId,
+          timestamp: Date.now() - 2000,
+        },
+        {
+          id: `MSG-2`,
+          sender: 'CUSTOMER',
+          text: `Hi bhaiya, please print 2 copies in Photocopy B&W mode for passport application.`,
+          timestamp: Date.now(),
+        }
+      ],
+      status: 'ACTIVE',
+    };
+
+    setCustomers((prev) => {
+      const next = new Map(prev);
+      next.set(mockCustId, newCust);
+      return next;
+    });
+
+    setSelectedCustomerId(mockCustId);
+    setSelectedDocId(docId);
+    setMobileTab('WORKSPACE');
+    toast.success('Customer Simulated', `${randomName} sent Aadhaar Card with print instructions.`);
+  };
 
   const handleCopyLink = () => {
     if (!customerUrl) return;
@@ -412,15 +633,24 @@ export const TerminalDashboard: React.FC = () => {
                 <Printer className="w-5 h-5" />
               </div>
               <div className="text-left leading-tight">
-                <div className="text-[15px] font-semibold text-[#111b21] truncate max-w-[170px]">{shopName}</div>
+                <div className="text-[15px] font-semibold text-[#111b21] truncate max-w-[160px]">{shopName}</div>
                 <div className="text-[12px] text-[#00a884] font-medium flex items-center gap-1.5 mt-0.5">
                   <span className="w-2 h-2 rounded-full bg-[#25d366] inline-block" />
-                  <span>{shopId} • Online</span>
+                  <span>{shopId}</span>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-1 text-[#54656f]">
+              <button
+                onClick={handleSimulateCustomer}
+                className="px-2.5 py-1 rounded-lg bg-[#d9fdd3] hover:bg-[#cbf7c3] text-[#008069] text-xs font-bold flex items-center gap-1 transition-colors border border-[#00a884]/30 shadow-xs"
+                title="Simulate incoming customer with documents and instructions"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Simulate</span>
+              </button>
+
               <button
                 onClick={() => setShowQRModal(true)}
                 className="p-2 rounded-full hover:bg-black/5 transition-colors"
@@ -531,19 +761,27 @@ export const TerminalDashboard: React.FC = () => {
           {/* Customer Chat Rows List */}
           <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#f0f2f5]">
             {customerList.length === 0 ? (
-              <div className="p-8 text-center text-[#667781] space-y-2.5 my-auto">
+              <div className="p-8 text-center text-[#667781] space-y-3 my-auto">
                 <div className="w-12 h-12 rounded-full bg-[#f0f2f5] flex items-center justify-center mx-auto text-[#00a884]">
                   <Users className="w-6 h-6" />
                 </div>
                 <div className="text-[15px] font-bold text-[#111b21]">No Customers in Queue</div>
                 <p className="text-[13px] text-[#667781] leading-relaxed max-w-xs mx-auto">
-                  Customers scan your counter QR code to send documents directly into this queue.
+                  Scan the counter QR code with a phone or click Simulate above to test live printing.
                 </p>
+                <button
+                  onClick={handleSimulateCustomer}
+                  className="btn-wa-primary px-4 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Simulate Demo Customer</span>
+                </button>
               </div>
             ) : (
               customerList.map((cust) => {
                 const isSelected = cust.customerId === selectedCustomerId;
                 const readyDocs = cust.documents.filter((d) => d.status === 'READY');
+                const lastMsg = cust.messages[cust.messages.length - 1];
                 const lastDoc = cust.documents[cust.documents.length - 1];
 
                 return (
@@ -587,13 +825,18 @@ export const TerminalDashboard: React.FC = () => {
 
                       <div className="flex items-center justify-between mt-1">
                         <div className="text-[13px] text-[#667781] truncate flex items-center gap-1 max-w-[170px]">
-                          {lastDoc ? (
+                          {lastMsg?.text ? (
                             <>
-                              <CheckCheck className="w-4 h-4 text-[#53bdeb] shrink-0" />
+                              {lastMsg.sender === 'SHOP' && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb] shrink-0" />}
+                              <span className="truncate">{lastMsg.text}</span>
+                            </>
+                          ) : lastDoc ? (
+                            <>
+                              <FileText className="w-3.5 h-3.5 text-[#008069] shrink-0" />
                               <span className="truncate">{lastDoc.filename}</span>
                             </>
                           ) : (
-                            <span className="italic">Connected • Staging</span>
+                            <span className="italic">Connected</span>
                           )}
                         </div>
 
@@ -658,21 +901,21 @@ export const TerminalDashboard: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex gap-2.5 justify-center pt-2">
+                <div className="flex flex-wrap gap-2.5 justify-center pt-2">
                   <button
-                    onClick={handleCopyLink}
-                    className="py-2.5 px-4 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] text-[#111b21] text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors border border-[#d1d7db]"
+                    onClick={handleSimulateCustomer}
+                    className="py-2.5 px-4 rounded-xl bg-[#008069] hover:bg-[#00705b] text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-colors shadow-md"
                   >
-                    {copiedQR ? <Check className="w-4 h-4 text-[#00a884]" /> : <Copy className="w-4 h-4 text-[#54656f]" />}
-                    <span>{copiedQR ? 'Link Copied!' : 'Copy Pairing Link'}</span>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Simulate Customer Chat</span>
                   </button>
 
                   <button
                     onClick={() => window.open(customerUrl, '_blank')}
-                    className="py-2.5 px-5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-md"
+                    className="py-2.5 px-4 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] text-[#111b21] text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors border border-[#d1d7db]"
                   >
                     <Smartphone className="w-4 h-4" />
-                    <span>Open Test Customer</span>
+                    <span>Open Test Mobile</span>
                   </button>
                 </div>
 
@@ -712,6 +955,16 @@ export const TerminalDashboard: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  {selectedDoc && (
+                    <button
+                      onClick={() => setIsViewerOpen(true)}
+                      className="btn-wa-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>Document Viewer</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => handleShredCustomer(selectedCustomer.customerId)}
                     disabled={isShredding}
@@ -724,45 +977,9 @@ export const TerminalDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Multi-document Selection Bar */}
-              {selectedCustomer.documents.length > 0 && (
-                <div className="bg-white px-4 py-2 border-b border-[#e9edef] flex items-center gap-2 overflow-x-auto shrink-0 shadow-xs">
-                  <span className="text-xs font-bold text-[#667781] uppercase tracking-wider shrink-0">Files:</span>
-                  {selectedCustomer.documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 border ${
-                        selectedDoc?.id === doc.id
-                          ? 'bg-[#008069] text-white border-[#008069] shadow-xs'
-                          : 'bg-[#f0f2f5] text-[#54656f] border-[#d1d7db] hover:bg-[#e9edef]'
-                      }`}
-                    >
-                      <button
-                        onClick={() => setSelectedDocId(doc.id)}
-                        className="flex items-center gap-1.5 outline-none cursor-pointer"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span className="truncate max-w-[160px]">{doc.filename}</span>
-                      </button>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteDoc(doc.id);
-                        }}
-                        className="p-0.5 rounded hover:bg-black/20 text-white/80 hover:text-white transition-colors ml-1"
-                        title="Delete file from RAM"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Main Workspace Feed */}
-              <div className="flex-1 min-h-0 wa-chat-wallpaper overflow-y-auto p-4 sm:p-5 space-y-3.5 text-left">
-                {/* WhatsApp System Encryption Notice */}
+              {/* WhatsApp Chat Conversation Timeline */}
+              <div className="flex-1 min-h-0 wa-chat-wallpaper overflow-y-auto p-4 space-y-3.5 text-left">
+                {/* Security encryption pill */}
                 <div className="wa-system-pill flex items-center justify-center gap-2 text-center text-xs py-2 px-4 shadow-xs">
                   <Lock className="w-3.5 h-3.5 text-[#54656f] shrink-0" />
                   <span>
@@ -770,193 +987,268 @@ export const TerminalDashboard: React.FC = () => {
                   </span>
                 </div>
 
-                {!selectedDoc ? (
-                  /* WhatsApp Document Selection Cards */
-                  <div className="wa-panel p-6 rounded-2xl max-w-md mx-auto my-4 space-y-4 text-center shadow-lg border border-[#d1d7db]">
-                    <div className="w-12 h-12 rounded-full bg-[#d9fdd3] text-[#008069] flex items-center justify-center mx-auto shadow-sm">
-                      <FileSpreadsheet className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-[#111b21]">Select a Document to Preview & Print</h4>
-                      <p className="text-xs text-[#667781] mt-0.5">Customer has sent {selectedCustomer.documents.length} document(s).</p>
-                    </div>
+                {/* Messages & Document Cards */}
+                {selectedCustomer.messages.map((msg) => {
+                  if (msg.sender === 'SYSTEM') {
+                    return (
+                      <div key={msg.id} className="wa-system-pill text-center my-2">
+                        {msg.text}
+                      </div>
+                    );
+                  }
 
-                    <div className="space-y-2 text-left">
-                      {selectedCustomer.documents.map((doc) => (
-                        <div
-                          key={doc.id}
-                          onClick={() => setSelectedDocId(doc.id)}
-                          className="p-3.5 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] border border-[#d1d7db] cursor-pointer flex items-center justify-between gap-3 transition-colors shadow-xs"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <FileText className="w-5 h-5 text-[#008069] shrink-0" />
-                            <div className="min-w-0">
-                              <div className="text-sm font-bold text-[#111b21] truncate">{doc.filename}</div>
-                              <div className="text-xs text-[#667781] font-mono mt-0.5">{(doc.fileSize / 1024).toFixed(1)} KB • In RAM</div>
+                  if (msg.docId) {
+                    const doc = selectedCustomer.documents.find((d) => d.id === msg.docId);
+                    if (!doc) return null;
+
+                    return (
+                      <div key={msg.id} className="flex justify-start animate-in fade-in duration-150">
+                        <div className="wa-bubble-in max-w-[94%] sm:max-w-md p-3.5 space-y-2.5 border border-[#d1d7db]/40 shadow-xs">
+                          <div className="flex items-center justify-between pb-1 border-b border-[#e9edef] text-[11px] font-bold text-[#008069]">
+                            <span>ENCRYPTED DOCUMENT RECEIVED</span>
+                            <span className="font-mono text-[#667781]">{(doc.fileSize / 1024).toFixed(1)} KB</span>
+                          </div>
+
+                          <div className="p-3 rounded-xl bg-[#f0f2f5] flex items-center gap-3 border border-[#d1d7db]">
+                            <div className="p-2.5 rounded-xl bg-[#00a884]/15 text-[#008069] shrink-0">
+                              <FileText className="w-6 h-6" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-bold text-[#111b21] truncate" title={doc.filename}>
+                                {doc.filename}
+                              </div>
+                              <div className="text-xs text-[#667781] font-mono mt-0.5">
+                                Status: {doc.status === 'READY' ? '🟢 In RAM Ready' : doc.status}
+                              </div>
                             </div>
                           </div>
 
-                          <button className="btn-wa-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold shrink-0 shadow-xs">
-                            Open & Print
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : !selectedDoc.decryptedBuffer ? (
-                  <div className="wa-panel p-8 rounded-2xl text-center max-w-sm mx-auto my-8 space-y-2 shadow-lg">
-                    <Clock className="w-8 h-8 text-[#0284c7] mx-auto animate-pulse" />
-                    <div className="text-sm font-bold text-[#111b21]">Decrypting Document...</div>
-                    <p className="text-xs text-[#667781]">Loading AES-256 payload into RAM.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 flex flex-col">
-                    {/* Unified Document Print & Adjustment Toolbar */}
-                    <div className="wa-panel p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-2.5 shadow-sm border border-[#d1d7db]">
-                      {/* Left: Document Info & Page Navigator */}
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex items-center gap-1 bg-[#f0f2f5] px-2.5 py-1 rounded-lg border border-[#d1d7db]">
-                          <button
-                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            disabled={currentPage <= 1}
-                            className="p-0.5 rounded hover:bg-[#e9edef] disabled:opacity-30 text-[#54656f]"
-                            title="Previous Page"
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                          </button>
-                          <span className="text-xs font-mono font-bold text-[#111b21] px-1 whitespace-nowrap">
-                            Page {currentPage} / {totalPages}
-                          </span>
-                          <button
-                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                            disabled={currentPage >= totalPages}
-                            className="p-0.5 rounded hover:bg-[#e9edef] disabled:opacity-30 text-[#54656f]"
-                            title="Next Page"
-                          >
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
-                        </div>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => {
+                                setSelectedDocId(doc.id);
+                                setIsViewerOpen(true);
+                              }}
+                              className="flex-1 py-2 px-3 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span>Preview & Print Document</span>
+                            </button>
 
-                        <div className="hidden sm:block text-left">
-                          <div className="text-xs font-bold text-[#111b21] truncate max-w-[160px]" title={selectedDoc.filename}>
-                            {selectedDoc.filename}
+                            <button
+                              onClick={() => handleDeleteDoc(doc.id)}
+                              className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200"
+                              title="Shred this file"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
-                          <div className="text-[10px] text-[#667781] font-mono">{(selectedDoc.fileSize / 1024).toFixed(1)} KB in RAM</div>
+
+                          <div className="text-[11px] text-[#667781] text-right font-mono">
+                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
                         </div>
                       </div>
+                    );
+                  }
 
-                      {/* Center: Rotation, Photocopy Filters, Zoom */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          onClick={() => setRotation((r) => (r + 90) % 360)}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#f0f2f5] hover:bg-[#e9edef] border border-[#d1d7db] text-xs font-bold text-[#111b21] transition-colors"
-                          title="Rotate 90°"
-                        >
-                          <RotateCw className="w-3.5 h-3.5 text-[#008069]" />
-                          <span>{rotation}°</span>
-                        </button>
+                  const isShop = msg.sender === 'SHOP';
 
-                        <div className="flex items-center bg-[#f0f2f5] p-0.5 rounded-lg border border-[#d1d7db] text-xs font-semibold">
-                          <button
-                            onClick={() => setFilterMode('NORMAL')}
-                            className={`px-2.5 py-0.5 rounded-md ${filterMode === 'NORMAL' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
-                          >
-                            Color
-                          </button>
-                          <button
-                            onClick={() => setFilterMode('GRAYSCALE')}
-                            className={`px-2.5 py-0.5 rounded-md ${filterMode === 'GRAYSCALE' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
-                          >
-                            Grayscale
-                          </button>
-                          <button
-                            onClick={() => setFilterMode('BW')}
-                            className={`px-2.5 py-0.5 rounded-md ${filterMode === 'BW' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
-                          >
-                            Photocopy B&W
-                          </button>
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex ${isShop ? 'justify-end' : 'justify-start'} animate-in fade-in duration-150`}
+                    >
+                      <div
+                        className={`${
+                          isShop ? 'wa-bubble-out' : 'wa-bubble-in'
+                        } max-w-[85%] sm:max-w-md p-3 space-y-1 shadow-xs`}
+                      >
+                        <div className="text-[14px] text-[#111b21] leading-relaxed break-words">{msg.text}</div>
+                        <div className="flex items-center justify-end gap-1 text-[11px] text-[#667781] font-mono">
+                          <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          {isShop && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
                         </div>
-
-                        <div className="flex items-center gap-1 bg-[#f0f2f5] px-1.5 py-0.5 rounded-lg border border-[#d1d7db]">
-                          <button
-                            onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))}
-                            className="p-1 text-[#54656f] hover:text-[#111b21]"
-                            title="Zoom Out"
-                          >
-                            <ZoomOut className="w-3.5 h-3.5" />
-                          </button>
-                          <span className="text-[11px] font-mono text-[#111b21] px-1 font-bold">
-                            {Math.round(zoomLevel * 100)}%
-                          </span>
-                          <button
-                            onClick={() => setZoomLevel((z) => Math.min(2.5, z + 0.2))}
-                            className="p-1 text-[#54656f] hover:text-[#111b21]"
-                            title="Zoom In"
-                          >
-                            <ZoomIn className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Right: Print Actions */}
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={handlePrint}
-                          disabled={isPrinting}
-                          className="btn-wa-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md"
-                        >
-                          <Printer className="w-4 h-4" />
-                          <span>{isPrinting ? 'Printing...' : 'Print This'}</span>
-                        </button>
-
-                        <button
-                          onClick={async () => {
-                            await handlePrint();
-                            const list = Array.from(customers.values());
-                            const currentIndex = list.findIndex((c) => c.customerId === selectedCustomerId);
-                            const nextCust = list.find((c, idx) => idx !== currentIndex && c.documents.some((d) => d.status === 'READY'));
-                            if (nextCust) {
-                              setSelectedCustomerId(nextCust.customerId);
-                              if (nextCust.documents.length > 0) {
-                                setSelectedDocId(nextCust.documents[0].id);
-                              }
-                              toast.info('Next Customer', `Viewing ${nextCust.customerName}`);
-                            }
-                          }}
-                          disabled={isPrinting}
-                          className="px-3.5 py-2 rounded-xl bg-[#008069] hover:bg-[#00705b] text-white text-xs font-bold flex items-center gap-1 shadow-md"
-                          title="Print and switch immediately to next customer"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                          <span>Print & Next</span>
-                        </button>
                       </div>
                     </div>
+                  );
+                })}
 
-                    {/* Sandboxed DRM Canvas Sandbox */}
-                    <div className="flex-1 min-h-[420px] rounded-2xl overflow-hidden shadow-xl border border-[#cbd5e1] bg-[#1e293b] flex items-center justify-center relative p-2">
-                      <DRMCanvasViewer
-                        documentBuffer={selectedDoc.decryptedBuffer}
-                        fileType={selectedDoc.fileType}
-                        filename={selectedDoc.filename}
-                        shopId={shopId}
-                        sessionId={sessionId}
-                        rotation={rotation}
-                        filterMode={filterMode}
-                        zoomLevel={zoomLevel}
-                        currentPage={currentPage}
-                        onPageCountLoaded={setTotalPages}
-                        onSafePrintTrigger={handlePrint}
-                        onCloseDocument={() => setSelectedDocId(null)}
-                      />
-                    </div>
-                  </div>
-                )}
+                <div ref={chatScrollRef} />
+              </div>
+
+              {/* Quick Reply Actions for Shopkeeper */}
+              <div className="bg-[#f0f2f5] px-4 py-2 border-t border-[#e9edef] flex items-center gap-2 overflow-x-auto shrink-0">
+                <span className="text-[11px] font-bold text-[#667781] uppercase tracking-wider shrink-0">Quick Reply:</span>
+                <button
+                  onClick={() => handleSendReply('🖨️ Printing your document right now...')}
+                  className="px-2.5 py-1 rounded-full bg-white hover:bg-[#e9edef] text-[#111b21] text-xs font-medium border border-[#d1d7db] shrink-0"
+                >
+                  🖨️ Printing now
+                </button>
+                <button
+                  onClick={() => handleSendReply('✅ Printed & ready for pickup! Total: ₹10')}
+                  className="px-2.5 py-1 rounded-full bg-white hover:bg-[#e9edef] text-[#111b21] text-xs font-medium border border-[#d1d7db] shrink-0"
+                >
+                  ✅ Ready for pickup (₹10)
+                </button>
+                <button
+                  onClick={() => handleSendReply('⚠️ Please re-upload with higher resolution or clear lighting.')}
+                  className="px-2.5 py-1 rounded-full bg-white hover:bg-[#e9edef] text-[#111b21] text-xs font-medium border border-[#d1d7db] shrink-0"
+                >
+                  ⚠️ Resend clearer copy
+                </button>
+              </div>
+
+              {/* Bottom WhatsApp Chat Input Bar */}
+              <div className="bg-[#f0f2f5] px-4 py-2.5 border-t border-[#d1d7db] flex items-center gap-3 shrink-0">
+                <div className="flex-1 bg-white rounded-lg h-10 px-3 flex items-center border border-[#d1d7db] focus-within:border-[#00a884]">
+                  <input
+                    type="text"
+                    placeholder="Type a message to customer..."
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
+                    className="w-full text-[14px] bg-transparent border-none focus:outline-none text-[#111b21] placeholder-[#667781]"
+                  />
+                </div>
+
+                <button
+                  onClick={() => handleSendReply()}
+                  disabled={!replyText.trim()}
+                  className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center shadow-md disabled:opacity-40 transition-transform active:scale-95 shrink-0"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* 📄 Interactive WhatsApp Document Viewer Modal / Drawer 📄 */}
+      {isViewerOpen && selectedDoc && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md p-2 sm:p-4 flex items-center justify-center animate-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-3xl max-w-5xl w-full h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-[#d1d7db]">
+            {/* Modal Header */}
+            <div className="bg-[#008069] text-white px-5 py-3.5 flex items-center justify-between shadow-sm shrink-0">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-white" />
+                <div className="text-left">
+                  <div className="text-sm sm:text-base font-bold truncate max-w-md">{selectedDoc.filename}</div>
+                  <div className="text-xs text-white/80 font-mono">
+                    Customer: {selectedCustomer?.customerName} • {(selectedDoc.fileSize / 1024).toFixed(1)} KB in RAM
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePrint}
+                  disabled={isPrinting}
+                  className="px-4 py-2 rounded-xl bg-[#25d366] hover:bg-[#20ba5a] text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>{isPrinting ? 'Printing...' : 'Print Document'}</span>
+                </button>
+
+                <button
+                  onClick={() => setIsViewerOpen(false)}
+                  className="p-2 rounded-full hover:bg-white/20 text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Adjustment Toolbar */}
+            <div className="bg-[#f0f2f5] px-4 py-2.5 border-b border-[#d1d7db] flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="p-1 rounded bg-white border border-[#d1d7db] text-[#54656f] disabled:opacity-30"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-mono font-bold text-[#111b21]">
+                  Page {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="p-1 rounded bg-white border border-[#d1d7db] text-[#54656f] disabled:opacity-30"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setRotation((r) => (r + 90) % 360)}
+                  className="flex items-center gap-1 px-3 py-1 rounded-lg bg-white border border-[#d1d7db] text-xs font-bold text-[#111b21]"
+                >
+                  <RotateCw className="w-3.5 h-3.5 text-[#008069]" />
+                  <span>{rotation}°</span>
+                </button>
+
+                <div className="flex items-center bg-white p-0.5 rounded-lg border border-[#d1d7db] text-xs font-semibold">
+                  <button
+                    onClick={() => setFilterMode('NORMAL')}
+                    className={`px-2.5 py-0.5 rounded-md ${filterMode === 'NORMAL' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
+                  >
+                    Color
+                  </button>
+                  <button
+                    onClick={() => setFilterMode('BW')}
+                    className={`px-2.5 py-0.5 rounded-md ${filterMode === 'BW' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
+                  >
+                    Photocopy B&W
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-[#d1d7db]">
+                  <button onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))} className="p-0.5 text-[#54656f]">
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-[11px] font-mono font-bold px-1">{Math.round(zoomLevel * 100)}%</span>
+                  <button onClick={() => setZoomLevel((z) => Math.min(2.5, z + 0.2))} className="p-0.5 text-[#54656f]">
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleDeleteDoc(selectedDoc.id)}
+                  className="px-3 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold border border-red-200 flex items-center gap-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete File</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Canvas Viewer Area */}
+            <div className="flex-1 min-h-0 bg-[#1e293b] p-4 flex items-center justify-center overflow-auto">
+              <DRMCanvasViewer
+                documentBuffer={selectedDoc.decryptedBuffer}
+                fileType={selectedDoc.fileType}
+                filename={selectedDoc.filename}
+                shopId={shopId}
+                sessionId={sessionId}
+                rotation={rotation}
+                filterMode={filterMode}
+                zoomLevel={zoomLevel}
+                currentPage={currentPage}
+                onPageCountLoaded={setTotalPages}
+                onSafePrintTrigger={handlePrint}
+                onCloseDocument={() => setIsViewerOpen(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Fullscreen Counter QR Code Modal */}
       {showQRModal && (

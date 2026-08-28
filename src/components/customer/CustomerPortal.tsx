@@ -77,6 +77,11 @@ export const CustomerPortal: React.FC = () => {
   const relayRef = useRef<RelaySocket | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
+  const [textMessages, setTextMessages] = useState<
+    Array<{ id: string; sender: 'CUSTOMER' | 'SHOP' | 'SYSTEM'; text: string; timestamp: number }>
+  >([]);
+  const [inputText, setInputText] = useState('');
+
   // Parse URL parameters on load
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -97,7 +102,7 @@ export const CustomerPortal: React.FC = () => {
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [sentDocs, selectedFile]);
+  }, [sentDocs, textMessages, selectedFile]);
 
   const handleSessionDecoded = (decodedRoom: string, decodedKey: string) => {
     setRoomId(decodedRoom);
@@ -124,6 +129,18 @@ export const CustomerPortal: React.FC = () => {
         setShopId(data.shopId);
         sounds.playConnect();
         toast.shield('Paired to Shop Terminal', `Connected to ${data.shopName}`);
+      },
+      onChatMessage: (msg) => {
+        sounds.playSuccess();
+        setTextMessages((prev) => [
+          ...prev,
+          {
+            id: msg.id || `MSG-${Date.now()}`,
+            sender: msg.sender,
+            text: msg.text,
+            timestamp: msg.timestamp || Date.now(),
+          },
+        ]);
       },
       onPrintStatus: (data) => {
         setSentDocs((prev) =>
@@ -375,8 +392,44 @@ export const CustomerPortal: React.FC = () => {
     setRoomId(null);
     setKeyHex(null);
     setSentDocs([]);
+    setTextMessages([]);
     setSelectedFile(null);
     window.history.replaceState({}, '', window.location.pathname);
+  };
+
+  const handleSendMessageOrFile = async () => {
+    if (selectedFile) {
+      await handleSendDocument();
+    }
+
+    if (inputText.trim()) {
+      const msgText = inputText.trim();
+      const msgId = `MSG-${Date.now()}`;
+      const timestamp = Date.now();
+
+      setTextMessages((prev) => [
+        ...prev,
+        {
+          id: msgId,
+          sender: 'CUSTOMER',
+          text: msgText,
+          timestamp,
+        },
+      ]);
+
+      relayRef.current?.send({
+        type: 'CHAT_MESSAGE',
+        roomId,
+        customerId,
+        id: msgId,
+        sender: 'CUSTOMER',
+        text: msgText,
+        timestamp,
+      });
+
+      setInputText('');
+      sounds.playSuccess();
+    }
   };
 
   return (
@@ -562,6 +615,29 @@ export const CustomerPortal: React.FC = () => {
               );
             })}
 
+            {/* Text Messages Timeline */}
+            {textMessages.map((msg) => {
+              const isMe = msg.sender === 'CUSTOMER';
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in duration-150`}
+                >
+                  <div
+                    className={`${
+                      isMe ? 'wa-bubble-out' : 'wa-bubble-in'
+                    } max-w-[85%] sm:max-w-md p-3 space-y-1 shadow-xs border border-[#d1d7db]/40`}
+                  >
+                    <div className="text-[14px] text-[#111b21] leading-relaxed break-words">{msg.text}</div>
+                    <div className="flex items-center justify-end gap-1 text-[10px] text-[#667781] font-mono">
+                      <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      {isMe && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
             {/* Staged File Preview */}
             {selectedFile && (
               <div className="flex justify-end animate-in zoom-in-95 duration-150">
@@ -708,22 +784,22 @@ export const CustomerPortal: React.FC = () => {
               <Paperclip className="w-5 h-5 text-[#54656f]" />
             </button>
 
-            {/* Input Bubble */}
-            <div
-              onClick={() => setShowAttachmentMenu(true)}
-              className="flex-1 bg-white px-3.5 py-2.5 rounded-2xl text-xs text-[#667781] border border-[#e9edef] cursor-pointer hover:border-[#00a884] transition-colors truncate"
-            >
-              {selectedFile ? (
-                <span className="text-[#111b21] font-semibold truncate block">{selectedFile.name}</span>
-              ) : (
-                <span>Type a message or attach document...</span>
-              )}
+            {/* Real WhatsApp Text Input */}
+            <div className="flex-1 bg-white px-3.5 py-1.5 rounded-2xl border border-[#d1d7db] flex items-center focus-within:border-[#00a884]">
+              <input
+                type="text"
+                placeholder={selectedFile ? `Add print note for ${selectedFile.name}...` : "Type a message or instruction..."}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessageOrFile()}
+                className="w-full text-xs sm:text-sm bg-transparent border-none focus:outline-none text-[#111b21] placeholder-[#667781]"
+              />
             </div>
 
             {/* WhatsApp Send / Mic Button */}
             <button
-              onClick={handleSendDocument}
-              disabled={!selectedFile}
+              onClick={handleSendMessageOrFile}
+              disabled={!selectedFile && !inputText.trim()}
               className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 disabled:cursor-not-allowed shrink-0"
               title="Send to Xerox Shop"
             >
