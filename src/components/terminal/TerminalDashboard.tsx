@@ -25,7 +25,6 @@ import {
   Paperclip,
   Smile,
   ShieldCheck,
-  IndianRupee,
   Mic,
   Square
 } from 'lucide-react';
@@ -42,7 +41,6 @@ import { RelaySocket } from '../../services/relaySocket';
 import { sounds } from '../../services/AudioEffects';
 import { useToast } from '../shared/ToastContext';
 import { DRMCanvasViewer } from './DRMCanvasViewer';
-import { PaymentRequestModal } from './PaymentRequestModal';
 import { VoiceNotePlayer } from '../shared/VoiceNotePlayer';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -66,12 +64,6 @@ interface ChatMessage {
   sender: 'CUSTOMER' | 'SHOP' | 'SYSTEM';
   text?: string;
   voiceBase64?: string;
-  payment?: {
-    amount: number;
-    upiId: string;
-    note: string;
-    paid?: boolean;
-  };
   docId?: string;
   timestamp: number;
 }
@@ -104,7 +96,6 @@ export const TerminalDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<'ALL' | 'PENDING' | 'PRINTED'>('ALL');
   const [showQRModal, setShowQRModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [copiedQR, setCopiedQR] = useState(false);
   const [mobileTab, setMobileTab] = useState<'QUEUE' | 'WORKSPACE'>('QUEUE');
   const [replyText, setReplyText] = useState('');
@@ -243,7 +234,6 @@ export const TerminalDashboard: React.FC = () => {
               sender: msg.sender,
               text: safeText,
               voiceBase64: msg.voiceBase64,
-              payment: msg.payment,
               timestamp: msg.timestamp || Date.now(),
             });
           }
@@ -409,50 +399,6 @@ export const TerminalDashboard: React.FC = () => {
 
     sounds.playSuccess();
     if (!textToSend) setReplyText('');
-  };
-
-  // Send UPI Payment Request Card to Customer
-  const handleSendPaymentRequest = (amount: number, upiId: string, note: string) => {
-    if (!selectedCustomer) return;
-
-    const msgId = `PAY-${Date.now()}`;
-    const timestamp = Date.now();
-    const paymentPayload = {
-      amount,
-      upiId,
-      note,
-      paid: false,
-    };
-
-    setCustomers((prev) => {
-      const next = new Map(prev);
-      const cust = next.get(selectedCustomer.customerId);
-      if (cust) {
-        cust.lastActive = timestamp;
-        cust.messages.push({
-          id: msgId,
-          sender: 'SHOP',
-          text: `🧾 Bill Generated: ₹${amount} for ${note}`,
-          payment: paymentPayload,
-          timestamp,
-        });
-      }
-      return next;
-    });
-
-    relayRef.current?.send({
-      type: 'CHAT_MESSAGE',
-      roomId: sessionIdRef.current,
-      customerId: selectedCustomer.customerId,
-      id: msgId,
-      sender: 'SHOP',
-      text: `🧾 Bill Generated: ₹${amount}`,
-      payment: paymentPayload,
-      timestamp,
-    });
-
-    sounds.playSuccess();
-    toast.success('Payment Request Sent', `Sent ₹${amount} UPI bill to ${selectedCustomer.customerName}`);
   };
 
   // Voice Note Recording
@@ -1036,16 +982,6 @@ export const TerminalDashboard: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Request UPI Bill Button */}
-                  <button
-                    onClick={() => setShowPaymentModal(true)}
-                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#d9fdd3] text-[#008069] text-xs font-bold flex items-center gap-1 border border-[#00a884]/40 shadow-xs cursor-pointer transition-colors"
-                    title="Calculate rate and send dynamic UPI QR bill"
-                  >
-                    <IndianRupee className="w-3.5 h-3.5" />
-                    <span>Bill Customer</span>
-                  </button>
-
                   {selectedDoc && (
                     <button
                       onClick={() => setIsViewerOpen(true)}
@@ -1171,17 +1107,6 @@ export const TerminalDashboard: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Payment Card Notification */}
-                        {msg.payment && (
-                          <div className="p-2.5 rounded-xl bg-white border border-[#00a884]/30 space-y-1 text-xs">
-                            <div className="flex justify-between font-bold text-[#008069]">
-                              <span>UPI Bill Sent: ₹{msg.payment.amount}</span>
-                              <span>{msg.payment.paid ? '✅ Paid' : '⏳ Pending'}</span>
-                            </div>
-                            <div className="text-[#54656f] text-[11px]">{msg.payment.note}</div>
-                          </div>
-                        )}
-
                         <div className="flex items-center justify-end gap-1 text-[11px] text-[#667781] font-mono mt-0.5">
                           <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           {isShop && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
@@ -1196,14 +1121,7 @@ export const TerminalDashboard: React.FC = () => {
 
               {/* Quick Reply Actions for Shopkeeper */}
               <div className="bg-[#f0f2f5] px-4 py-2 border-t border-[#e9edef] flex items-center gap-2 overflow-x-auto shrink-0">
-                <span className="text-[11px] font-bold text-[#667781] uppercase tracking-wider shrink-0">Quick Actions:</span>
-                <button
-                  onClick={() => setShowPaymentModal(true)}
-                  className="px-3 py-1.5 rounded-full bg-[#d9fdd3] hover:bg-[#c2f7b8] text-[#008069] text-xs font-bold border border-[#00a884]/40 shrink-0 cursor-pointer shadow-xs transition-colors flex items-center gap-1"
-                >
-                  <IndianRupee className="w-3 h-3" />
-                  <span>Request Bill (₹)</span>
-                </button>
+                <span className="text-[11px] font-bold text-[#667781] uppercase tracking-wider shrink-0">Quick Replies:</span>
                 <button
                   onClick={() => handleSendReply('🖨️ Printing your document right now...')}
                   className="px-3 py-1.5 rounded-full bg-white hover:bg-[#d9fdd3] text-[#111b21] text-xs font-semibold border border-[#d1d7db] shrink-0 cursor-pointer shadow-xs transition-colors"
@@ -1428,19 +1346,6 @@ export const TerminalDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* UPI Payment Request Rate Modal */}
-      {showPaymentModal && selectedCustomer && (
-        <PaymentRequestModal
-          isOpen={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          onSendRequest={handleSendPaymentRequest}
-          customerName={selectedCustomer.customerName}
-          defaultPages={totalPages}
-          defaultCopies={copies}
-          defaultIsColor={filterMode === 'NORMAL'}
-        />
       )}
 
       {/* Fullscreen Counter QR Code Modal */}

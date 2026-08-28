@@ -15,7 +15,6 @@ export interface RelaySocketCallbacks {
     sender: 'CUSTOMER' | 'SHOP';
     text?: string;
     voiceBase64?: string;
-    payment?: any;
     customerId: string;
     customerName?: string;
     timestamp: number;

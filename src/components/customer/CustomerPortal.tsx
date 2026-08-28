@@ -19,7 +19,6 @@ import {
   X,
   Mic,
   Square,
-  IndianRupee,
   Smartphone,
   ExternalLink,
   Plus,
@@ -36,7 +35,6 @@ import { WatermarkTool } from './WatermarkTool';
 import { ShredCertificateModal } from './ShredCertificateModal';
 import { VoiceNotePlayer } from '../shared/VoiceNotePlayer';
 import { DestructionCertificate } from '../../crypto/ledger';
-import { QRCodeSVG } from 'qrcode.react';
 
 interface StagedFile {
   id: string;
@@ -67,12 +65,6 @@ interface ChatMessage {
   sender: 'CUSTOMER' | 'SHOP' | 'SYSTEM';
   text?: string;
   voiceBase64?: string;
-  payment?: {
-    amount: number;
-    upiId: string;
-    note: string;
-    paid?: boolean;
-  };
   timestamp: number;
 }
 
@@ -183,7 +175,6 @@ export const CustomerPortal: React.FC = () => {
             sender: msg.sender,
             text: msg.text,
             voiceBase64: msg.voiceBase64,
-            payment: msg.payment,
             timestamp: msg.timestamp || Date.now(),
           },
         ]);
@@ -471,28 +462,6 @@ export const CustomerPortal: React.FC = () => {
     sounds.playSuccess();
   };
 
-  const handleMarkPaymentPaid = (msgId: string) => {
-    setTextMessages((prev) =>
-      prev.map((m) =>
-        m.id === msgId && m.payment ? { ...m, payment: { ...m.payment, paid: true } } : m
-      )
-    );
-
-    relayRef.current?.send({
-      type: 'CHAT_MESSAGE',
-      roomId,
-      customerId,
-      customerName: customerName.trim() || 'Customer',
-      id: `PAY-CONFIRMED-${Date.now()}`,
-      sender: 'CUSTOMER',
-      text: '✅ UPI Payment Completed via GPay/PhonePe',
-      timestamp: Date.now(),
-    });
-
-    sounds.playSuccess();
-    toast.success('Payment Recorded', 'Receipt confirmed with shopkeeper.');
-  };
-
   return (
     <div className="max-w-xl mx-auto px-2 sm:px-4 py-2 sm:py-3 w-full">
       {/* ── STEP 1: Not Paired -> Scan QR ── */}
@@ -691,7 +660,7 @@ export const CustomerPortal: React.FC = () => {
               );
             })}
 
-            {/* Text, Voice & UPI Payment Messages */}
+            {/* Text & Voice Messages */}
             {textMessages.map((msg) => {
               const isMe = msg.sender === 'CUSTOMER';
 
@@ -703,7 +672,7 @@ export const CustomerPortal: React.FC = () => {
                   <div
                     className={`${
                       isMe ? 'wa-bubble-out' : 'wa-bubble-in'
-                    } max-w-[88%] sm:max-w-md px-4 py-2.5 space-y-2 shadow-sm border border-[#d1d7db]/40`}
+                    } max-w-[88%] sm:max-w-md px-4 py-2.5 space-y-1 shadow-sm border border-[#d1d7db]/40`}
                   >
                     {/* Voice Note Player */}
                     {msg.voiceBase64 && (
@@ -718,55 +687,6 @@ export const CustomerPortal: React.FC = () => {
                     {msg.text && (
                       <div className="text-[14.5px] text-[#111b21] leading-relaxed break-words font-normal">
                         {msg.text}
-                      </div>
-                    )}
-
-                    {/* Interactive WhatsApp UPI Payment Card */}
-                    {msg.payment && (
-                      <div className="bg-[#f8fafc] p-3.5 rounded-2xl border-2 border-[#00a884] space-y-3 mt-1 shadow-sm">
-                        <div className="flex items-center justify-between border-b border-[#e9edef] pb-2">
-                          <span className="text-xs font-bold text-[#008069] uppercase tracking-wider flex items-center gap-1">
-                            <IndianRupee className="w-4 h-4" />
-                            <span>Xerox Bill Payment</span>
-                          </span>
-                          <span className="text-lg font-black text-[#111b21]">₹{msg.payment.amount}</span>
-                        </div>
-
-                        <div className="text-xs text-[#54656f]">{msg.payment.note}</div>
-
-                        {/* UPI QR Code */}
-                        <div className="flex justify-center p-2 bg-white rounded-xl border border-[#d1d7db]">
-                          <QRCodeSVG
-                            value={`upi://pay?pa=${encodeURIComponent(msg.payment.upiId)}&pn=${encodeURIComponent('SafePrint Xerox')}&am=${msg.payment.amount}&cu=INR&tn=${encodeURIComponent(msg.payment.note)}`}
-                            size={130}
-                            level="M"
-                          />
-                        </div>
-
-                        {/* 1-Tap Payment Link */}
-                        <div className="space-y-2">
-                          <a
-                            href={`upi://pay?pa=${encodeURIComponent(msg.payment.upiId)}&pn=${encodeURIComponent('SafePrint Xerox')}&am=${msg.payment.amount}&cu=INR&tn=${encodeURIComponent(msg.payment.note)}`}
-                            className="w-full py-2 px-3 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm text-center"
-                          >
-                            <Smartphone className="w-3.5 h-3.5" />
-                            <span>Pay with GPay / PhonePe / Paytm</span>
-                          </a>
-
-                          {!msg.payment.paid ? (
-                            <button
-                              type="button"
-                              onClick={() => handleMarkPaymentPaid(msg.id)}
-                              className="w-full py-1.5 rounded-lg bg-white hover:bg-[#d9fdd3] text-[#008069] text-xs font-bold border border-[#00a884]/40 cursor-pointer text-center"
-                            >
-                              ✓ Confirm Paid ₹{msg.payment.amount}
-                            </button>
-                          ) : (
-                            <div className="text-xs font-bold text-[#008069] text-center bg-[#d9fdd3] py-1.5 rounded-lg">
-                              ✅ Payment Confirmed
-                            </div>
-                          )}
-                        </div>
                       </div>
                     )}
 
@@ -873,7 +793,7 @@ export const CustomerPortal: React.FC = () => {
 
           {/* WhatsApp Attachment Sheet Popover */}
           {showAttachmentMenu && (
-            <div className="absolute bottom-16 left-3 bg-white rounded-2xl p-4 shadow-2xl border border-[#d1d7db] flex items-center gap-4 animate-in slide-in-from-bottom duration-150 z-30">
+            <div className="absolute bottom-16 left-3 bg-white rounded-2xl p-4 shadow-2xl border border-[#d1d7db] flex items-center gap-4 animate-in slide-from-bottom duration-150 z-30">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
