@@ -116,6 +116,18 @@ export class RelaySocket {
     }
 
     this.startServerlessPolling();
+
+    // Register with Serverless endpoint
+    fetch('/api/relay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'INIT_TERMINAL',
+        roomId,
+        shopId,
+        shopName,
+      }),
+    }).catch(() => {});
   }
 
   public joinCustomerToShop(roomId: string, customerId: string, customerName: string) {
@@ -142,6 +154,7 @@ export class RelaySocket {
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
             { urls: 'stun:global.stun.twilio.com:3478' },
           ],
         },
@@ -181,6 +194,18 @@ export class RelaySocket {
       customerName,
       timestamp: Date.now(),
     });
+
+    // Register customer with Serverless endpoint
+    fetch('/api/relay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'JOIN_CUSTOMER',
+        roomId,
+        customerId,
+        customerName,
+      }),
+    }).catch(() => {});
   }
 
   private startServerlessPolling() {
