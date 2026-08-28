@@ -313,13 +313,13 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
   return (
     <div
       ref={containerRef}
-      className="drm-canvas-container relative w-full min-h-[360px] sm:min-h-[520px] bg-[#475569] rounded-2xl overflow-auto flex items-center justify-center p-3 sm:p-5 shadow-2xl select-none border border-[#cbd5e1]"
+      className="drm-canvas-container relative w-full h-full min-h-[380px] sm:min-h-[460px] bg-[#334155] rounded-xl overflow-auto flex items-center justify-center p-4 select-none"
       onContextMenu={(e) => e.preventDefault()}
     >
       {/* Dynamic High-Density Forensic Watermark Grid */}
-      <div className="forensic-watermark-overlay">
-        {Array.from({ length: 32 }).map((_, i) => (
-          <div key={i} className="p-3 opacity-70 whitespace-nowrap">
+      <div className="forensic-watermark-overlay pointer-events-none">
+        {Array.from({ length: 24 }).map((_, i) => (
+          <div key={i} className="p-4 opacity-30 text-white whitespace-nowrap text-[10px] font-mono">
             SAFEPRINT • {shopId} • {sessionId.substring(0, 8)} • {watermarkTime}
           </div>
         ))}

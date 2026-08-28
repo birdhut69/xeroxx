@@ -6,7 +6,6 @@ import {
   Printer,
   Flame,
   Clock,
-  Shield,
   RotateCw,
   ChevronRight,
   ChevronLeft,
@@ -15,20 +14,13 @@ import {
   Check,
   RefreshCw,
   FileCheck,
-  Sparkles,
-  Layers,
   Lock,
   X,
-  Trash2,
-  Eye,
   FileSpreadsheet,
-  QrCode,
-  Paperclip,
-  Send,
-  MoreVertical,
   CheckCheck,
-  Camera,
-  Maximize2
+  Maximize2,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import {
   generateSessionKey,
@@ -42,7 +34,6 @@ import { RelaySocket } from '../../services/relaySocket';
 import { sounds } from '../../services/AudioEffects';
 import { useToast } from '../shared/ToastContext';
 import { DRMCanvasViewer } from './DRMCanvasViewer';
-import { DocEditor } from './DocEditor';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface QueuedDocument {
@@ -163,7 +154,7 @@ export const TerminalDashboard: React.FC = () => {
           }
           return next;
         });
-        toast.info('Customer Connected', `${data.customerName || 'A customer'} joined the queue.`);
+        toast.info('Customer Connected', `${data.customerName || 'A customer'} joined queue.`);
       },
       onCustomerLeft: (data) => {
         setCustomers((prev) => {
@@ -402,9 +393,9 @@ export const TerminalDashboard: React.FC = () => {
     .sort((a, b) => b.lastActive - a.lastActive);
 
   return (
-    <div className="max-w-[1720px] mx-auto px-2 sm:px-4 py-3 h-[calc(100vh-65px)] flex flex-col">
+    <div className="flex-1 min-h-0 w-full p-2 sm:p-3 flex flex-col overflow-hidden bg-[#efeae2]">
       {/* ── 2-COLUMN BALANCED WHATSAPP WEB SHELL ── */}
-      <div className="wa-panel-elevated rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 flex-1 border border-[#d1d7db] shadow-2xl bg-white">
+      <div className="w-full h-full rounded-2xl bg-white border border-[#d1d7db] shadow-2xl grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
         {/* ── LEFT PANE: WHATSAPP CHATS & LARGE COUNTER QR (4 Cols on Desktop) ── */}
         <div
           className={`lg:col-span-4 bg-white border-r border-[#e9edef] flex flex-col no-print h-full overflow-hidden ${
@@ -412,14 +403,14 @@ export const TerminalDashboard: React.FC = () => {
           }`}
         >
           {/* Top WhatsApp Profile Bar */}
-          <div className="bg-[#008069] text-white px-4 py-3 flex items-center justify-between shadow-sm shrink-0">
+          <div className="bg-[#008069] text-white px-4 py-3 flex items-center justify-between shadow-sm shrink-0 h-14">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40 text-white flex items-center justify-center text-sm font-bold shadow-sm">
-                <Printer className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-full bg-white/20 border border-white/40 text-white flex items-center justify-center text-sm font-bold shadow-sm">
+                <Printer className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <div className="text-sm font-bold truncate">{shopName}</div>
-                <div className="text-[11px] text-white/85 font-mono flex items-center gap-1.5">
+                <div className="text-sm font-bold truncate leading-tight">{shopName}</div>
+                <div className="text-[10px] text-white/85 font-mono flex items-center gap-1.5 mt-0.5">
                   <span className="w-2 h-2 rounded-full bg-[#25d366] inline-block" />
                   <span>Station: {shopId}</span>
                 </div>
@@ -429,7 +420,7 @@ export const TerminalDashboard: React.FC = () => {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setShowQRModal(true)}
-                className="p-2 rounded-full hover:bg-white/15 text-white transition-colors"
+                className="p-1.5 rounded-full hover:bg-white/15 text-white transition-colors"
                 title="Open Fullscreen Counter QR"
               >
                 <Maximize2 className="w-4 h-4" />
@@ -437,7 +428,7 @@ export const TerminalDashboard: React.FC = () => {
 
               <button
                 onClick={initTerminal}
-                className="p-2 rounded-full hover:bg-white/15 text-white transition-colors"
+                className="p-1.5 rounded-full hover:bg-white/15 text-white transition-colors"
                 title="Reset Session Keys"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -446,32 +437,32 @@ export const TerminalDashboard: React.FC = () => {
           </div>
 
           {/* 📸 LARGE SHOP COUNTER QR CODE CARD 📸 */}
-          <div className="p-3.5 bg-[#f8fafc] border-b border-[#e9edef] text-center space-y-2 shrink-0">
+          <div className="p-3 bg-[#f8fafc] border-b border-[#e9edef] text-center space-y-2 shrink-0">
             <div className="flex items-center justify-between text-[11px] font-bold text-[#008069]">
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#25d366] animate-ping" />
+                <span className="w-2 h-2 rounded-full bg-[#25d366] animate-ping" />
                 <span className="tracking-wide uppercase">Scan to Send Documents</span>
               </span>
               <span className="text-[10px] text-[#54656f] font-mono">No App Needed</span>
             </div>
 
-            {/* Big Prominent QR Code */}
+            {/* Prominent QR Code */}
             <div
               onClick={() => setShowQRModal(true)}
-              className="p-3 bg-white rounded-2xl border-2 border-[#00a884] shadow-md inline-block mx-auto cursor-pointer hover:shadow-lg transition-all group"
+              className="p-2.5 bg-white rounded-2xl border-2 border-[#00a884] shadow-sm inline-block mx-auto cursor-pointer hover:shadow-md transition-all group"
               title="Click to expand QR Code"
             >
               <QRCodeSVG
                 value={customerUrl}
-                size={160}
+                size={140}
                 level="H"
                 includeMargin={false}
                 imageSettings={{
                   src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23008069' stroke='%23ffffff' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>",
                   x: undefined,
                   y: undefined,
-                  height: 32,
-                  width: 32,
+                  height: 28,
+                  width: 28,
                   excavate: true,
                 }}
               />
@@ -487,7 +478,7 @@ export const TerminalDashboard: React.FC = () => {
                 className="flex-1 py-1.5 px-2.5 rounded-lg bg-white hover:bg-[#f0f2f5] text-[#111b21] text-xs font-semibold flex items-center justify-center gap-1 transition-colors border border-[#d1d7db] shadow-sm"
               >
                 {copiedQR ? <Check className="w-3.5 h-3.5 text-[#00a884]" /> : <Copy className="w-3.5 h-3.5 text-[#54656f]" />}
-                <span>{copiedQR ? 'Copied!' : 'Copy Pairing Link'}</span>
+                <span>{copiedQR ? 'Copied!' : 'Copy Link'}</span>
               </button>
 
               <button
@@ -548,7 +539,7 @@ export const TerminalDashboard: React.FC = () => {
           </div>
 
           {/* Customer Chat Queue List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-[#f0f2f5]">
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#f0f2f5]">
             {customerList.length === 0 ? (
               <div className="p-8 text-center text-[#667781] space-y-2">
                 <div className="w-10 h-10 rounded-full bg-[#f0f2f5] flex items-center justify-center mx-auto text-[#00a884]">
@@ -560,7 +551,7 @@ export const TerminalDashboard: React.FC = () => {
                 </p>
               </div>
             ) : (
-              customerList.map((cust, idx) => {
+              customerList.map((cust) => {
                 const isSelected = cust.customerId === selectedCustomerId;
                 const readyDocs = cust.documents.filter((d) => d.status === 'READY');
                 const lastDoc = cust.documents[cust.documents.length - 1];
@@ -640,13 +631,13 @@ export const TerminalDashboard: React.FC = () => {
 
         {/* ── RIGHT PANE: WHATSAPP ACTIVE CHAT & DRM WORKSPACE (8 Cols) ── */}
         <div
-          className={`lg:col-span-8 flex flex-col bg-white h-full overflow-hidden ${
+          className={`lg:col-span-8 flex flex-col bg-[#efeae2] h-full overflow-hidden ${
             mobileTab === 'QUEUE' && !selectedCustomerId ? 'hidden lg:flex' : 'flex'
           }`}
         >
           {!selectedCustomer ? (
             /* WhatsApp Web Default Welcome Screen WITH LARGE QR STATION */
-            <div className="flex-1 wa-chat-wallpaper flex flex-col items-center justify-center p-6 text-center border-b-8 border-[#00a884] overflow-y-auto">
+            <div className="flex-1 wa-chat-wallpaper flex flex-col items-center justify-center p-6 text-center overflow-y-auto">
               <div className="max-w-lg w-full p-6 sm:p-8 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-[#d1d7db] space-y-4">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#d9fdd3] text-[#008069] text-xs font-bold font-mono">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#25d366] animate-pulse" />
@@ -657,19 +648,19 @@ export const TerminalDashboard: React.FC = () => {
                   Point Camera to Send Files
                 </h3>
 
-                {/* Big 210px Center QR Code */}
+                {/* Big 190px Center QR Code */}
                 <div className="p-4 bg-[#f8fafc] rounded-2xl border-2 border-[#00a884] shadow-lg inline-block mx-auto">
                   <QRCodeSVG
                     value={customerUrl}
-                    size={210}
+                    size={190}
                     level="H"
                     includeMargin={false}
                     imageSettings={{
                       src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23008069' stroke='%23ffffff' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>",
                       x: undefined,
                       y: undefined,
-                      height: 38,
-                      width: 38,
+                      height: 36,
+                      width: 36,
                       excavate: true,
                     }}
                   />
@@ -700,9 +691,9 @@ export const TerminalDashboard: React.FC = () => {
             </div>
           ) : (
             /* Active Customer WhatsApp Conversation */
-            <div className="flex-1 flex flex-col min-h-0 bg-[#efeae2]">
+            <div className="flex-1 min-h-0 flex flex-col bg-[#efeae2] overflow-hidden">
               {/* WhatsApp Active Chat Top Header */}
-              <div className="bg-[#f0f2f5] px-4 py-2.5 border-b border-[#e9edef] flex items-center justify-between shadow-sm shrink-0">
+              <div className="bg-[#f0f2f5] px-4 py-2.5 border-b border-[#e9edef] flex items-center justify-between shadow-sm shrink-0 h-14">
                 <div className="flex items-center gap-2 sm:gap-3 text-left min-w-0">
                   {/* Mobile Back to Queue Button */}
                   <button
@@ -713,7 +704,7 @@ export const TerminalDashboard: React.FC = () => {
                     <ChevronLeft className="w-5 h-5" />
                   </button>
 
-                  <div className="w-10 h-10 rounded-full bg-[#008069] text-white font-bold flex items-center justify-center text-sm shadow-sm shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-[#008069] text-white font-bold flex items-center justify-center text-sm shadow-sm shrink-0">
                     {selectedCustomer.customerName.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
@@ -744,7 +735,7 @@ export const TerminalDashboard: React.FC = () => {
               {/* Multi-document Selection Bar */}
               {selectedCustomer.documents.length > 0 && (
                 <div className="bg-white px-4 py-2 border-b border-[#e9edef] flex items-center gap-2 overflow-x-auto shrink-0 shadow-sm">
-                  <span className="text-xs text-[#667781] font-semibold shrink-0">Attachments:</span>
+                  <span className="text-xs text-[#667781] font-semibold shrink-0">Files:</span>
                   {selectedCustomer.documents.map((doc) => (
                     <div
                       key={doc.id}
@@ -778,7 +769,7 @@ export const TerminalDashboard: React.FC = () => {
               )}
 
               {/* Main Workspace Feed */}
-              <div className="flex-1 wa-chat-wallpaper overflow-y-auto p-3 sm:p-4 space-y-3 text-left">
+              <div className="flex-1 min-h-0 wa-chat-wallpaper overflow-y-auto p-3 sm:p-4 space-y-3 text-left">
                 {/* WhatsApp System Encryption Notice */}
                 <div className="wa-system-pill flex items-center justify-center gap-1.5 text-center">
                   <Lock className="w-3.5 h-3.5 text-[#54656f] shrink-0" />
@@ -827,28 +818,98 @@ export const TerminalDashboard: React.FC = () => {
                     <p className="text-[11px] text-[#667781]">Loading AES-256 payload into RAM.</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {/* WhatsApp Document Print Toolbar */}
-                    <div className="wa-panel p-3 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-sm border border-[#d1d7db]">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-lg bg-[#d9fdd3] text-[#008069]">
-                          <FileCheck className="w-5 h-5" />
+                  <div className="space-y-3 flex flex-col">
+                    {/* Unified Document Print & Adjustment Toolbar */}
+                    <div className="wa-panel p-3 rounded-xl flex flex-wrap items-center justify-between gap-2.5 shadow-md border border-[#d1d7db]">
+                      {/* Left: Document Info & Page Navigator */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 bg-[#f0f2f5] px-2 py-1 rounded-lg border border-[#d1d7db]">
+                          <button
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            disabled={currentPage <= 1}
+                            className="p-0.5 rounded hover:bg-[#e9edef] disabled:opacity-30 text-[#54656f]"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </button>
+                          <span className="text-xs font-mono font-bold text-[#111b21] px-1">
+                            {currentPage} / {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={currentPage >= totalPages}
+                            className="p-0.5 rounded hover:bg-[#e9edef] disabled:opacity-30 text-[#54656f]"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
                         </div>
-                        <div>
-                          <div className="text-xs sm:text-sm font-bold text-[#111b21] truncate max-w-[220px]" title={selectedDoc.filename}>
+
+                        <div className="hidden sm:block text-left">
+                          <div className="text-xs font-bold text-[#111b21] truncate max-w-[180px]" title={selectedDoc.filename}>
                             {selectedDoc.filename}
                           </div>
-                          <div className="text-[10px] text-[#667781] font-mono">
-                            {totalPages} Page(s) • {(selectedDoc.fileSize / 1024).toFixed(1)} KB • In RAM
-                          </div>
+                          <div className="text-[10px] text-[#667781] font-mono">{(selectedDoc.fileSize / 1024).toFixed(1)} KB</div>
                         </div>
                       </div>
 
+                      {/* Center: Rotation, Photocopy Filters, Zoom */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => setRotation((r) => (r + 90) % 360)}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#f0f2f5] hover:bg-[#e9edef] border border-[#d1d7db] text-xs font-bold text-[#111b21]"
+                          title="Rotate 90°"
+                        >
+                          <RotateCw className="w-3.5 h-3.5 text-[#008069]" />
+                          <span>{rotation}°</span>
+                        </button>
+
+                        <div className="flex items-center bg-[#f0f2f5] p-0.5 rounded-lg border border-[#d1d7db] text-xs font-semibold">
+                          <button
+                            onClick={() => setFilterMode('NORMAL')}
+                            className={`px-2 py-0.5 rounded-md ${filterMode === 'NORMAL' ? 'bg-[#008069] text-white shadow-sm' : 'text-[#54656f]'}`}
+                          >
+                            Color
+                          </button>
+                          <button
+                            onClick={() => setFilterMode('GRAYSCALE')}
+                            className={`px-2 py-0.5 rounded-md ${filterMode === 'GRAYSCALE' ? 'bg-[#008069] text-white shadow-sm' : 'text-[#54656f]'}`}
+                          >
+                            Grayscale
+                          </button>
+                          <button
+                            onClick={() => setFilterMode('BW')}
+                            className={`px-2 py-0.5 rounded-md ${filterMode === 'BW' ? 'bg-[#008069] text-white shadow-sm' : 'text-[#54656f]'}`}
+                          >
+                            Photocopy B&W
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-[#f0f2f5] px-1.5 py-0.5 rounded-lg border border-[#d1d7db]">
+                          <button
+                            onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))}
+                            className="p-1 text-[#54656f] hover:text-[#111b21]"
+                            title="Zoom Out"
+                          >
+                            <ZoomOut className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-[11px] font-mono text-[#111b21] px-1 font-bold">
+                            {Math.round(zoomLevel * 100)}%
+                          </span>
+                          <button
+                            onClick={() => setZoomLevel((z) => Math.min(2.5, z + 0.2))}
+                            className="p-1 text-[#54656f] hover:text-[#111b21]"
+                            title="Zoom In"
+                          >
+                            <ZoomIn className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Right: Print Actions */}
                       <div className="flex items-center gap-2">
                         <button
                           onClick={handlePrint}
                           disabled={isPrinting}
-                          className="btn-wa-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#00a884]/20"
+                          className="btn-wa-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md"
                         >
                           <Printer className="w-4 h-4" />
                           <span>{isPrinting ? 'Printing...' : 'Print This'}</span>
@@ -869,7 +930,7 @@ export const TerminalDashboard: React.FC = () => {
                             }
                           }}
                           disabled={isPrinting}
-                          className="px-4 py-2 rounded-xl bg-[#008069] hover:bg-[#00705b] text-white text-xs font-bold flex items-center gap-1 shadow-md"
+                          className="px-3.5 py-2 rounded-xl bg-[#008069] hover:bg-[#00705b] text-white text-xs font-bold flex items-center gap-1 shadow-md"
                           title="Print and switch immediately to next customer"
                         >
                           <ChevronRight className="w-4 h-4" />
@@ -878,40 +939,23 @@ export const TerminalDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Document Editor Controls with Close & Delete */}
-                    <DocEditor
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      rotation={rotation}
-                      filterMode={filterMode}
-                      zoomLevel={zoomLevel}
-                      copies={copies}
-                      maxAllowedCopies={selectedDoc.maxCopies || 5}
-                      onPageChange={setCurrentPage}
-                      onRotate={() => setRotation((prev) => (prev + 90) % 360)}
-                      onFilterChange={setFilterMode}
-                      onZoomChange={(delta) => setZoomLevel((prev) => Math.min(2.5, Math.max(0.5, prev + delta)))}
-                      onResetZoom={() => setZoomLevel(1.0)}
-                      onCopiesChange={setCopies}
-                      onCloseFile={() => setSelectedDocId(null)}
-                      onDeleteFile={() => handleDeleteDoc(selectedDoc.id)}
-                    />
-
-                    {/* DRM Sandboxed Canvas Viewer */}
-                    <DRMCanvasViewer
-                      documentBuffer={selectedDoc.decryptedBuffer}
-                      fileType={selectedDoc.fileType}
-                      filename={selectedDoc.filename}
-                      shopId={shopId}
-                      sessionId={sessionId}
-                      rotation={rotation}
-                      filterMode={filterMode}
-                      zoomLevel={zoomLevel}
-                      currentPage={currentPage}
-                      onPageCountLoaded={setTotalPages}
-                      onSafePrintTrigger={handlePrint}
-                      onCloseDocument={() => setSelectedDocId(null)}
-                    />
+                    {/* Sandboxed DRM Canvas Sandbox */}
+                    <div className="flex-1 min-h-[420px] rounded-2xl overflow-hidden shadow-2xl border border-[#cbd5e1] bg-[#334155] flex items-center justify-center relative">
+                      <DRMCanvasViewer
+                        documentBuffer={selectedDoc.decryptedBuffer}
+                        fileType={selectedDoc.fileType}
+                        filename={selectedDoc.filename}
+                        shopId={shopId}
+                        sessionId={sessionId}
+                        rotation={rotation}
+                        filterMode={filterMode}
+                        zoomLevel={zoomLevel}
+                        currentPage={currentPage}
+                        onPageCountLoaded={setTotalPages}
+                        onSafePrintTrigger={handlePrint}
+                        onCloseDocument={() => setSelectedDocId(null)}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
