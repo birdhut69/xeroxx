@@ -154,37 +154,56 @@ html, body {
   border-radius: 2px;
 }
 
-/* Print CSS */
+/* Ultra-Clean Isolated Print CSS */
 @media print {
-  body {
+  html, body {
     background: #ffffff !important;
     color: #000000 !important;
-    padding: 0 !important;
     margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
   }
 
-  header, nav, .no-print, .terminal-sidebar, .terminal-controls, button, .forensic-watermark-overlay, footer {
-    display: none !important;
+  body * {
+    visibility: hidden !important;
   }
 
-  #print-area, .print-container {
-    display: block !important;
-    position: absolute !important;
+  #print-area, #print-area * {
+    visibility: visible !important;
+  }
+
+  #print-area {
+    position: fixed !important;
     left: 0 !important;
     top: 0 !important;
-    width: 100% !important;
+    width: 100vw !important;
+    height: 100vh !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 99999 !important;
   }
 
   .print-page-canvas {
     display: block !important;
     max-width: 100% !important;
+    max-height: 100vh !important;
+    width: auto !important;
     height: auto !important;
-    page-break-after: always !important;
-    break-after: page !important;
-    margin: 0 auto !important;
+    margin: auto !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  header, nav, .no-print, .terminal-sidebar, .terminal-controls, button, .forensic-watermark-overlay, footer {
+    display: none !important;
   }
 }
 

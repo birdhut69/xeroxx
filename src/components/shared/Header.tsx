@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Volume2, VolumeX, Smartphone, Monitor, HelpCircle, Menu, X, LogOut, KeyRound } from 'lucide-react';
+import { ShieldCheck, Lock, Volume2, VolumeX, Smartphone, Monitor, HelpCircle, Menu, X, LogOut, KeyRound, Cpu } from 'lucide-react';
 import { sounds } from '../../services/AudioEffects';
 import { ComparisonModal } from './ComparisonModal';
 import { AdminAuthModal } from '../terminal/AdminAuthModal';
+import { RAMProofModal } from './RAMProofModal';
 import { useToast } from './ToastContext';
 
 type AppMode = 'TERMINAL' | 'CUSTOMER';
@@ -26,6 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [audioEnabled, setAudioEnabled] = useState(sounds.enabled);
   const [showComparison, setShowComparison] = useState(false);
+  const [showRAMProof, setShowRAMProof] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const toast = useToast();
@@ -76,10 +78,15 @@ export const Header: React.FC<HeaderProps> = ({
                   {currentMode === 'TERMINAL' ? 'Shop Admin' : 'Customer'}
                 </span>
               </div>
-              <p className="text-[10px] text-white/80 hidden sm:flex items-center gap-1 font-mono">
+              <button
+                onClick={() => setShowRAMProof(true)}
+                className="text-[10px] text-white/90 hover:text-white hover:underline hidden sm:flex items-center gap-1 font-mono cursor-pointer"
+                title="Click to view Live RAM & Zero-Disk Technical Proof"
+              >
                 <Lock className="w-3 h-3 text-[#25d366] inline" />
                 <span>Zero-Disk RAM Storage • Auto-Shred</span>
-              </p>
+                <span className="bg-white/20 px-1.5 py-0.2 rounded text-[9px] font-bold">Proof 🔍</span>
+              </button>
             </div>
           </div>
 
@@ -187,6 +194,14 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Comparison Modal */}
       <ComparisonModal isOpen={showComparison} onClose={() => setShowComparison(false)} />
+
+      {/* Live RAM & Zero-Disk Verifier Modal */}
+      <RAMProofModal
+        isOpen={showRAMProof}
+        onClose={() => setShowRAMProof(false)}
+        shopId="XEROX-STATION"
+        sessionId="RAM-E2EE-ACTIVE"
+      />
     </>
   );
 };
