@@ -22,22 +22,16 @@ import {
   ZoomOut,
   QrCode,
   Send,
-  Sparkles,
-  Paperclip,
-  Smile,
-  ShieldCheck,
   Eye,
   Trash2,
   MoreVertical,
-  CheckCircle2,
-  AlertCircle
+  ShieldCheck
 } from 'lucide-react';
 import {
   generateSessionKey,
   exportKeyToHash,
   generateRandomSessionId,
   decryptDocument,
-  encryptDocument
 } from '../../crypto/e2ee';
 import { zeroizeBuffer } from '../../crypto/zeroize';
 import { EphemeralLedger } from '../../crypto/ledger';
@@ -125,7 +119,6 @@ export const TerminalDashboard: React.FC = () => {
     ? `${window.location.origin}/?room=${sessionId}#key=${sessionKeyHex}`
     : '';
 
-  // Auto-scroll chat when messages change
   useEffect(() => {
     chatScrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [customers, selectedCustomerId]);
@@ -170,10 +163,11 @@ export const TerminalDashboard: React.FC = () => {
         sounds.playConnect();
         setCustomers((prev) => {
           const next = new Map(prev);
+          const cName = data.customerName || `Customer #${next.size + 1}`;
           if (!next.has(data.customerId)) {
             next.set(data.customerId, {
               customerId: data.customerId,
-              customerName: data.customerName || `Customer #${next.size + 1}`,
+              customerName: cName,
               joinedAt: data.timestamp || Date.now(),
               lastActive: Date.now(),
               documents: [],
@@ -181,7 +175,7 @@ export const TerminalDashboard: React.FC = () => {
                 {
                   id: `MSG-${Date.now()}`,
                   sender: 'SYSTEM',
-                  text: '🔒 End-to-end encrypted session established. Documents sent will be stored strictly in printer volatile RAM.',
+                  text: '🔒 End-to-end encrypted session established. Documents sent are held strictly in volatile RAM.',
                   timestamp: Date.now(),
                 }
               ],
@@ -209,12 +203,15 @@ export const TerminalDashboard: React.FC = () => {
           const cust = next.get(msg.customerId);
           if (cust) {
             cust.lastActive = Date.now();
-            cust.messages.push({
-              id: msg.id || `MSG-${Date.now()}`,
-              sender: msg.sender,
-              text: msg.text,
-              timestamp: msg.timestamp || Date.now(),
-            });
+            if (msg.customerName) cust.customerName = msg.customerName;
+            if (!cust.messages.some((m) => m.id === msg.id)) {
+              cust.messages.push({
+                id: msg.id || `MSG-${Date.now()}`,
+                sender: msg.sender,
+                text: msg.text,
+                timestamp: msg.timestamp || Date.now(),
+              });
+            }
           }
           return next;
         });
@@ -248,10 +245,11 @@ export const TerminalDashboard: React.FC = () => {
           setCustomers((prev) => {
             const next = new Map(prev);
             let cust = next.get(custId);
+            const displayName = msg.customerName || `Customer #${next.size + 1}`;
             if (!cust) {
               cust = {
                 customerId: custId,
-                customerName: msg.customerName || `Customer #${next.size + 1}`,
+                customerName: displayName,
                 joinedAt: Date.now(),
                 lastActive: Date.now(),
                 documents: [],
@@ -259,10 +257,16 @@ export const TerminalDashboard: React.FC = () => {
                 status: 'ACTIVE',
               };
               next.set(custId, cust);
+            } else if (msg.customerName) {
+              cust.customerName = msg.customerName;
             }
-            // Deduplicate: check if document already exists by docHash or filename & size
+
+            cust.status = 'ACTIVE';
+            cust.lastActive = Date.now();
+
+            // Deduplicate: check if document already exists
             const existingDocIndex = cust.documents.findIndex(
-              (d) => (msg.metadata?.docHash && d.docHash === msg.metadata.docHash) ||
+              (d) => (msg.docHash && d.docHash === msg.docHash) ||
                      (d.filename === (msg.metadata?.filename || 'Document') && d.fileSize === (msg.metadata?.fileSize || 0))
             );
 
@@ -277,7 +281,7 @@ export const TerminalDashboard: React.FC = () => {
               filename: msg.metadata?.filename || 'Document',
               fileType: msg.metadata?.fileType || 'application/pdf',
               fileSize: msg.metadata?.fileSize || 0,
-              docHash: msg.metadata?.docHash,
+              docHash: msg.docHash,
               watermarkText: msg.metadata?.watermarkText,
               maxCopies: msg.metadata?.maxCopies || 5,
               decryptedBuffer: plaintextBuffer,
@@ -286,7 +290,6 @@ export const TerminalDashboard: React.FC = () => {
               copies: 1,
             });
 
-            // Prevent duplicate DOC-MSG
             if (!cust.messages.some((m) => m.docId === docId)) {
               cust.messages.push({
                 id: `DOC-MSG-${docId}`,
@@ -305,7 +308,7 @@ export const TerminalDashboard: React.FC = () => {
 
           if (ledgerRef.current && msg.metadata) {
             await ledgerRef.current.recordIngest(
-              msg.metadata.docHash || 'UNKNOWN',
+              msg.docHash || 'UNKNOWN',
               msg.metadata.filename || 'Document',
               1,
               msg.metadata.watermarkText
@@ -340,7 +343,6 @@ export const TerminalDashboard: React.FC = () => {
     const msgId = `MSG-${Date.now()}`;
     const timestamp = Date.now();
 
-    // Append to local state
     setCustomers((prev) => {
       const next = new Map(prev);
       const cust = next.get(selectedCustomer.customerId);
@@ -356,7 +358,6 @@ export const TerminalDashboard: React.FC = () => {
       return next;
     });
 
-    // Send over WebRTC / Relay
     relayRef.current?.send({
       type: 'CHAT_MESSAGE',
       roomId: sessionIdRef.current,
@@ -403,7 +404,7 @@ export const TerminalDashboard: React.FC = () => {
           cust.messages.push({
             id: `PRINT-${Date.now()}`,
             sender: 'SYSTEM',
-            text: `🖨️ Document "${selectedDoc.filename}" successfully printed (${totalPages} page(s) × ${copies} copies).`,
+            text: `🖨️ Document "${selectedDoc.filename}" sent to printer (${totalPages} page(s) × ${copies} copies).`,
             timestamp: Date.now(),
           });
         }
@@ -493,7 +494,7 @@ export const TerminalDashboard: React.FC = () => {
         target.messages.push({
           id: `SHRED-${Date.now()}`,
           sender: 'SYSTEM',
-          text: `🔥 Session terminated. All plaintext buffers wiped and Certificate of Destruction issued.`,
+          text: `🔥 Session terminated. All RAM zeroized and Certificate of Destruction issued.`,
           timestamp: Date.now(),
         });
       }
@@ -503,108 +504,6 @@ export const TerminalDashboard: React.FC = () => {
     toast.shield('RAM Zeroized', 'Customer documents permanently shredded.');
     setIsShredding(false);
   }, [customers, toast]);
-
-  // ✨ Interactive Live Customer Simulator ✨
-  const handleSimulateCustomer = async () => {
-    sounds.playConnect();
-    const mockNames = ['Rahul Sharma', 'Priya Patel', 'Ananya Iyer', 'Vikram Singh', 'Dr. Meera Nair'];
-    const randomName = mockNames[Math.floor(Math.random() * mockNames.length)];
-    const mockCustId = `CUST-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-    // Create synthetic demo image buffer
-    const canvas = document.createElement('canvas');
-    canvas.width = 900;
-    canvas.height = 600;
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 900, 600);
-    ctx.fillStyle = '#008069';
-    ctx.fillRect(0, 0, 900, 70);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillText('SAFEPRINT SECURE DEMO DOCUMENT', 30, 45);
-
-    ctx.fillStyle = '#111b21';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText(`SAMPLE IDENTITY CARD — ${randomName.toUpperCase()}`, 30, 120);
-
-    ctx.fillStyle = '#f0f2f5';
-    ctx.fillRect(30, 150, 160, 200);
-    ctx.fillStyle = '#667781';
-    ctx.font = '14px monospace';
-    ctx.fillText('SECURE PHOTO', 55, 255);
-
-    ctx.fillStyle = '#111b21';
-    ctx.font = '16px sans-serif';
-    ctx.fillText(`Name: ${randomName}`, 220, 180);
-    ctx.fillText('DOB: 15/08/1996', 220, 215);
-    ctx.fillText('Gender: Verified', 220, 250);
-    ctx.fillText('UID: 8921 • 4490 • 7712', 220, 285);
-
-    ctx.fillStyle = '#dc2626';
-    ctx.fillRect(30, 480, 840, 50);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.fillText('CONFIDENTIAL DOCUMENT — IN-MEMORY DRM PROTECTED', 50, 512);
-
-    const blob = await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), 'image/png'));
-    const docBuffer = await blob.arrayBuffer();
-    const docId = `DOC-${Math.random().toString(36).substring(2, 8)}`;
-
-    const newCust: QueuedCustomer = {
-      customerId: mockCustId,
-      customerName: randomName,
-      joinedAt: Date.now(),
-      lastActive: Date.now(),
-      documents: [
-        {
-          id: docId,
-          filename: `Aadhaar_${randomName.replace(' ', '_')}.png`,
-          fileType: 'image/png',
-          fileSize: docBuffer.byteLength,
-          docHash: 'SHA256-SIMULATED-VERIFIED',
-          watermarkText: 'OFFICIAL PHOTOCOPY ONLY',
-          maxCopies: 2,
-          decryptedBuffer: docBuffer,
-          status: 'READY',
-          receivedAt: Date.now(),
-          copies: 2,
-        }
-      ],
-      messages: [
-        {
-          id: `MSG-1`,
-          sender: 'SYSTEM',
-          text: '🔒 End-to-end encrypted session established. Documents sent will be stored strictly in printer volatile RAM.',
-          timestamp: Date.now() - 4000,
-        },
-        {
-          id: `DOC-MSG-1`,
-          sender: 'CUSTOMER',
-          docId,
-          timestamp: Date.now() - 2000,
-        },
-        {
-          id: `MSG-2`,
-          sender: 'CUSTOMER',
-          text: `Hi bhaiya, please print 2 copies in Photocopy B&W mode for passport application.`,
-          timestamp: Date.now(),
-        }
-      ],
-      status: 'ACTIVE',
-    };
-
-    setCustomers((prev) => {
-      const next = new Map(prev);
-      next.set(mockCustId, newCust);
-      return next;
-    });
-
-    setSelectedCustomerId(mockCustId);
-    setSelectedDocId(docId);
-    setMobileTab('WORKSPACE');
-    toast.success('Customer Simulated', `${randomName} sent Aadhaar Card with print instructions.`);
-  };
 
   const handleCopyLink = () => {
     if (!customerUrl) return;
@@ -646,7 +545,7 @@ export const TerminalDashboard: React.FC = () => {
                 <Printer className="w-5 h-5" />
               </div>
               <div className="text-left leading-tight">
-                <div className="text-[15px] font-semibold text-[#111b21] truncate max-w-[160px]">{shopName}</div>
+                <div className="text-[15px] font-semibold text-[#111b21] truncate max-w-[170px]">{shopName}</div>
                 <div className="text-[12px] text-[#00a884] font-medium flex items-center gap-1.5 mt-0.5">
                   <span className="w-2 h-2 rounded-full bg-[#25d366] inline-block" />
                   <span>{shopId}</span>
@@ -655,15 +554,6 @@ export const TerminalDashboard: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1 text-[#54656f]">
-              <button
-                onClick={handleSimulateCustomer}
-                className="px-2.5 py-1 rounded-lg bg-[#d9fdd3] hover:bg-[#cbf7c3] text-[#008069] text-xs font-bold flex items-center gap-1 transition-colors border border-[#00a884]/30 shadow-xs"
-                title="Simulate incoming customer with documents and instructions"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Simulate</span>
-              </button>
-
               <button
                 onClick={() => setShowQRModal(true)}
                 className="p-2 rounded-full hover:bg-black/5 transition-colors"
@@ -702,7 +592,7 @@ export const TerminalDashboard: React.FC = () => {
                 <span>Scan to Send Files</span>
                 <span className="text-[11px] font-mono text-[#0284c7] bg-white px-1.5 py-0.5 rounded border border-[#0284c7]/20">No App</span>
               </div>
-              <p className="text-[11px] text-[#54656f] mt-0.5 truncate">Point camera to transfer in RAM</p>
+              <p className="text-[11px] text-[#54656f] mt-0.5 truncate">Point camera to transfer into RAM</p>
 
               <div className="flex gap-2 mt-1.5">
                 <button
@@ -774,21 +664,14 @@ export const TerminalDashboard: React.FC = () => {
           {/* Customer Chat Rows List */}
           <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#f0f2f5]">
             {customerList.length === 0 ? (
-              <div className="p-8 text-center text-[#667781] space-y-3 my-auto">
+              <div className="p-8 text-center text-[#667781] space-y-2.5 my-auto">
                 <div className="w-12 h-12 rounded-full bg-[#f0f2f5] flex items-center justify-center mx-auto text-[#00a884]">
                   <Users className="w-6 h-6" />
                 </div>
                 <div className="text-[15px] font-bold text-[#111b21]">No Customers in Queue</div>
                 <p className="text-[13px] text-[#667781] leading-relaxed max-w-xs mx-auto">
-                  Scan the counter QR code with a phone or click Simulate above to test live printing.
+                  Customers scan your counter QR code above to beam documents directly into this queue.
                 </p>
-                <button
-                  onClick={handleSimulateCustomer}
-                  className="btn-wa-primary px-4 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Simulate Demo Customer</span>
-                </button>
               </div>
             ) : (
               customerList.map((cust) => {
@@ -914,21 +797,21 @@ export const TerminalDashboard: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex flex-wrap gap-2.5 justify-center pt-2">
+                <div className="flex gap-2.5 justify-center pt-2">
                   <button
-                    onClick={handleSimulateCustomer}
-                    className="py-2.5 px-4 rounded-xl bg-[#008069] hover:bg-[#00705b] text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-colors shadow-md"
+                    onClick={handleCopyLink}
+                    className="py-2.5 px-4 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] text-[#111b21] text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors border border-[#d1d7db]"
                   >
-                    <Sparkles className="w-4 h-4" />
-                    <span>Simulate Customer Chat</span>
+                    {copiedQR ? <Check className="w-4 h-4 text-[#00a884]" /> : <Copy className="w-4 h-4 text-[#54656f]" />}
+                    <span>{copiedQR ? 'Link Copied!' : 'Copy Pairing Link'}</span>
                   </button>
 
                   <button
                     onClick={() => window.open(customerUrl, '_blank')}
-                    className="py-2.5 px-4 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] text-[#111b21] text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors border border-[#d1d7db]"
+                    className="py-2.5 px-5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-md"
                   >
                     <Smartphone className="w-4 h-4" />
-                    <span>Open Test Mobile</span>
+                    <span>Open Test Customer Tab</span>
                   </button>
                 </div>
 
@@ -1018,7 +901,7 @@ export const TerminalDashboard: React.FC = () => {
                       <div key={msg.id} className="flex justify-start animate-in fade-in duration-150">
                         <div className="wa-bubble-in max-w-[94%] sm:max-w-md p-3.5 space-y-2.5 border border-[#d1d7db]/40 shadow-xs">
                           <div className="flex items-center justify-between pb-1 border-b border-[#e9edef] text-[11px] font-bold text-[#008069]">
-                            <span>ENCRYPTED DOCUMENT RECEIVED</span>
+                            <span>ENCRYPTED FILE FROM {selectedCustomer.customerName.toUpperCase()}</span>
                             <span className="font-mono text-[#667781]">{(doc.fileSize / 1024).toFixed(1)} KB</span>
                           </div>
 
@@ -1042,7 +925,7 @@ export const TerminalDashboard: React.FC = () => {
                                 setSelectedDocId(doc.id);
                                 setIsViewerOpen(true);
                               }}
-                              className="flex-1 py-2 px-3 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
+                              className="flex-1 py-2 px-3 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
                             >
                               <Eye className="w-4 h-4" />
                               <span>Preview & Print Document</span>
@@ -1050,7 +933,7 @@ export const TerminalDashboard: React.FC = () => {
 
                             <button
                               onClick={() => handleDeleteDoc(doc.id)}
-                              className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200"
+                              className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 cursor-pointer"
                               title="Shred this file"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1095,19 +978,19 @@ export const TerminalDashboard: React.FC = () => {
                 <span className="text-[11px] font-bold text-[#667781] uppercase tracking-wider shrink-0">Quick Reply:</span>
                 <button
                   onClick={() => handleSendReply('🖨️ Printing your document right now...')}
-                  className="px-2.5 py-1 rounded-full bg-white hover:bg-[#e9edef] text-[#111b21] text-xs font-medium border border-[#d1d7db] shrink-0"
+                  className="px-2.5 py-1 rounded-full bg-white hover:bg-[#e9edef] text-[#111b21] text-xs font-medium border border-[#d1d7db] shrink-0 cursor-pointer"
                 >
                   🖨️ Printing now
                 </button>
                 <button
-                  onClick={() => handleSendReply('✅ Printed & ready for pickup! Total: ₹10')}
-                  className="px-2.5 py-1 rounded-full bg-white hover:bg-[#e9edef] text-[#111b21] text-xs font-medium border border-[#d1d7db] shrink-0"
+                  onClick={() => handleSendReply('✅ Printed & ready for pickup!')}
+                  className="px-2.5 py-1 rounded-full bg-white hover:bg-[#e9edef] text-[#111b21] text-xs font-medium border border-[#d1d7db] shrink-0 cursor-pointer"
                 >
-                  ✅ Ready for pickup (₹10)
+                  ✅ Ready for pickup
                 </button>
                 <button
-                  onClick={() => handleSendReply('⚠️ Please re-upload with higher resolution or clear lighting.')}
-                  className="px-2.5 py-1 rounded-full bg-white hover:bg-[#e9edef] text-[#111b21] text-xs font-medium border border-[#d1d7db] shrink-0"
+                  onClick={() => handleSendReply('⚠️ Please resend with clearer lighting.')}
+                  className="px-2.5 py-1 rounded-full bg-white hover:bg-[#e9edef] text-[#111b21] text-xs font-medium border border-[#d1d7db] shrink-0 cursor-pointer"
                 >
                   ⚠️ Resend clearer copy
                 </button>
@@ -1118,7 +1001,7 @@ export const TerminalDashboard: React.FC = () => {
                 <div className="flex-1 bg-white rounded-lg h-10 px-3 flex items-center border border-[#d1d7db] focus-within:border-[#00a884]">
                   <input
                     type="text"
-                    placeholder="Type a message to customer..."
+                    placeholder={`Type message to ${selectedCustomer.customerName}...`}
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
@@ -1129,7 +1012,7 @@ export const TerminalDashboard: React.FC = () => {
                 <button
                   onClick={() => handleSendReply()}
                   disabled={!replyText.trim()}
-                  className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center shadow-md disabled:opacity-40 transition-transform active:scale-95 shrink-0"
+                  className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center shadow-md disabled:opacity-40 transition-transform active:scale-95 shrink-0 cursor-pointer"
                 >
                   <Send className="w-5 h-5" />
                 </button>
@@ -1150,7 +1033,7 @@ export const TerminalDashboard: React.FC = () => {
                 <div className="text-left">
                   <div className="text-sm sm:text-base font-bold truncate max-w-md">{selectedDoc.filename}</div>
                   <div className="text-xs text-white/80 font-mono">
-                    Customer: {selectedCustomer?.customerName} • {(selectedDoc.fileSize / 1024).toFixed(1)} KB in RAM
+                    Sent by: {selectedCustomer?.customerName} • {(selectedDoc.fileSize / 1024).toFixed(1)} KB in RAM
                   </div>
                 </div>
               </div>
@@ -1159,7 +1042,7 @@ export const TerminalDashboard: React.FC = () => {
                 <button
                   onClick={handlePrint}
                   disabled={isPrinting}
-                  className="px-4 py-2 rounded-xl bg-[#25d366] hover:bg-[#20ba5a] text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md"
+                  className="px-4 py-2 rounded-xl bg-[#25d366] hover:bg-[#20ba5a] text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md cursor-pointer"
                 >
                   <Printer className="w-4 h-4" />
                   <span>{isPrinting ? 'Printing...' : 'Print Document'}</span>
@@ -1167,7 +1050,7 @@ export const TerminalDashboard: React.FC = () => {
 
                 <button
                   onClick={() => setIsViewerOpen(false)}
-                  className="p-2 rounded-full hover:bg-white/20 text-white transition-colors"
+                  className="p-2 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1180,7 +1063,7 @@ export const TerminalDashboard: React.FC = () => {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage <= 1}
-                  className="p-1 rounded bg-white border border-[#d1d7db] text-[#54656f] disabled:opacity-30"
+                  className="p-1 rounded bg-white border border-[#d1d7db] text-[#54656f] disabled:opacity-30 cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -1190,7 +1073,7 @@ export const TerminalDashboard: React.FC = () => {
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage >= totalPages}
-                  className="p-1 rounded bg-white border border-[#d1d7db] text-[#54656f] disabled:opacity-30"
+                  className="p-1 rounded bg-white border border-[#d1d7db] text-[#54656f] disabled:opacity-30 cursor-pointer"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -1199,7 +1082,7 @@ export const TerminalDashboard: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setRotation((r) => (r + 90) % 360)}
-                  className="flex items-center gap-1 px-3 py-1 rounded-lg bg-white border border-[#d1d7db] text-xs font-bold text-[#111b21]"
+                  className="flex items-center gap-1 px-3 py-1 rounded-lg bg-white border border-[#d1d7db] text-xs font-bold text-[#111b21] cursor-pointer"
                 >
                   <RotateCw className="w-3.5 h-3.5 text-[#008069]" />
                   <span>{rotation}°</span>
@@ -1208,24 +1091,24 @@ export const TerminalDashboard: React.FC = () => {
                 <div className="flex items-center bg-white p-0.5 rounded-lg border border-[#d1d7db] text-xs font-semibold">
                   <button
                     onClick={() => setFilterMode('NORMAL')}
-                    className={`px-2.5 py-0.5 rounded-md ${filterMode === 'NORMAL' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
+                    className={`px-2.5 py-0.5 rounded-md cursor-pointer ${filterMode === 'NORMAL' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
                   >
                     Color
                   </button>
                   <button
                     onClick={() => setFilterMode('BW')}
-                    className={`px-2.5 py-0.5 rounded-md ${filterMode === 'BW' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
+                    className={`px-2.5 py-0.5 rounded-md cursor-pointer ${filterMode === 'BW' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
                   >
                     Photocopy B&W
                   </button>
                 </div>
 
                 <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-[#d1d7db]">
-                  <button onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))} className="p-0.5 text-[#54656f]">
+                  <button onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))} className="p-0.5 text-[#54656f] cursor-pointer">
                     <ZoomOut className="w-3.5 h-3.5" />
                   </button>
                   <span className="text-[11px] font-mono font-bold px-1">{Math.round(zoomLevel * 100)}%</span>
-                  <button onClick={() => setZoomLevel((z) => Math.min(2.5, z + 0.2))} className="p-0.5 text-[#54656f]">
+                  <button onClick={() => setZoomLevel((z) => Math.min(2.5, z + 0.2))} className="p-0.5 text-[#54656f] cursor-pointer">
                     <ZoomIn className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1234,7 +1117,7 @@ export const TerminalDashboard: React.FC = () => {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => handleDeleteDoc(selectedDoc.id)}
-                  className="px-3 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold border border-red-200 flex items-center gap-1"
+                  className="px-3 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold border border-red-200 flex items-center gap-1 cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete File</span>
@@ -1274,7 +1157,7 @@ export const TerminalDashboard: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowQRModal(false)}
-                className="p-1.5 rounded-full hover:bg-[#f0f2f5] text-[#54656f]"
+                className="p-1.5 rounded-full hover:bg-[#f0f2f5] text-[#54656f] cursor-pointer"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -1307,7 +1190,7 @@ export const TerminalDashboard: React.FC = () => {
             <div className="flex gap-2">
               <button
                 onClick={handleCopyLink}
-                className="flex-1 py-2.5 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] text-[#111b21] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-[#d1d7db]"
+                className="flex-1 py-2.5 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] text-[#111b21] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-[#d1d7db] cursor-pointer"
               >
                 {copiedQR ? <Check className="w-4 h-4 text-[#00a884]" /> : <Copy className="w-4 h-4 text-[#54656f]" />}
                 <span>{copiedQR ? 'Copied!' : 'Copy Pairing Link'}</span>
@@ -1315,10 +1198,10 @@ export const TerminalDashboard: React.FC = () => {
 
               <button
                 onClick={() => window.open(customerUrl, '_blank')}
-                className="py-2.5 px-5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                className="py-2.5 px-5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-md cursor-pointer"
               >
                 <Smartphone className="w-4 h-4" />
-                <span>Open Test Phone</span>
+                <span>Open Test Mobile</span>
               </button>
             </div>
           </div>

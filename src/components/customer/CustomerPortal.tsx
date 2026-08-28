@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  ShieldCheck,
-  Lock,
-  Send,
-  Plus,
   FileText,
+  Lock,
+  Camera,
   Image as ImageIcon,
   Check,
   CheckCheck,
@@ -12,23 +10,23 @@ import {
   Printer,
   Flame,
   ChevronLeft,
-  ShieldAlert,
-  Camera,
   Paperclip,
   Smile,
+  Send,
+  ShieldAlert,
   SlidersHorizontal,
-  UserCheck,
-  MoreVertical
+  User,
+  X
 } from 'lucide-react';
-import { QRScanner } from './QRScanner';
-import { RedactionStudio } from './RedactionStudio';
-import { WatermarkTool } from './WatermarkTool';
-import { ShredCertificateModal } from './ShredCertificateModal';
 import { importKeyFromHash, encryptDocument } from '../../crypto/e2ee';
 import { RelaySocket } from '../../services/relaySocket';
 import { sounds } from '../../services/AudioEffects';
 import { useToast } from '../shared/ToastContext';
-import type { DestructionCertificate } from '../../crypto/ledger';
+import { QRScanner } from './QRScanner';
+import { RedactionStudio } from './RedactionStudio';
+import { WatermarkTool } from './WatermarkTool';
+import { ShredCertificateModal } from './ShredCertificateModal';
+import { DestructionCertificate } from '../../crypto/ledger';
 
 interface SentDocument {
   id: string;
@@ -41,7 +39,7 @@ interface SentDocument {
   timestamp: number;
   watermark?: string;
   copies: number;
-  destructionCert?: DestructionCertificate | null;
+  destructionCert?: DestructionCertificate;
 }
 
 export const CustomerPortal: React.FC = () => {
@@ -53,7 +51,9 @@ export const CustomerPortal: React.FC = () => {
   const [shopName, setShopName] = useState('SafePrint Express Station');
   const [shopId, setShopId] = useState('');
   const [customerId] = useState(() => `CUST-${Math.random().toString(36).substring(2, 7).toUpperCase()}`);
-  const [customerName, setCustomerName] = useState('My Phone');
+  const [customerName, setCustomerName] = useState<string>(() => {
+    return localStorage.getItem('safeprint_customer_name') || '';
+  });
 
   // File staging
   const [selectedFile, setSelectedFile] = useState<{
@@ -81,6 +81,12 @@ export const CustomerPortal: React.FC = () => {
     Array<{ id: string; sender: 'CUSTOMER' | 'SHOP' | 'SYSTEM'; text: string; timestamp: number }>
   >([]);
   const [inputText, setInputText] = useState('');
+
+  // Persist customer name
+  const handleNameChange = (name: string) => {
+    setCustomerName(name);
+    localStorage.setItem('safeprint_customer_name', name);
+  };
 
   // Parse URL parameters on load
   useEffect(() => {
@@ -115,13 +121,15 @@ export const CustomerPortal: React.FC = () => {
     const relay = new RelaySocket();
     relayRef.current = relay;
 
+    const activeName = customerName.trim() || 'Customer';
+
     relay.connect({
       onOpen: () => {
         relay.send({
           type: 'JOIN_CUSTOMER',
           roomId: decodedRoom,
           customerId,
-          customerName,
+          customerName: activeName,
         });
       },
       onConnectedToShop: (data) => {
@@ -175,8 +183,8 @@ export const CustomerPortal: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 25 * 1024 * 1024) {
-      toast.error('File Too Large', 'Maximum file size is 25 MB.');
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('File Too Large', 'Maximum file size is 50 MB.');
       return;
     }
 
@@ -193,129 +201,11 @@ export const CustomerPortal: React.FC = () => {
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
-  const handleLoadDemoDocument = (docType: 'AADHAAR' | 'PASSPORT' | 'MARKSHEET' | 'INVOICE') => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 800;
-    canvas.height = 1050;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 800, 1050);
-
-    // Border
-    ctx.strokeStyle = '#008069';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(20, 20, 760, 1010);
-
-    // Header Bar
-    ctx.fillStyle = '#008069';
-    ctx.fillRect(20, 20, 760, 80);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillText('SAFEPRINT SECURE DEMO DOCUMENT', 50, 70);
-
-    if (docType === 'AADHAAR') {
-      ctx.fillStyle = '#111b21';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText('SAMPLE AADHAAR IDENTIFICATION CARD', 50, 150);
-
-      ctx.fillStyle = '#f1f5f9';
-      ctx.fillRect(50, 180, 180, 220);
-      ctx.fillStyle = '#475569';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.fillText('ID PHOTO', 105, 295);
-
-      ctx.fillStyle = '#1e293b';
-      ctx.font = '16px sans-serif';
-      ctx.fillText('Name: ALEX KUMAR DOE', 260, 210);
-      ctx.fillText('DOB: 15/08/1996', 260, 250);
-      ctx.fillText('Gender: MALE', 260, 290);
-      ctx.fillText('Address: 42 MG Road, Cyber City, Bangalore - 560001', 260, 330);
-
-      ctx.fillStyle = '#fef2f2';
-      ctx.fillRect(50, 440, 700, 80);
-      ctx.strokeStyle = '#ef4444';
-      ctx.strokeRect(50, 440, 700, 80);
-      ctx.fillStyle = '#b91c1c';
-      ctx.font = 'bold 28px monospace';
-      ctx.fillText('8921  •  4490  •  7712', 220, 492);
-      ctx.font = '12px sans-serif';
-      ctx.fillText('(Sensitive Aadhaar Number — Mask with Redaction Studio)', 200, 512);
-    } else if (docType === 'PASSPORT') {
-      ctx.fillStyle = '#111b21';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText('REPUBLIC OF PASSPORT DOCUMENT (SAMPLE)', 50, 150);
-
-      ctx.fillStyle = '#f1f5f9';
-      ctx.fillRect(50, 180, 180, 220);
-      ctx.fillStyle = '#475569';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.fillText('PASSPORT PHOTO', 80, 295);
-
-      ctx.fillStyle = '#1e293b';
-      ctx.font = '16px sans-serif';
-      ctx.fillText('Passport No: Z88921004', 260, 210);
-      ctx.fillText('Surname: DOE', 260, 250);
-      ctx.fillText('Given Name: ALEX KUMAR', 260, 290);
-      ctx.fillText('Nationality: INDIAN', 260, 330);
-    } else if (docType === 'MARKSHEET') {
-      ctx.fillStyle = '#111b21';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText('UNIVERSITY DEGREE & MARKSHEET (SAMPLE)', 50, 150);
-
-      ctx.fillStyle = '#1e293b';
-      ctx.font = '16px sans-serif';
-      ctx.fillText('Candidate: ALEX DOE', 50, 200);
-      ctx.fillText('Roll No: 2026-ENG-491', 50, 235);
-      ctx.fillText('Degree: Bachelor of Computer Engineering (First Class with Distinction)', 50, 270);
-
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillRect(50, 310, 700, 200);
-      ctx.strokeStyle = '#cbd5e1';
-      ctx.strokeRect(50, 310, 700, 200);
-      ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.fillText('Subject                    Max Marks     Obtained', 70, 340);
-      ctx.font = '14px monospace';
-      ctx.fillText('Data Structures & Algo        100           98', 70, 375);
-      ctx.fillText('Cryptography & Security       100           99', 70, 410);
-      ctx.fillText('Operating Systems             100           95', 70, 445);
-    } else {
-      ctx.fillStyle = '#111b21';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText('TAX INVOICE & PROOF OF BILLING', 50, 150);
-      ctx.fillStyle = '#1e293b';
-      ctx.font = '16px sans-serif';
-      ctx.fillText('Invoice No: INV-2026-8841', 50, 200);
-      ctx.fillText('Date: 28/08/2026', 50, 235);
-      ctx.fillText('Client: Alex Doe | Total: $1,450.00 (PAID)', 50, 270);
-    }
-
-    // Convert canvas to Blob
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      blob.arrayBuffer().then((buf) => {
-        setSelectedFile({
-          name: `Sample_${docType.charAt(0) + docType.slice(1).toLowerCase()}.png`,
-          type: 'image/png',
-          size: buf.byteLength,
-          buffer: buf,
-        });
-        setShowAttachmentMenu(false);
-        sounds.playConnect();
-        toast.info('Demo Injected', `Loaded synthetic ${docType} document.`);
-      });
-    }, 'image/png');
-  };
-
   const handleApplyRedaction = (newBuffer: ArrayBuffer) => {
     if (selectedFile) {
       setSelectedFile({
         ...selectedFile,
         buffer: newBuffer,
-        size: newBuffer.byteLength,
       });
     }
     setShowRedactionStudio(false);
@@ -326,6 +216,7 @@ export const CustomerPortal: React.FC = () => {
   const handleSendDocument = async () => {
     if (!selectedFile || !roomId || !keyHex || !relayRef.current) return;
 
+    const activeName = customerName.trim() || 'Customer';
     const docId = `DOC-${Date.now()}`;
     const newDoc: SentDocument = {
       id: docId,
@@ -365,7 +256,7 @@ export const CustomerPortal: React.FC = () => {
       await relayRef.current.sendEncryptedPayload(
         roomId,
         customerId,
-        customerName,
+        activeName,
         encrypted.ciphertext,
         encrypted.iv,
         encrypted.docHash,
@@ -485,22 +376,21 @@ export const CustomerPortal: React.FC = () => {
             </div>
           </div>
 
+          {/* Customer Name Bar (Shown if not set or on toggle) */}
+          <div className="bg-[#f0f2f5] px-3.5 py-2 border-b border-[#d1d7db] flex items-center gap-2 text-left shrink-0">
+            <User className="w-4 h-4 text-[#008069] shrink-0" />
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="Enter Your Name (e.g. Rahul Sharma)..."
+              className="flex-1 text-xs sm:text-sm bg-white px-3 py-1 rounded-lg border border-[#d1d7db] focus:outline-none focus:border-[#00a884] text-[#111b21] font-medium"
+            />
+          </div>
+
           {/* Quick Settings Dropdown */}
           {showSettings && (
             <div className="bg-white p-3 border-b border-[#e9edef] shadow-md text-left animate-in slide-in-from-top duration-200 space-y-3 shrink-0">
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-[#54656f] block">
-                  Your Display Name (shown to shopkeeper):
-                </label>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="e.g. Rahul Sharma"
-                  className="w-full px-3 py-1.5 rounded-lg bg-[#f0f2f5] border border-[#d1d7db] text-xs text-[#111b21] focus:outline-none focus:border-[#00a884]"
-                />
-              </div>
-
               <WatermarkTool
                 watermarkText={watermarkText}
                 maxCopies={maxCopies}
@@ -664,6 +554,20 @@ export const CustomerPortal: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Sender Name in Staging */}
+                  <div className="bg-white p-2 rounded-xl border border-[#d1d7db] space-y-1">
+                    <label className="text-[11px] font-bold text-[#54656f] block">
+                      Sender Name (shown on Xerox counter):
+                    </label>
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => handleNameChange(e.target.value)}
+                      placeholder="Your Name (e.g. Rahul Sharma)"
+                      className="w-full text-xs sm:text-sm font-medium px-2.5 py-1 rounded bg-[#f0f2f5] border border-[#d1d7db] text-[#111b21] focus:outline-none focus:border-[#00a884]"
+                    />
+                  </div>
+
                   {selectedFile.type.startsWith('image/') && (
                     <button
                       onClick={() => setShowRedactionStudio(true)}
@@ -682,69 +586,36 @@ export const CustomerPortal: React.FC = () => {
 
           {/* WhatsApp Attachment Sheet Popover */}
           {showAttachmentMenu && (
-            <div className="absolute bottom-16 left-3 bg-white rounded-2xl p-3 shadow-2xl border border-[#d1d7db] flex flex-col gap-3 animate-in slide-in-from-bottom duration-150 z-30 max-w-xs">
-              <div className="flex gap-4 items-center justify-between">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
-                >
-                  <div className="w-11 h-11 rounded-full bg-[#8f3985] text-white flex items-center justify-center shadow-md">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] text-[#54656f] font-semibold">Document</span>
-                </button>
-
-                <button
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
-                >
-                  <div className="w-11 h-11 rounded-full bg-[#d3396d] text-white flex items-center justify-center shadow-md">
-                    <Camera className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] text-[#54656f] font-semibold">Camera</span>
-                </button>
-
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors"
-                >
-                  <div className="w-11 h-11 rounded-full bg-[#ac44cf] text-white flex items-center justify-center shadow-md">
-                    <ImageIcon className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] text-[#54656f] font-semibold">Gallery</span>
-                </button>
-              </div>
-
-              {/* Instant 1-Click Synthetic Demo Documents */}
-              <div className="pt-2 border-t border-[#e9edef] space-y-1.5 text-left">
-                <div className="text-[10px] font-bold text-[#008069] uppercase tracking-wider">Instant Demo Documents:</div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    onClick={() => handleLoadDemoDocument('AADHAAR')}
-                    className="px-2 py-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#d9fdd3] text-[#111b21] text-[10px] font-semibold transition-colors text-left truncate border border-[#d1d7db]"
-                  >
-                    🪪 Aadhaar Card
-                  </button>
-                  <button
-                    onClick={() => handleLoadDemoDocument('PASSPORT')}
-                    className="px-2 py-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#d9fdd3] text-[#111b21] text-[10px] font-semibold transition-colors text-left truncate border border-[#d1d7db]"
-                  >
-                    🛂 Passport
-                  </button>
-                  <button
-                    onClick={() => handleLoadDemoDocument('MARKSHEET')}
-                    className="px-2 py-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#d9fdd3] text-[#111b21] text-[10px] font-semibold transition-colors text-left truncate border border-[#d1d7db]"
-                  >
-                    📜 Marksheet
-                  </button>
-                  <button
-                    onClick={() => handleLoadDemoDocument('INVOICE')}
-                    className="px-2 py-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#d9fdd3] text-[#111b21] text-[10px] font-semibold transition-colors text-left truncate border border-[#d1d7db]"
-                  >
-                    🧾 Tax Invoice
-                  </button>
+            <div className="absolute bottom-16 left-3 bg-white rounded-2xl p-4 shadow-2xl border border-[#d1d7db] flex items-center gap-4 animate-in slide-in-from-bottom duration-150 z-30">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#8f3985] text-white flex items-center justify-center shadow-md">
+                  <FileText className="w-6 h-6" />
                 </div>
-              </div>
+                <span className="text-xs text-[#54656f] font-semibold">Document</span>
+              </button>
+
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#d3396d] text-white flex items-center justify-center shadow-md">
+                  <Camera className="w-6 h-6" />
+                </div>
+                <span className="text-xs text-[#54656f] font-semibold">Camera</span>
+              </button>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#ac44cf] text-white flex items-center justify-center shadow-md">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+                <span className="text-xs text-[#54656f] font-semibold">Gallery</span>
+              </button>
             </div>
           )}
 
@@ -754,7 +625,7 @@ export const CustomerPortal: React.FC = () => {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,image/png,image/jpeg,image/webp"
+              accept=".pdf,image/png,image/jpeg,image/webp,application/pdf"
               onChange={handleFilePicked}
               className="hidden"
             />
@@ -767,18 +638,10 @@ export const CustomerPortal: React.FC = () => {
               className="hidden"
             />
 
-            {/* Smiley Emoji Icon */}
-            <button
-              onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-              className="p-1.5 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors"
-            >
-              <Smile className="w-6 h-6 text-[#54656f]" />
-            </button>
-
             {/* Paperclip Attachment Button */}
             <button
               onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-              className="p-1.5 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors"
+              className="p-2 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors"
               title="Attach Document / Camera"
             >
               <Paperclip className="w-5 h-5 text-[#54656f]" />
@@ -788,7 +651,7 @@ export const CustomerPortal: React.FC = () => {
             <div className="flex-1 bg-white px-3.5 py-1.5 rounded-2xl border border-[#d1d7db] flex items-center focus-within:border-[#00a884]">
               <input
                 type="text"
-                placeholder={selectedFile ? `Add print note for ${selectedFile.name}...` : "Type a message or instruction..."}
+                placeholder={selectedFile ? `Add print instruction for ${selectedFile.name}...` : "Type message or print note..."}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessageOrFile()}
@@ -796,7 +659,7 @@ export const CustomerPortal: React.FC = () => {
               />
             </div>
 
-            {/* WhatsApp Send / Mic Button */}
+            {/* WhatsApp Send Button */}
             <button
               onClick={handleSendMessageOrFile}
               disabled={!selectedFile && !inputText.trim()}
