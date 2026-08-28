@@ -147,6 +147,36 @@ wss.on('connection', (ws: WebSocket) => {
           break;
         }
 
+        case 'CHAT_MESSAGE': {
+          if (!activeRoomId) return;
+          const session = roomManager.getRoom(activeRoomId);
+          if (!session) return;
+          roomManager.touch(activeRoomId);
+
+          if (msg.sender === 'CUSTOMER') {
+            // Relay from customer to shopkeeper terminal
+            if (session.shopSocket && session.shopSocket.readyState === WebSocket.OPEN) {
+              session.shopSocket.send(JSON.stringify(msg));
+            }
+          } else if (msg.sender === 'SHOP') {
+            // Relay from shopkeeper to specific customer
+            const targetCustId = msg.customerId;
+            if (targetCustId) {
+              const cust = session.customers.get(targetCustId);
+              if (cust && cust.socket.readyState === WebSocket.OPEN) {
+                cust.socket.send(JSON.stringify(msg));
+              }
+            } else {
+              for (const cust of session.customers.values()) {
+                if (cust.socket.readyState === WebSocket.OPEN) {
+                  cust.socket.send(JSON.stringify(msg));
+                }
+              }
+            }
+          }
+          break;
+        }
+
         case 'DOC_COMPLETE': {
           if (!activeRoomId) return;
           const session = roomManager.getRoom(activeRoomId);

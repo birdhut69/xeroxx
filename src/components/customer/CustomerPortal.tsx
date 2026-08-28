@@ -71,6 +71,7 @@ export const CustomerPortal: React.FC = () => {
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showRedactionStudio, setShowRedactionStudio] = useState(false);
   const [activeCert, setActiveCert] = useState<DestructionCertificate | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -179,10 +180,7 @@ export const CustomerPortal: React.FC = () => {
     });
   };
 
-  const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processIncomingFile = async (file: File) => {
     if (file.size > 50 * 1024 * 1024) {
       toast.error('File Too Large', 'Maximum file size is 50 MB.');
       return;
@@ -196,9 +194,35 @@ export const CustomerPortal: React.FC = () => {
       buffer,
     });
     setShowAttachmentMenu(false);
+    sounds.playSuccess();
+    toast.success('Document Ready', `${file.name} staged in memory.`);
+  };
 
+  const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processIncomingFile(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (cameraInputRef.current) cameraInputRef.current.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await processIncomingFile(file);
+    }
   };
 
   const handleApplyRedaction = (newBuffer: ArrayBuffer) => {
@@ -401,7 +425,23 @@ export const CustomerPortal: React.FC = () => {
           )}
 
           {/* ── CHAT MESSAGES FEED ── */}
-          <div className="flex-1 wa-chat-wallpaper overflow-y-auto p-4 sm:p-5 space-y-3.5 text-left">
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className="flex-1 wa-chat-wallpaper overflow-y-auto p-4 sm:p-5 space-y-3.5 text-left relative"
+          >
+            {/* Visual Drag & Drop Overlay */}
+            {isDragging && (
+              <div className="absolute inset-0 z-30 bg-[#008069]/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white text-center animate-in fade-in duration-100">
+                <div className="w-16 h-16 rounded-3xl bg-white/20 border-2 border-dashed border-white flex items-center justify-center mb-3 scale-110 animate-bounce">
+                  <FileText className="w-8 h-8 text-white" />
+                </div>
+                <h4 className="text-base font-bold">Drop File to Stage in RAM</h4>
+                <p className="text-xs text-white/80 mt-1">PDFs, Aadhaar scans, and images accepted (Max 50MB)</p>
+              </div>
+            )}
+
             {/* System Encryption Pill */}
             <div className="wa-system-pill flex items-center justify-center gap-2 text-center text-xs py-2 px-4 shadow-sm">
               <Lock className="w-3.5 h-3.5 text-[#54656f] shrink-0" />
@@ -533,10 +573,14 @@ export const CustomerPortal: React.FC = () => {
               <div className="flex justify-end animate-in zoom-in-95 duration-150">
                 <div className="wa-bubble-out max-w-[94%] sm:max-w-md p-4 space-y-3 border-2 border-[#00a884] shadow-md">
                   <div className="text-xs sm:text-sm font-bold text-[#008069] flex items-center justify-between">
-                    <span>Ready to Encrypt & Send</span>
+                    <span className="flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>Ready to Encrypt & Send</span>
+                    </span>
                     <button
                       onClick={() => setSelectedFile(null)}
-                      className="text-[#667781] hover:text-red-500 text-sm font-bold p-1"
+                      className="text-[#667781] hover:text-red-500 text-sm font-bold p-1 cursor-pointer"
+                      title="Cancel file"
                     >
                       ✕
                     </button>
@@ -568,15 +612,56 @@ export const CustomerPortal: React.FC = () => {
                     />
                   </div>
 
+                  {/* Quick Copies & Watermark row in Staging */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white p-2 rounded-xl border border-[#d1d7db] text-left">
+                      <label className="text-[10.5px] font-bold text-[#54656f] block mb-1">Copies:</label>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 5].map((cnt) => (
+                          <button
+                            key={cnt}
+                            type="button"
+                            onClick={() => setMaxCopies(cnt)}
+                            className={`flex-1 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                              maxCopies === cnt ? 'bg-[#008069] text-white shadow-xs' : 'bg-[#f0f2f5] text-[#54656f]'
+                            }`}
+                          >
+                            {cnt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-2 rounded-xl border border-[#d1d7db] text-left">
+                      <label className="text-[10.5px] font-bold text-[#54656f] block mb-1">Watermark:</label>
+                      <input
+                        type="text"
+                        value={watermarkText}
+                        onChange={(e) => setWatermarkText(e.target.value)}
+                        placeholder="e.g. FOR PHOTOCOPY"
+                        className="w-full text-[11px] px-2 py-1 rounded bg-[#f0f2f5] border border-[#d1d7db] text-[#111b21] focus:outline-none focus:border-[#00a884]"
+                      />
+                    </div>
+                  </div>
+
                   {selectedFile.type.startsWith('image/') && (
                     <button
                       onClick={() => setShowRedactionStudio(true)}
-                      className="w-full py-2 rounded-xl bg-[#e7f8ff] text-[#0284c7] hover:bg-[#d0f0fd] text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-colors border border-[#0284c7]/30 cursor-pointer"
+                      className="w-full py-2 rounded-xl bg-[#e7f8ff] text-[#0284c7] hover:bg-[#d0f0fd] text-xs font-bold flex items-center justify-center gap-2 transition-colors border border-[#0284c7]/30 cursor-pointer shadow-xs"
                     >
                       <ShieldAlert className="w-4 h-4" />
-                      <span>Mask Private ID Numbers</span>
+                      <span>Blackout Private ID Numbers</span>
                     </button>
                   )}
+
+                  {/* Send Direct Action */}
+                  <button
+                    onClick={handleSendDocument}
+                    className="w-full py-2.5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-98 cursor-pointer"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Send Encrypted to Shop ({maxCopies} {maxCopies === 1 ? 'copy' : 'copies'})</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -619,6 +704,27 @@ export const CustomerPortal: React.FC = () => {
             </div>
           )}
 
+          {/* Quick Print Instruction Chips Strip */}
+          <div className="bg-[#f0f2f5] px-3.5 py-2 border-t border-[#e9edef] flex items-center gap-1.5 overflow-x-auto shrink-0 no-scrollbar">
+            <span className="text-[11px] font-bold text-[#667781] uppercase tracking-wider shrink-0">Print Note:</span>
+            {[
+              '🖨️ 1 B&W Copy',
+              '📑 Double-sided print',
+              '🎨 Full Color Print',
+              '⚡ Urgent / Priority',
+              '📜 Legal / Stamp Paper',
+            ].map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => setInputText(chip)}
+                className="px-2.5 py-1 rounded-full bg-white hover:bg-[#d9fdd3] hover:border-[#00a884] text-[#111b21] text-[11.5px] font-medium border border-[#d1d7db] shrink-0 cursor-pointer shadow-xs transition-colors"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+
           {/* ── AUTHENTIC WHATSAPP INPUT BAR ── */}
           <div className="bg-[#f0f2f5] p-2.5 sm:p-3 flex items-center gap-2.5 border-t border-[#e9edef] shrink-0">
             {/* Hidden native pickers */}
@@ -641,10 +747,12 @@ export const CustomerPortal: React.FC = () => {
             {/* Paperclip Attachment Button */}
             <button
               onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-              className="p-2 rounded-full hover:bg-[#e9edef] text-[#54656f] transition-colors cursor-pointer"
+              className={`p-2 rounded-full transition-colors cursor-pointer ${
+                showAttachmentMenu ? 'bg-[#d1d7db] text-[#008069]' : 'hover:bg-[#e9edef] text-[#54656f]'
+              }`}
               title="Attach Document / Camera"
             >
-              <Paperclip className="w-5 h-5 text-[#54656f]" />
+              <Paperclip className="w-5 h-5" />
             </button>
 
             {/* Real WhatsApp Text Input */}

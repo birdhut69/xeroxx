@@ -28,6 +28,9 @@ export class RelaySocket {
   private isPeerInitialized: boolean = false;
   private chunkAssemblyMap: Map<string, { chunks: string[]; total: number; meta: any; iv: number[]; custId: string; custName?: string }> = new Map();
 
+  private ws: WebSocket | null = null;
+  private wsConnected: boolean = false;
+
   constructor() {
     try {
       this.broadcastChannel = new BroadcastChannel('safeprint_local_relay');
@@ -36,6 +39,66 @@ export class RelaySocket {
       };
     } catch {
       // BroadcastChannel fallback
+    }
+    this.initWebSocket();
+  }
+
+  private initWebSocket() {
+    try {
+      const isHttps = window.location.protocol === 'https:';
+      const wsProtocol = isHttps ? 'wss:' : 'ws:';
+      const host = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'localhost:8080'
+        : window.location.host;
+      
+      const wsUrl = `${wsProtocol}//${host}/ws`;
+      const socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        this.ws = socket;
+        this.wsConnected = true;
+        console.log('[SafePrint WebSocket] Connected to local relay server');
+
+        // Re-register if role and roomId already set
+        if (this.role === 'SHOP' && this.activeRoomId) {
+          socket.send(
+            JSON.stringify({
+              type: 'INIT_TERMINAL',
+              roomId: this.activeRoomId,
+              shopId: this.shopInfo.shopId,
+              shopName: this.shopInfo.shopName,
+            })
+          );
+        } else if (this.role === 'CUSTOMER' && this.activeRoomId && this.activeCustomerId) {
+          socket.send(
+            JSON.stringify({
+              type: 'JOIN_CUSTOMER',
+              roomId: this.activeRoomId,
+              customerId: this.activeCustomerId,
+              customerName: 'Customer',
+            })
+          );
+        }
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          this.handleMessage(data);
+        } catch {}
+      };
+
+      socket.onclose = () => {
+        this.ws = null;
+        this.wsConnected = false;
+      };
+
+      socket.onerror = () => {
+        this.ws = null;
+        this.wsConnected = false;
+      };
+    } catch {
+      // WebSocket optional fallback
     }
   }
 
@@ -338,7 +401,16 @@ export class RelaySocket {
       this.joinCustomerToShop(msg.roomId, msg.customerId, msg.customerName);
     }
 
-    // 1. Direct WebRTC
+    // 1. WebSocket Relay
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try {
+        this.ws.send(JSON.stringify(msg));
+      } catch (err) {
+        console.warn('[SafePrint WebSocket] Send note:', err);
+      }
+    }
+
+    // 2. Direct WebRTC
     if (this.role === 'CUSTOMER' && this.customerConnection && this.customerConnection.open) {
       try {
         this.customerConnection.send(msg);
@@ -356,12 +428,12 @@ export class RelaySocket {
       }
     }
 
-    // 2. BroadcastChannel
+    // 3. BroadcastChannel (Same browser instant inter-tab)
     try {
       this.broadcastChannel?.postMessage(msg);
     } catch {}
 
-    // 3. Serverless HTTP
+    // 4. Serverless HTTP
     if (this.activeRoomId) {
       const targetRole = this.role === 'SHOP' ? 'CUSTOMER' : 'SHOP';
       fetch('/api/relay', {
@@ -451,6 +523,11 @@ export class RelaySocket {
     if (this.peer) {
       try { this.peer.destroy(); } catch {}
       this.peer = null;
+    }
+    if (this.ws) {
+      try { this.ws.close(); } catch {}
+      this.ws = null;
+      this.wsConnected = false;
     }
   }
 }

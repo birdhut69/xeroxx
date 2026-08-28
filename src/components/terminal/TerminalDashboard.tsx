@@ -1102,36 +1102,58 @@ export const TerminalDashboard: React.FC = () => {
                 <div className="flex items-center bg-white p-0.5 rounded-lg border border-[#d1d7db] text-xs font-semibold">
                   <button
                     onClick={() => setFilterMode('NORMAL')}
-                    className={`px-2.5 py-0.5 rounded-md cursor-pointer ${filterMode === 'NORMAL' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
+                    className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${filterMode === 'NORMAL' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f] hover:text-[#111b21]'}`}
                   >
                     Color
                   </button>
                   <button
+                    onClick={() => setFilterMode('GRAYSCALE')}
+                    className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${filterMode === 'GRAYSCALE' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f] hover:text-[#111b21]'}`}
+                  >
+                    Grayscale
+                  </button>
+                  <button
                     onClick={() => setFilterMode('BW')}
-                    className={`px-2.5 py-0.5 rounded-md cursor-pointer ${filterMode === 'BW' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f]'}`}
+                    className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${filterMode === 'BW' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f] hover:text-[#111b21]'}`}
                   >
                     Photocopy B&W
                   </button>
                 </div>
 
+                {/* Copies Selector */}
+                <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-[#d1d7db] text-xs">
+                  <span className="text-[#54656f] font-medium">Copies:</span>
+                  <select
+                    value={copies}
+                    onChange={(e) => setCopies(parseInt(e.target.value, 10))}
+                    className="bg-[#f0f2f5] text-[#008069] font-bold font-mono px-1.5 py-0.5 rounded border border-[#d1d7db] outline-none cursor-pointer"
+                  >
+                    {[1, 2, 3, 4, 5, 10, 20].map((num) => (
+                      <option key={num} value={num}>
+                        {num} {num === 1 ? 'copy' : 'copies'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-[#d1d7db]">
-                  <button onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))} className="p-0.5 text-[#54656f] cursor-pointer">
+                  <button onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))} className="p-0.5 text-[#54656f] hover:text-[#111b21] cursor-pointer" title="Zoom Out">
                     <ZoomOut className="w-3.5 h-3.5" />
                   </button>
-                  <span className="text-[11px] font-mono font-bold px-1">{Math.round(zoomLevel * 100)}%</span>
-                  <button onClick={() => setZoomLevel((z) => Math.min(2.5, z + 0.2))} className="p-0.5 text-[#54656f] cursor-pointer">
+                  <span className="text-[11px] font-mono font-bold px-1 select-none">{Math.round(zoomLevel * 100)}%</span>
+                  <button onClick={() => setZoomLevel((z) => Math.min(2.5, z + 0.2))} className="p-0.5 text-[#54656f] hover:text-[#111b21] cursor-pointer" title="Zoom In">
                     <ZoomIn className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => handleDeleteDoc(selectedDoc.id)}
-                  className="px-3 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold border border-red-200 flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold border border-red-200 flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete File</span>
+                  <span>Delete from RAM</span>
                 </button>
               </div>
             </div>
