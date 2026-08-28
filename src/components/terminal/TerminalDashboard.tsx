@@ -589,45 +589,63 @@ export const TerminalDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* 📲 WhatsApp "Get Connected" Banner Card 📲 */}
-          <div className="bg-[#e7f8ff] p-3.5 border-b border-[#d1d7db] flex items-center gap-3 shrink-0">
+          {/* 📲 WhatsApp "Get Connected" Big Counter QR Card 📲 */}
+          <div className="bg-[#f8fafc] p-3.5 border-b border-[#d1d7db] flex flex-col items-center text-center shrink-0 space-y-2.5 shadow-xs">
+            <div className="w-full flex items-center justify-between px-1">
+              <span className="text-[13px] font-bold text-[#111b21] flex items-center gap-1.5">
+                <QrCode className="w-4 h-4 text-[#008069]" />
+                <span>Scan to Send Files</span>
+              </span>
+              <span className="text-[10px] font-bold text-[#008069] bg-[#d9fdd3] px-2 py-0.5 rounded-full border border-[#00a884]/30 uppercase">
+                Encrypted RAM
+              </span>
+            </div>
+
+            {/* Big High-Contrast QR Code */}
             <div
               onClick={() => setShowQRModal(true)}
-              className="p-1.5 bg-white rounded-xl border border-[#00a884]/40 shadow-sm cursor-pointer shrink-0 hover:scale-105 transition-transform"
-              title="Click to expand QR Code"
+              className="p-2.5 bg-white rounded-2xl border-2 border-[#00a884] shadow-md cursor-pointer hover:scale-102 transition-transform relative group"
+              title="Click to view Fullscreen QR"
             >
               <QRCodeSVG
                 value={customerUrl}
-                size={58}
-                level="M"
+                size={142}
+                level="H"
                 includeMargin={false}
+                imageSettings={{
+                  src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23008069' stroke='%23ffffff' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>",
+                  x: undefined,
+                  y: undefined,
+                  height: 32,
+                  width: 32,
+                  excavate: true,
+                }}
               />
+              <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 rounded-2xl flex items-center justify-center transition-opacity">
+                <span className="bg-black/75 text-white text-[10px] font-bold px-2 py-1 rounded-md">Click to Expand</span>
+              </div>
             </div>
 
-            <div className="flex-1 min-w-0 text-left">
-              <div className="text-[13px] font-bold text-[#111b21] flex items-center justify-between">
-                <span>Scan QR to Send Files</span>
-                <span className="text-[10px] font-bold text-[#0284c7] bg-white px-2 py-0.5 rounded-full border border-[#0284c7]/20 uppercase">No App</span>
-              </div>
-              <p className="text-[11.5px] text-[#54656f] mt-0.5 truncate">Point camera to transfer into RAM</p>
+            <p className="text-[11.5px] text-[#54656f] font-medium leading-tight">
+              Point phone camera to beam files into RAM
+            </p>
 
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={handleCopyLink}
-                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#f0f2f5] text-[#111b21] text-[11.5px] font-bold flex items-center gap-1 border border-[#d1d7db] shadow-xs cursor-pointer"
-                >
-                  {copiedQR ? <Check className="w-3 h-3 text-[#00a884]" /> : <Copy className="w-3 h-3 text-[#54656f]" />}
-                  <span>{copiedQR ? 'Copied' : 'Copy Link'}</span>
-                </button>
+            <div className="flex gap-2 w-full">
+              <button
+                onClick={handleCopyLink}
+                className="flex-1 py-1.5 px-2 rounded-xl bg-white hover:bg-[#f0f2f5] text-[#111b21] text-[11.5px] font-bold flex items-center justify-center gap-1 border border-[#d1d7db] shadow-xs cursor-pointer transition-colors"
+              >
+                {copiedQR ? <Check className="w-3.5 h-3.5 text-[#00a884]" /> : <Copy className="w-3.5 h-3.5 text-[#54656f]" />}
+                <span>{copiedQR ? 'Copied' : 'Copy Link'}</span>
+              </button>
 
-                <button
-                  onClick={() => window.open(customerUrl, '_blank')}
-                  className="px-3 py-1 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-white text-[11.5px] font-bold flex items-center gap-1 shadow-xs cursor-pointer"
-                >
-                  <Smartphone className="w-3 h-3" />
-                  <span>Test Mobile</span>
-                </button>
-              </div>
+              <button
+                onClick={() => window.open(customerUrl, '_blank')}
+                className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-[11.5px] font-bold flex items-center justify-center gap-1 shadow-xs cursor-pointer transition-colors"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Test Mobile</span>
+              </button>
             </div>
           </div>
 
