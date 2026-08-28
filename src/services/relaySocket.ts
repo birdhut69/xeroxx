@@ -10,7 +10,16 @@ export interface RelaySocketCallbacks {
   onDocPayload?: (data: { customerId: string; customerName?: string; metadata: any; iv: number[]; docHash: string; ciphertextBase64: string; timestamp: number }) => void;
   onPrintStatus?: (data: { status: string; pagesPrinted: number; copies: number }) => void;
   onShredConfirmed?: (data: { certificate: any; ledgerBlock: any }) => void;
-  onChatMessage?: (data: { id: string; sender: 'CUSTOMER' | 'SHOP'; text: string; customerId: string; customerName?: string; timestamp: number }) => void;
+  onChatMessage?: (data: {
+    id: string;
+    sender: 'CUSTOMER' | 'SHOP';
+    text?: string;
+    voiceBase64?: string;
+    payment?: any;
+    customerId: string;
+    customerName?: string;
+    timestamp: number;
+  }) => void;
 }
 
 export class RelaySocket {

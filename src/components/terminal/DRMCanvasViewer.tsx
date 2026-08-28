@@ -14,6 +14,7 @@ interface DRMCanvasViewerProps {
   documentBuffer: ArrayBuffer | null;
   fileType: string;
   filename: string;
+  watermarkText?: string;
   shopId: string;
   sessionId: string;
   rotation: number;
@@ -29,6 +30,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
   documentBuffer,
   fileType,
   filename,
+  watermarkText,
   shopId,
   sessionId,
   rotation,
@@ -41,11 +43,13 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const printPagesContainerRef = useRef<HTMLDivElement | null>(null);
   const [isShielded, setIsShielded] = useState(false);
   const [shieldReason, setShieldReason] = useState<string>('Display Protected');
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [loading, setLoading] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [isPreparingMultiPagePrint, setIsPreparingMultiPagePrint] = useState(false);
   const toast = useToast();
 
   // ── ADVANCED ANTI-SCREENSHOT & ANTI-SAVE DRM PROTECTION ──
@@ -69,7 +73,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
       const key = e.key ? e.key.toLowerCase() : '';
       const isCmdOrCtrl = e.ctrlKey || e.metaKey;
 
-      // Intercept Save Shortcuts (Ctrl+S, Cmd+S, Ctrl+Shift+S, Cmd+Shift+S)
+      // Intercept Save Shortcuts
       if (isCmdOrCtrl && key === 's') {
         e.preventDefault();
         e.stopPropagation();
@@ -77,22 +81,14 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         triggerShield('Save Attempt Intercepted');
       }
 
-      // Intercept Print Shortcut to route through SafePrint print engine
+      // Intercept Print Shortcut
       if (isCmdOrCtrl && key === 'p') {
         e.preventDefault();
         e.stopPropagation();
         onSafePrintTrigger();
       }
 
-      // Intercept View Source (Ctrl+U, Cmd+Option+U)
-      if (isCmdOrCtrl && key === 'u') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-
-      // Intercept Screenshot Shortcuts:
-      // Windows: PrintScreen, Win+Shift+S, Alt+PrintScreen
-      // Mac: Cmd+Shift+3, Cmd+Shift+4, Cmd+Shift+5
+      // Intercept Screenshot Shortcuts
       if (
         key === 'printscreen' ||
         e.keyCode === 44 ||
@@ -105,7 +101,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         toast.error('Screenshot Blocked', 'Screen capture is prohibited on encrypted documents.');
       }
 
-      // Intercept DevTools (F12, Ctrl+Shift+I, Cmd+Option+I, Ctrl+Shift+J)
+      // Intercept DevTools
       if (e.key === 'F12' || (isCmdOrCtrl && e.shiftKey && ['i', 'j', 'c'].includes(key))) {
         e.preventDefault();
         e.stopPropagation();
@@ -118,7 +114,6 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
       e.stopPropagation();
     };
 
-    // Shield on window blur (e.g. Snipping tool, window switch, screen recorder)
     const handleBlur = () => {
       triggerShield('Window Focus Lost (Anti-Capture Active)');
     };
@@ -127,7 +122,6 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
       setIsShielded(false);
     };
 
-    // Shield when tab is hidden or backgrounded
     const handleVisibilityChange = () => {
       if (document.hidden) {
         triggerShield('Tab Inactive (RAM Shielded)');
@@ -182,6 +176,8 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
           if (cancelled) return;
           setPdfDoc(pdf);
           onPageCountLoaded(pdf.numPages);
+          // Pre-render all pages for multi-page print
+          renderAllPagesForPrint(pdf);
         } else {
           onPageCountLoaded(1);
           setPdfDoc(null);
@@ -198,15 +194,44 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
     return () => { cancelled = true; };
   }, [documentBuffer, fileType, filename, onPageCountLoaded]);
 
-  // Re-render when page, rotation, filter or zoom changes
+  // Pre-render all pages of PDF for seamless multi-page physical printing
+  const renderAllPagesForPrint = async (pdf: pdfjsLib.PDFDocumentProxy) => {
+    if (!printPagesContainerRef.current) return;
+    setIsPreparingMultiPagePrint(true);
+    const container = printPagesContainerRef.current;
+    container.innerHTML = '';
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      try {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 2.0, rotation });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.className = 'print-page-canvas mb-4 shadow-sm';
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          applyCanvasFilterAndWatermark(canvas, ctx);
+          container.appendChild(canvas);
+        }
+      } catch (e) {
+        console.warn(`[SafePrint Print Engine] Error rendering page ${pageNum}:`, e);
+      }
+    }
+    setIsPreparingMultiPagePrint(false);
+  };
+
+  // Re-render single active page preview when page, rotation, filter or zoom changes
   useEffect(() => {
     if (pdfDoc) {
       renderPdfPage(pdfDoc, currentPage);
+      renderAllPagesForPrint(pdfDoc);
     } else if (documentBuffer && !fileType.includes('pdf')) {
       renderImageBuffer(documentBuffer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, rotation, filterMode, zoomLevel, pdfDoc]);
+  }, [currentPage, rotation, filterMode, zoomLevel, pdfDoc, watermarkText]);
 
   const renderPdfPage = async (pdf: pdfjsLib.PDFDocumentProxy, pageNum: number) => {
     if (!canvasRef.current) return;
@@ -295,12 +320,28 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
         ctx.putImageData(imgData, 0, 0);
       }
 
-      // 2. Burn subtle security provenance stamp directly into canvas pixel buffer
+      // 2. Burn Custom User Watermark across document canvas
+      if (watermarkText && watermarkText.trim()) {
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((-32 * Math.PI) / 180);
+        ctx.font = `bold ${Math.max(28, Math.round(canvas.width / 18))}px sans-serif`;
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.35)';
+        ctx.lineWidth = 1.5;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(watermarkText.trim().toUpperCase(), 0, 0);
+        ctx.strokeText(watermarkText.trim().toUpperCase(), 0, 0);
+        ctx.restore();
+      }
+
+      // 3. Burn subtle security provenance stamp directly into canvas pixel buffer
       ctx.save();
       ctx.font = '10px monospace';
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
       ctx.textAlign = 'right';
-      ctx.fillText(`SAFEPRINT • ${shopId} • PHYSICAL PRINT ONLY`, canvas.width - 12, canvas.height - 12);
+      ctx.fillText(`SAFEPRINT • ${shopId} • RAM PHYSICAL PRINT ONLY`, canvas.width - 14, canvas.height - 12);
       ctx.restore();
     } catch (e) {
       console.warn('[SafePrint] Filter note:', e);
@@ -356,11 +397,16 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
           </div>
         ) : (
           <div className="relative inline-block">
+            {/* Single page preview canvas */}
             <canvas
               ref={canvasRef}
               className="print-page-canvas shadow-2xl bg-white rounded transition-transform duration-150 pointer-events-none select-none"
               style={{ maxWidth: '100%', height: 'auto' }}
             />
+
+            {/* Hidden multi-page container dedicated for @media print */}
+            <div ref={printPagesContainerRef} className="hidden print:block" />
+
             {/* Transparent Protection Click-Shield Over Canvas */}
             <div
               className="absolute inset-0 z-20 cursor-default select-none pointer-events-auto"

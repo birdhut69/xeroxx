@@ -24,7 +24,10 @@ import {
   Trash2,
   Paperclip,
   Smile,
-  ShieldCheck
+  ShieldCheck,
+  IndianRupee,
+  Mic,
+  Square
 } from 'lucide-react';
 import {
   generateSessionKey,
@@ -39,6 +42,8 @@ import { RelaySocket } from '../../services/relaySocket';
 import { sounds } from '../../services/AudioEffects';
 import { useToast } from '../shared/ToastContext';
 import { DRMCanvasViewer } from './DRMCanvasViewer';
+import { PaymentRequestModal } from './PaymentRequestModal';
+import { VoiceNotePlayer } from '../shared/VoiceNotePlayer';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface QueuedDocument {
@@ -60,6 +65,13 @@ interface ChatMessage {
   id: string;
   sender: 'CUSTOMER' | 'SHOP' | 'SYSTEM';
   text?: string;
+  voiceBase64?: string;
+  payment?: {
+    amount: number;
+    upiId: string;
+    note: string;
+    paid?: boolean;
+  };
   docId?: string;
   timestamp: number;
 }
@@ -92,6 +104,7 @@ export const TerminalDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<'ALL' | 'PENDING' | 'PRINTED'>('ALL');
   const [showQRModal, setShowQRModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [copiedQR, setCopiedQR] = useState(false);
   const [mobileTab, setMobileTab] = useState<'QUEUE' | 'WORKSPACE'>('QUEUE');
   const [replyText, setReplyText] = useState('');
@@ -106,6 +119,13 @@ export const TerminalDashboard: React.FC = () => {
   const [copies, setCopies] = useState(1);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isShredding, setIsShredding] = useState(false);
+
+  // Voice recording state
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [voiceSeconds, setVoiceSeconds] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const voiceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Stable Refs
   const ledgerRef = useRef<EphemeralLedger | null>(null);
@@ -222,6 +242,8 @@ export const TerminalDashboard: React.FC = () => {
               id: msg.id || `MSG-${Date.now()}`,
               sender: msg.sender,
               text: safeText,
+              voiceBase64: msg.voiceBase64,
+              payment: msg.payment,
               timestamp: msg.timestamp || Date.now(),
             });
           }
@@ -389,6 +411,129 @@ export const TerminalDashboard: React.FC = () => {
     if (!textToSend) setReplyText('');
   };
 
+  // Send UPI Payment Request Card to Customer
+  const handleSendPaymentRequest = (amount: number, upiId: string, note: string) => {
+    if (!selectedCustomer) return;
+
+    const msgId = `PAY-${Date.now()}`;
+    const timestamp = Date.now();
+    const paymentPayload = {
+      amount,
+      upiId,
+      note,
+      paid: false,
+    };
+
+    setCustomers((prev) => {
+      const next = new Map(prev);
+      const cust = next.get(selectedCustomer.customerId);
+      if (cust) {
+        cust.lastActive = timestamp;
+        cust.messages.push({
+          id: msgId,
+          sender: 'SHOP',
+          text: `🧾 Bill Generated: ₹${amount} for ${note}`,
+          payment: paymentPayload,
+          timestamp,
+        });
+      }
+      return next;
+    });
+
+    relayRef.current?.send({
+      type: 'CHAT_MESSAGE',
+      roomId: sessionIdRef.current,
+      customerId: selectedCustomer.customerId,
+      id: msgId,
+      sender: 'SHOP',
+      text: `🧾 Bill Generated: ₹${amount}`,
+      payment: paymentPayload,
+      timestamp,
+    });
+
+    sounds.playSuccess();
+    toast.success('Payment Request Sent', `Sent ₹${amount} UPI bill to ${selectedCustomer.customerName}`);
+  };
+
+  // Voice Note Recording
+  const startVoiceRecording = async () => {
+    if (!selectedCustomer) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      voiceChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) voiceChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(voiceChunksRef.current, { type: 'audio/webm' });
+        stream.getTracks().forEach((track) => track.stop());
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const b64 = reader.result as string;
+          const msgId = `VOICE-${Date.now()}`;
+          const timestamp = Date.now();
+
+          setCustomers((prev) => {
+            const next = new Map(prev);
+            const cust = next.get(selectedCustomer.customerId);
+            if (cust) {
+              cust.lastActive = timestamp;
+              cust.messages.push({
+                id: msgId,
+                sender: 'SHOP',
+                voiceBase64: b64,
+                timestamp,
+              });
+            }
+            return next;
+          });
+
+          relayRef.current?.send({
+            type: 'CHAT_MESSAGE',
+            roomId: sessionIdRef.current,
+            customerId: selectedCustomer.customerId,
+            id: msgId,
+            sender: 'SHOP',
+            voiceBase64: b64,
+            timestamp,
+          });
+
+          sounds.playSuccess();
+        };
+        reader.readAsDataURL(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecordingVoice(true);
+      setVoiceSeconds(0);
+      voiceTimerRef.current = setInterval(() => setVoiceSeconds((s) => s + 1), 1000);
+      sounds.playConnect();
+    } catch (err) {
+      toast.error('Microphone Access', 'Please allow microphone access to record voice note.');
+    }
+  };
+
+  const stopVoiceRecording = (cancel = false) => {
+    if (voiceTimerRef.current) {
+      clearInterval(voiceTimerRef.current);
+      voiceTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      if (cancel) {
+        mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+      } else {
+        mediaRecorderRef.current.stop();
+      }
+    }
+    setIsRecordingVoice(false);
+    setVoiceSeconds(0);
+  };
+
   // Print execution
   const handlePrint = useCallback(async () => {
     if (!selectedCustomer || !selectedDoc || !selectedDoc.decryptedBuffer) return;
@@ -549,7 +694,7 @@ export const TerminalDashboard: React.FC = () => {
     <div className="flex-1 min-h-0 w-full h-full flex flex-col overflow-hidden">
       {/* ── AUTHENTIC WHATSAPP WEB SHELL ── */}
       <div className="w-full h-full bg-white rounded-none lg:rounded-[12px] shadow-[0_6px_24px_rgba(11,20,26,0.08)] border border-[#d1d7db] flex overflow-hidden">
-        {/* ── LEFT PANE: WHATSAPP CHAT LIST (380px Desktop) ── */}
+        {/* ── LEFT PANE: WHATSAPP CHAT LIST (400px Desktop) ── */}
         <div
           className={`w-full lg:w-[400px] xl:w-[430px] shrink-0 bg-white border-r border-[#d1d7db] flex flex-col no-print h-full overflow-hidden ${
             mobileTab === 'WORKSPACE' && selectedCustomerId ? 'hidden lg:flex' : 'flex'
@@ -573,7 +718,7 @@ export const TerminalDashboard: React.FC = () => {
             <div className="flex items-center gap-1 text-[#54656f] shrink-0">
               <button
                 onClick={() => setShowQRModal(true)}
-                className="p-2 rounded-full hover:bg-black/5 text-[#54656f] hover:text-[#111b21] transition-colors"
+                className="p-2 rounded-full hover:bg-black/5 text-[#54656f] hover:text-[#111b21] transition-colors cursor-pointer"
                 title="Show Fullscreen Counter QR"
               >
                 <QrCode className="w-5 h-5" />
@@ -581,7 +726,7 @@ export const TerminalDashboard: React.FC = () => {
 
               <button
                 onClick={initTerminal}
-                className="p-2 rounded-full hover:bg-black/5 text-[#54656f] hover:text-[#111b21] transition-colors"
+                className="p-2 rounded-full hover:bg-black/5 text-[#54656f] hover:text-[#111b21] transition-colors cursor-pointer"
                 title="Refresh Session Keys"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -761,6 +906,11 @@ export const TerminalDashboard: React.FC = () => {
                               {lastMsg.sender === 'SHOP' && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb] shrink-0" />}
                               <span className="truncate">{lastMsg.text}</span>
                             </>
+                          ) : lastMsg?.voiceBase64 ? (
+                            <>
+                              <Mic className="w-3.5 h-3.5 text-[#008069] shrink-0" />
+                              <span className="italic">Voice note</span>
+                            </>
                           ) : lastDoc ? (
                             <>
                               <FileText className="w-3.5 h-3.5 text-[#008069] shrink-0" />
@@ -864,7 +1014,7 @@ export const TerminalDashboard: React.FC = () => {
                 <div className="flex items-center gap-3 text-left min-w-0">
                   <button
                     onClick={() => setMobileTab('QUEUE')}
-                    className="lg:hidden p-1.5 rounded-full hover:bg-black/10 text-[#54656f] shrink-0"
+                    className="lg:hidden p-1.5 rounded-full hover:bg-black/10 text-[#54656f] shrink-0 cursor-pointer"
                     title="Back to Queue"
                   >
                     <ChevronLeft className="w-5 h-5" />
@@ -886,24 +1036,34 @@ export const TerminalDashboard: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  {/* Request UPI Bill Button */}
+                  <button
+                    onClick={() => setShowPaymentModal(true)}
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#d9fdd3] text-[#008069] text-xs font-bold flex items-center gap-1 border border-[#00a884]/40 shadow-xs cursor-pointer transition-colors"
+                    title="Calculate rate and send dynamic UPI QR bill"
+                  >
+                    <IndianRupee className="w-3.5 h-3.5" />
+                    <span>Bill Customer</span>
+                  </button>
+
                   {selectedDoc && (
                     <button
                       onClick={() => setIsViewerOpen(true)}
-                      className="px-3.5 py-2 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
                     >
-                      <Eye className="w-4 h-4" />
-                      <span>Document Viewer</span>
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Viewer</span>
                     </button>
                   )}
 
                   <button
                     onClick={() => handleShredCustomer(selectedCustomer.customerId)}
                     disabled={isShredding}
-                    className="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold flex items-center gap-1.5 border border-red-200 shadow-xs cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold flex items-center gap-1 border border-red-200 shadow-xs cursor-pointer"
                     title="Zeroize all RAM for this customer"
                   >
-                    <Flame className="w-4 h-4 text-red-500" />
-                    <span>Shred Session</span>
+                    <Flame className="w-3.5 h-3.5 text-red-500" />
+                    <span>Shred</span>
                   </button>
                 </div>
               </div>
@@ -995,7 +1155,33 @@ export const TerminalDashboard: React.FC = () => {
                           isShop ? 'wa-bubble-out' : 'wa-bubble-in'
                         } max-w-[85%] sm:max-w-md px-4 py-2.5 space-y-1 shadow-sm border border-[#d1d7db]/40`}
                       >
-                        <div className="text-[14.5px] text-[#111b21] leading-relaxed break-words font-normal">{msg.text}</div>
+                        {/* Voice Note Player */}
+                        {msg.voiceBase64 && (
+                          <VoiceNotePlayer
+                            audioBase64={msg.voiceBase64}
+                            timestamp={msg.timestamp}
+                            isMe={isShop}
+                          />
+                        )}
+
+                        {/* Text */}
+                        {msg.text && (
+                          <div className="text-[14.5px] text-[#111b21] leading-relaxed break-words font-normal">
+                            {msg.text}
+                          </div>
+                        )}
+
+                        {/* Payment Card Notification */}
+                        {msg.payment && (
+                          <div className="p-2.5 rounded-xl bg-white border border-[#00a884]/30 space-y-1 text-xs">
+                            <div className="flex justify-between font-bold text-[#008069]">
+                              <span>UPI Bill Sent: ₹{msg.payment.amount}</span>
+                              <span>{msg.payment.paid ? '✅ Paid' : '⏳ Pending'}</span>
+                            </div>
+                            <div className="text-[#54656f] text-[11px]">{msg.payment.note}</div>
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-end gap-1 text-[11px] text-[#667781] font-mono mt-0.5">
                           <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           {isShop && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
@@ -1009,8 +1195,15 @@ export const TerminalDashboard: React.FC = () => {
               </div>
 
               {/* Quick Reply Actions for Shopkeeper */}
-              <div className="bg-[#f0f2f5] px-4 py-2.5 border-t border-[#e9edef] flex items-center gap-2 overflow-x-auto shrink-0">
-                <span className="text-[11px] font-bold text-[#667781] uppercase tracking-wider shrink-0">Quick Reply:</span>
+              <div className="bg-[#f0f2f5] px-4 py-2 border-t border-[#e9edef] flex items-center gap-2 overflow-x-auto shrink-0">
+                <span className="text-[11px] font-bold text-[#667781] uppercase tracking-wider shrink-0">Quick Actions:</span>
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="px-3 py-1.5 rounded-full bg-[#d9fdd3] hover:bg-[#c2f7b8] text-[#008069] text-xs font-bold border border-[#00a884]/40 shrink-0 cursor-pointer shadow-xs transition-colors flex items-center gap-1"
+                >
+                  <IndianRupee className="w-3 h-3" />
+                  <span>Request Bill (₹)</span>
+                </button>
                 <button
                   onClick={() => handleSendReply('🖨️ Printing your document right now...')}
                   className="px-3 py-1.5 rounded-full bg-white hover:bg-[#d9fdd3] text-[#111b21] text-xs font-semibold border border-[#d1d7db] shrink-0 cursor-pointer shadow-xs transition-colors"
@@ -1032,25 +1225,58 @@ export const TerminalDashboard: React.FC = () => {
               </div>
 
               {/* Bottom WhatsApp Chat Input Bar */}
-              <div className="bg-[#f0f2f5] px-4 py-3 border-t border-[#d1d7db] flex items-center gap-3 shrink-0">
-                <div className="flex-1 bg-white rounded-2xl h-11 px-4 flex items-center border border-[#d1d7db] focus-within:border-[#00a884] shadow-xs">
-                  <input
-                    type="text"
-                    placeholder={`Type message to ${selectedCustomer.customerName}...`}
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
-                    className="w-full text-[14.5px] bg-transparent border-none focus:outline-none text-[#111b21] placeholder-[#667781]"
-                  />
-                </div>
+              <div className="bg-[#f0f2f5] px-4 py-2.5 border-t border-[#d1d7db] flex items-center gap-3 shrink-0">
+                {isRecordingVoice ? (
+                  <div className="flex-1 bg-red-50 px-4 h-11 rounded-2xl border border-red-200 flex items-center justify-between animate-pulse">
+                    <div className="flex items-center gap-2 text-red-600 font-bold text-xs">
+                      <span className="w-3 h-3 rounded-full bg-red-600 animate-ping" />
+                      <span>Recording Voice Instruction ({voiceSeconds}s)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => stopVoiceRecording(true)}
+                      className="text-xs text-red-600 hover:underline font-semibold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex-1 bg-white rounded-2xl h-11 px-4 flex items-center border border-[#d1d7db] focus-within:border-[#00a884] shadow-xs">
+                    <input
+                      type="text"
+                      placeholder={`Type message to ${selectedCustomer.customerName}...`}
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
+                      className="w-full text-[14.5px] bg-transparent border-none focus:outline-none text-[#111b21] placeholder-[#667781]"
+                    />
+                  </div>
+                )}
 
-                <button
-                  onClick={() => handleSendReply()}
-                  disabled={!replyText.trim()}
-                  className="w-11 h-11 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center shadow-md disabled:opacity-40 transition-transform active:scale-95 shrink-0 cursor-pointer"
-                >
-                  <Send className="w-5 h-5 ml-0.5" />
-                </button>
+                {replyText.trim() ? (
+                  <button
+                    onClick={() => handleSendReply()}
+                    className="w-11 h-11 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center shadow-md transition-transform active:scale-95 shrink-0 cursor-pointer"
+                  >
+                    <Send className="w-5 h-5 ml-0.5" />
+                  </button>
+                ) : isRecordingVoice ? (
+                  <button
+                    onClick={() => stopVoiceRecording(false)}
+                    className="w-11 h-11 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 shrink-0 cursor-pointer"
+                    title="Send voice note"
+                  >
+                    <Square className="w-4 h-4 fill-white" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={startVoiceRecording}
+                    className="w-11 h-11 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center shadow-md transition-transform active:scale-95 shrink-0 cursor-pointer"
+                    title="Record voice instruction"
+                  >
+                    <Mic className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1188,6 +1414,7 @@ export const TerminalDashboard: React.FC = () => {
                 documentBuffer={selectedDoc.decryptedBuffer}
                 fileType={selectedDoc.fileType}
                 filename={selectedDoc.filename}
+                watermarkText={selectedDoc.watermarkText}
                 shopId={shopId}
                 sessionId={sessionId}
                 rotation={rotation}
@@ -1201,6 +1428,19 @@ export const TerminalDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* UPI Payment Request Rate Modal */}
+      {showPaymentModal && selectedCustomer && (
+        <PaymentRequestModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          onSendRequest={handleSendPaymentRequest}
+          customerName={selectedCustomer.customerName}
+          defaultPages={totalPages}
+          defaultCopies={copies}
+          defaultIsColor={filterMode === 'NORMAL'}
+        />
       )}
 
       {/* Fullscreen Counter QR Code Modal */}

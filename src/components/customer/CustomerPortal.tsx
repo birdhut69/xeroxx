@@ -16,7 +16,14 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   User,
-  X
+  X,
+  Mic,
+  Square,
+  IndianRupee,
+  Smartphone,
+  ExternalLink,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { importKeyFromHash, encryptDocument } from '../../crypto/e2ee';
 import { SecurityGuards } from '../../crypto/securityGuards';
@@ -27,7 +34,19 @@ import { QRScanner } from './QRScanner';
 import { RedactionStudio } from './RedactionStudio';
 import { WatermarkTool } from './WatermarkTool';
 import { ShredCertificateModal } from './ShredCertificateModal';
+import { VoiceNotePlayer } from '../shared/VoiceNotePlayer';
 import { DestructionCertificate } from '../../crypto/ledger';
+import { QRCodeSVG } from 'qrcode.react';
+
+interface StagedFile {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  buffer: ArrayBuffer;
+  watermark?: string;
+  copies: number;
+}
 
 interface SentDocument {
   id: string;
@@ -43,6 +62,20 @@ interface SentDocument {
   destructionCert?: DestructionCertificate;
 }
 
+interface ChatMessage {
+  id: string;
+  sender: 'CUSTOMER' | 'SHOP' | 'SYSTEM';
+  text?: string;
+  voiceBase64?: string;
+  payment?: {
+    amount: number;
+    upiId: string;
+    note: string;
+    paid?: boolean;
+  };
+  timestamp: number;
+}
+
 export const CustomerPortal: React.FC = () => {
   const toast = useToast();
 
@@ -56,13 +89,8 @@ export const CustomerPortal: React.FC = () => {
     return localStorage.getItem('safeprint_customer_name') || '';
   });
 
-  // File staging
-  const [selectedFile, setSelectedFile] = useState<{
-    name: string;
-    type: string;
-    size: number;
-    buffer: ArrayBuffer;
-  } | null>(null);
+  // Multi-File Staging
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
   const [sentDocs, setSentDocs] = useState<SentDocument[]>([]);
   const [watermarkText, setWatermarkText] = useState('');
   const [maxCopies, setMaxCopies] = useState(1);
@@ -71,17 +99,23 @@ export const CustomerPortal: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showRedactionStudio, setShowRedactionStudio] = useState(false);
+  const [activeRedactionFileId, setActiveRedactionFileId] = useState<string | null>(null);
   const [activeCert, setActiveCert] = useState<DestructionCertificate | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Voice recording state
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [voiceSeconds, setVoiceSeconds] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const voiceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const relayRef = useRef<RelaySocket | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
-  const [textMessages, setTextMessages] = useState<
-    Array<{ id: string; sender: 'CUSTOMER' | 'SHOP' | 'SYSTEM'; text: string; timestamp: number }>
-  >([]);
+  const [textMessages, setTextMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
 
   // Persist customer name
@@ -110,7 +144,7 @@ export const CustomerPortal: React.FC = () => {
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [sentDocs, textMessages, selectedFile]);
+  }, [sentDocs, textMessages, stagedFiles]);
 
   const handleSessionDecoded = (decodedRoom: string, decodedKey: string) => {
     setRoomId(decodedRoom);
@@ -148,6 +182,8 @@ export const CustomerPortal: React.FC = () => {
             id: msg.id || `MSG-${Date.now()}`,
             sender: msg.sender,
             text: msg.text,
+            voiceBase64: msg.voiceBase64,
+            payment: msg.payment,
             timestamp: msg.timestamp || Date.now(),
           },
         ]);
@@ -181,29 +217,41 @@ export const CustomerPortal: React.FC = () => {
     });
   };
 
-  const processIncomingFile = async (file: File) => {
-    if (!SecurityGuards.validateFileSize(file.size)) {
-      toast.error('File Too Large', 'Maximum file size is 50 MB.');
-      return;
+  const processIncomingFiles = async (files: FileList | File[]) => {
+    const newStaged: StagedFile[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!SecurityGuards.validateFileSize(file.size)) {
+        toast.error('File Too Large', `${file.name} exceeds 50 MB limit.`);
+        continue;
+      }
+
+      const safeFilename = SecurityGuards.sanitizeFilename(file.name);
+      const buffer = await file.arrayBuffer();
+
+      newStaged.push({
+        id: `STAGED-${Math.random().toString(36).substring(2, 8)}`,
+        name: safeFilename,
+        type: file.type || 'application/pdf',
+        size: file.size,
+        buffer,
+        watermark: watermarkText || undefined,
+        copies: maxCopies,
+      });
     }
 
-    const safeFilename = SecurityGuards.sanitizeFilename(file.name);
-    const buffer = await file.arrayBuffer();
-    setSelectedFile({
-      name: safeFilename,
-      type: file.type || 'application/pdf',
-      size: file.size,
-      buffer,
-    });
-    setShowAttachmentMenu(false);
-    sounds.playSuccess();
-    toast.success('Document Ready', `${safeFilename} staged in memory.`);
+    if (newStaged.length > 0) {
+      setStagedFiles((prev) => [...prev, ...newStaged]);
+      setShowAttachmentMenu(false);
+      sounds.playSuccess();
+      toast.success('Files Ready', `${newStaged.length} file(s) staged in RAM.`);
+    }
   };
 
   const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await processIncomingFile(file);
+    if (!e.target.files || e.target.files.length === 0) return;
+    await processIncomingFiles(e.target.files);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
@@ -221,86 +269,89 @@ export const CustomerPortal: React.FC = () => {
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      await processIncomingFile(file);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await processIncomingFiles(e.dataTransfer.files);
     }
   };
 
   const handleApplyRedaction = (newBuffer: ArrayBuffer) => {
-    if (selectedFile) {
-      setSelectedFile({
-        ...selectedFile,
-        buffer: newBuffer,
-      });
+    if (activeRedactionFileId) {
+      setStagedFiles((prev) =>
+        prev.map((f) => (f.id === activeRedactionFileId ? { ...f, buffer: newBuffer } : f))
+      );
     }
     setShowRedactionStudio(false);
+    setActiveRedactionFileId(null);
     sounds.playSuccess();
     toast.success('Redaction Applied', 'Sensitive ID masked in RAM.');
   };
 
-  const handleSendDocument = async () => {
-    if (!selectedFile || !roomId || !keyHex || !relayRef.current) return;
+  const handleSendAllStagedDocuments = async () => {
+    if (stagedFiles.length === 0 || !roomId || !keyHex || !relayRef.current) return;
+
+    const filesToSend = [...stagedFiles];
+    setStagedFiles([]);
 
     const activeName = customerName.trim() || 'Customer';
-    const docId = `DOC-${Date.now()}`;
-    const newDoc: SentDocument = {
-      id: docId,
-      name: selectedFile.name,
-      type: selectedFile.type,
-      size: selectedFile.size,
-      buffer: selectedFile.buffer,
-      status: 'ENCRYPTING',
-      uploadProgress: 0,
-      timestamp: Date.now(),
-      watermark: watermarkText || undefined,
-      copies: maxCopies,
-    };
+    const cryptoKey = await importKeyFromHash(keyHex);
 
-    setSentDocs((prev) => [...prev, newDoc]);
-    const fileToSend = selectedFile;
-    setSelectedFile(null);
-
-    try {
-      sounds.playEncrypt();
-      const cryptoKey = await importKeyFromHash(keyHex);
-      const encrypted = await encryptDocument(fileToSend.buffer, cryptoKey);
-
-      setSentDocs((prev) =>
-        prev.map((d) => (d.id === docId ? { ...d, status: 'STREAMING' } : d))
-      );
-
-      const metadata = {
-        filename: fileToSend.name,
-        fileType: fileToSend.type,
-        fileSize: fileToSend.size,
-        docHash: encrypted.docHash,
-        watermarkText: watermarkText || undefined,
-        maxCopies,
+    for (const staged of filesToSend) {
+      const docId = `DOC-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const newDoc: SentDocument = {
+        id: docId,
+        name: staged.name,
+        type: staged.type,
+        size: staged.size,
+        buffer: staged.buffer,
+        status: 'ENCRYPTING',
+        uploadProgress: 0,
+        timestamp: Date.now(),
+        watermark: staged.watermark || watermarkText || undefined,
+        copies: staged.copies || maxCopies,
       };
 
-      await relayRef.current.sendEncryptedPayload(
-        roomId,
-        customerId,
-        activeName,
-        encrypted.ciphertext,
-        encrypted.iv,
-        encrypted.docHash,
-        metadata,
-        (progress) => {
-          setSentDocs((prev) =>
-            prev.map((d) => (d.id === docId ? { ...d, uploadProgress: progress } : d))
-          );
-        }
-      );
+      setSentDocs((prev) => [...prev, newDoc]);
 
-      setSentDocs((prev) =>
-        prev.map((d) => (d.id === docId ? { ...d, status: 'DELIVERED', uploadProgress: 100 } : d))
-      );
-      sounds.playSuccess();
-    } catch (err) {
-      console.error('[SafePrint Customer] Send error:', err);
-      toast.error('Send Failed', 'Could not stream encrypted document.');
+      try {
+        sounds.playEncrypt();
+        const encrypted = await encryptDocument(staged.buffer, cryptoKey);
+
+        setSentDocs((prev) =>
+          prev.map((d) => (d.id === docId ? { ...d, status: 'STREAMING' } : d))
+        );
+
+        const metadata = {
+          filename: staged.name,
+          fileType: staged.type,
+          fileSize: staged.size,
+          docHash: encrypted.docHash,
+          watermarkText: staged.watermark || watermarkText || undefined,
+          maxCopies: staged.copies || maxCopies,
+        };
+
+        await relayRef.current.sendEncryptedPayload(
+          roomId,
+          customerId,
+          activeName,
+          encrypted.ciphertext,
+          encrypted.iv,
+          encrypted.docHash,
+          metadata,
+          (progress) => {
+            setSentDocs((prev) =>
+              prev.map((d) => (d.id === docId ? { ...d, uploadProgress: progress } : d))
+            );
+          }
+        );
+
+        setSentDocs((prev) =>
+          prev.map((d) => (d.id === docId ? { ...d, status: 'DELIVERED', uploadProgress: 100 } : d))
+        );
+        sounds.playSuccess();
+      } catch (err) {
+        console.error('[SafePrint Customer] Send error:', err);
+        toast.error('Send Failed', `Could not send ${staged.name}`);
+      }
     }
   };
 
@@ -310,43 +361,136 @@ export const CustomerPortal: React.FC = () => {
     setKeyHex(null);
     setSentDocs([]);
     setTextMessages([]);
-    setSelectedFile(null);
+    setStagedFiles([]);
     window.history.replaceState({}, '', window.location.pathname);
   };
 
-  const handleSendMessageOrFile = async () => {
-    if (selectedFile) {
-      await handleSendDocument();
+  // ── IN-MEMORY VOICE NOTE RECORDING ──
+  const startVoiceRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      voiceChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) voiceChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(voiceChunksRef.current, { type: 'audio/webm' });
+        stream.getTracks().forEach((track) => track.stop());
+
+        // Convert to Base64 in RAM
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const b64 = reader.result as string;
+          const msgId = `VOICE-${Date.now()}`;
+          const timestamp = Date.now();
+
+          setTextMessages((prev) => [
+            ...prev,
+            {
+              id: msgId,
+              sender: 'CUSTOMER',
+              voiceBase64: b64,
+              timestamp,
+            },
+          ]);
+
+          relayRef.current?.send({
+            type: 'CHAT_MESSAGE',
+            roomId,
+            customerId,
+            customerName: customerName.trim() || 'Customer',
+            id: msgId,
+            sender: 'CUSTOMER',
+            voiceBase64: b64,
+            timestamp,
+          });
+
+          sounds.playSuccess();
+        };
+        reader.readAsDataURL(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecordingVoice(true);
+      setVoiceSeconds(0);
+      voiceTimerRef.current = setInterval(() => setVoiceSeconds((s) => s + 1), 1000);
+      sounds.playConnect();
+    } catch (err) {
+      toast.error('Microphone Access', 'Please allow microphone access to record voice note.');
     }
+  };
 
-    if (inputText.trim()) {
-      const msgText = inputText.trim();
-      const msgId = `MSG-${Date.now()}`;
-      const timestamp = Date.now();
+  const stopVoiceRecording = (cancel = false) => {
+    if (voiceTimerRef.current) {
+      clearInterval(voiceTimerRef.current);
+      voiceTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      if (cancel) {
+        mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+      } else {
+        mediaRecorderRef.current.stop();
+      }
+    }
+    setIsRecordingVoice(false);
+    setVoiceSeconds(0);
+  };
 
-      setTextMessages((prev) => [
-        ...prev,
-        {
-          id: msgId,
-          sender: 'CUSTOMER',
-          text: msgText,
-          timestamp,
-        },
-      ]);
+  const handleSendMessage = () => {
+    if (!inputText.trim()) return;
+    const msgText = inputText.trim();
+    const msgId = `MSG-${Date.now()}`;
+    const timestamp = Date.now();
 
-      relayRef.current?.send({
-        type: 'CHAT_MESSAGE',
-        roomId,
-        customerId,
+    setTextMessages((prev) => [
+      ...prev,
+      {
         id: msgId,
         sender: 'CUSTOMER',
         text: msgText,
         timestamp,
-      });
+      },
+    ]);
 
-      setInputText('');
-      sounds.playSuccess();
-    }
+    relayRef.current?.send({
+      type: 'CHAT_MESSAGE',
+      roomId,
+      customerId,
+      customerName: customerName.trim() || 'Customer',
+      id: msgId,
+      sender: 'CUSTOMER',
+      text: msgText,
+      timestamp,
+    });
+
+    setInputText('');
+    sounds.playSuccess();
+  };
+
+  const handleMarkPaymentPaid = (msgId: string) => {
+    setTextMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId && m.payment ? { ...m, payment: { ...m.payment, paid: true } } : m
+      )
+    );
+
+    relayRef.current?.send({
+      type: 'CHAT_MESSAGE',
+      roomId,
+      customerId,
+      customerName: customerName.trim() || 'Customer',
+      id: `PAY-CONFIRMED-${Date.now()}`,
+      sender: 'CUSTOMER',
+      text: '✅ UPI Payment Completed via GPay/PhonePe',
+      timestamp: Date.now(),
+    });
+
+    sounds.playSuccess();
+    toast.success('Payment Recorded', 'Receipt confirmed with shopkeeper.');
   };
 
   return (
@@ -358,13 +502,13 @@ export const CustomerPortal: React.FC = () => {
         </div>
       ) : (
         /* ── STEP 2: Authentic WhatsApp Chat Interface ── */
-        <div className="wa-panel-elevated rounded-2xl overflow-hidden flex flex-col h-[calc(100dvh-120px)] sm:h-[680px] border border-[#d1d7db] shadow-2xl relative">
+        <div className="wa-panel-elevated rounded-2xl overflow-hidden flex flex-col h-[calc(100dvh-120px)] sm:h-[700px] border border-[#d1d7db] shadow-2xl relative">
           {/* WhatsApp Chat Top Header */}
-          <div className="bg-[#008069] text-white px-3 py-2.5 sm:py-3 flex items-center justify-between shadow-md shrink-0">
+          <div className="bg-[#008069] text-white px-3.5 py-2.5 sm:py-3 flex items-center justify-between shadow-md shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <button
                 onClick={handleReset}
-                className="p-1 rounded-full hover:bg-white/20 text-white transition-colors"
+                className="p-1 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
                 title="Disconnect"
               >
                 <ChevronLeft className="w-6 h-6" />
@@ -392,7 +536,7 @@ export const CustomerPortal: React.FC = () => {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setShowSettings(!showSettings)}
-                className={`p-2 rounded-full transition-colors ${
+                className={`p-2 rounded-full transition-colors cursor-pointer ${
                   showSettings ? 'bg-white/30 text-white' : 'hover:bg-white/15 text-white'
                 }`}
                 title="Printing & Watermark Options"
@@ -402,7 +546,7 @@ export const CustomerPortal: React.FC = () => {
             </div>
           </div>
 
-          {/* Customer Name Bar (Shown if not set or on toggle) */}
+          {/* Customer Name Bar */}
           <div className="bg-[#f0f2f5] px-3.5 py-2 border-b border-[#d1d7db] flex items-center gap-2 text-left shrink-0">
             <User className="w-4 h-4 text-[#008069] shrink-0" />
             <input
@@ -410,7 +554,7 @@ export const CustomerPortal: React.FC = () => {
               value={customerName}
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Enter Your Name (e.g. Rahul Sharma)..."
-              className="flex-1 text-xs sm:text-sm bg-white px-3 py-1 rounded-lg border border-[#d1d7db] focus:outline-none focus:border-[#00a884] text-[#111b21] font-medium"
+              className="flex-1 text-xs sm:text-sm bg-white px-3 py-1.5 rounded-lg border border-[#d1d7db] focus:outline-none focus:border-[#00a884] text-[#111b21] font-medium"
             />
           </div>
 
@@ -439,8 +583,8 @@ export const CustomerPortal: React.FC = () => {
                 <div className="w-16 h-16 rounded-3xl bg-white/20 border-2 border-dashed border-white flex items-center justify-center mb-3 scale-110 animate-bounce">
                   <FileText className="w-8 h-8 text-white" />
                 </div>
-                <h4 className="text-base font-bold">Drop File to Stage in RAM</h4>
-                <p className="text-xs text-white/80 mt-1">PDFs, Aadhaar scans, and images accepted (Max 50MB)</p>
+                <h4 className="text-base font-bold">Drop Files to Stage in RAM</h4>
+                <p className="text-xs text-white/80 mt-1">PDFs, ID scans, and images accepted (Max 50MB)</p>
               </div>
             )}
 
@@ -448,7 +592,7 @@ export const CustomerPortal: React.FC = () => {
             <div className="wa-system-pill flex items-center justify-center gap-2 text-center text-xs py-2 px-4 shadow-sm">
               <Lock className="w-3.5 h-3.5 text-[#54656f] shrink-0" />
               <span>
-                🔒 Documents sent in this chat are AES-256 encrypted directly in printer RAM.
+                🔒 Messages and documents sent in this chat are AES-256 encrypted directly in printer RAM.
               </span>
             </div>
 
@@ -547,9 +691,10 @@ export const CustomerPortal: React.FC = () => {
               );
             })}
 
-            {/* Text Messages Timeline */}
+            {/* Text, Voice & UPI Payment Messages */}
             {textMessages.map((msg) => {
               const isMe = msg.sender === 'CUSTOMER';
+
               return (
                 <div
                   key={msg.id}
@@ -558,9 +703,73 @@ export const CustomerPortal: React.FC = () => {
                   <div
                     className={`${
                       isMe ? 'wa-bubble-out' : 'wa-bubble-in'
-                    } max-w-[85%] sm:max-w-md px-4 py-2.5 space-y-1 shadow-sm border border-[#d1d7db]/40`}
+                    } max-w-[88%] sm:max-w-md px-4 py-2.5 space-y-2 shadow-sm border border-[#d1d7db]/40`}
                   >
-                    <div className="text-[14.5px] text-[#111b21] leading-relaxed break-words font-normal">{msg.text}</div>
+                    {/* Voice Note Player */}
+                    {msg.voiceBase64 && (
+                      <VoiceNotePlayer
+                        audioBase64={msg.voiceBase64}
+                        timestamp={msg.timestamp}
+                        isMe={isMe}
+                      />
+                    )}
+
+                    {/* Regular Text */}
+                    {msg.text && (
+                      <div className="text-[14.5px] text-[#111b21] leading-relaxed break-words font-normal">
+                        {msg.text}
+                      </div>
+                    )}
+
+                    {/* Interactive WhatsApp UPI Payment Card */}
+                    {msg.payment && (
+                      <div className="bg-[#f8fafc] p-3.5 rounded-2xl border-2 border-[#00a884] space-y-3 mt-1 shadow-sm">
+                        <div className="flex items-center justify-between border-b border-[#e9edef] pb-2">
+                          <span className="text-xs font-bold text-[#008069] uppercase tracking-wider flex items-center gap-1">
+                            <IndianRupee className="w-4 h-4" />
+                            <span>Xerox Bill Payment</span>
+                          </span>
+                          <span className="text-lg font-black text-[#111b21]">₹{msg.payment.amount}</span>
+                        </div>
+
+                        <div className="text-xs text-[#54656f]">{msg.payment.note}</div>
+
+                        {/* UPI QR Code */}
+                        <div className="flex justify-center p-2 bg-white rounded-xl border border-[#d1d7db]">
+                          <QRCodeSVG
+                            value={`upi://pay?pa=${encodeURIComponent(msg.payment.upiId)}&pn=${encodeURIComponent('SafePrint Xerox')}&am=${msg.payment.amount}&cu=INR&tn=${encodeURIComponent(msg.payment.note)}`}
+                            size={130}
+                            level="M"
+                          />
+                        </div>
+
+                        {/* 1-Tap Payment Link */}
+                        <div className="space-y-2">
+                          <a
+                            href={`upi://pay?pa=${encodeURIComponent(msg.payment.upiId)}&pn=${encodeURIComponent('SafePrint Xerox')}&am=${msg.payment.amount}&cu=INR&tn=${encodeURIComponent(msg.payment.note)}`}
+                            className="w-full py-2 px-3 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm text-center"
+                          >
+                            <Smartphone className="w-3.5 h-3.5" />
+                            <span>Pay with GPay / PhonePe / Paytm</span>
+                          </a>
+
+                          {!msg.payment.paid ? (
+                            <button
+                              type="button"
+                              onClick={() => handleMarkPaymentPaid(msg.id)}
+                              className="w-full py-1.5 rounded-lg bg-white hover:bg-[#d9fdd3] text-[#008069] text-xs font-bold border border-[#00a884]/40 cursor-pointer text-center"
+                            >
+                              ✓ Confirm Paid ₹{msg.payment.amount}
+                            </button>
+                          ) : (
+                            <div className="text-xs font-bold text-[#008069] text-center bg-[#d9fdd3] py-1.5 rounded-lg">
+                              ✅ Payment Confirmed
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-end gap-1 text-[11px] text-[#667781] font-mono mt-0.5">
                       <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       {isMe && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
@@ -570,99 +779,90 @@ export const CustomerPortal: React.FC = () => {
               );
             })}
 
-            {/* Staged File Preview */}
-            {selectedFile && (
+            {/* ── MULTI-FILE BATCH STAGING CARD ── */}
+            {stagedFiles.length > 0 && (
               <div className="flex justify-end animate-in zoom-in-95 duration-150">
-                <div className="wa-bubble-out max-w-[94%] sm:max-w-md p-4 space-y-3 border-2 border-[#00a884] shadow-md">
+                <div className="wa-bubble-out max-w-[94%] sm:max-w-md p-4 space-y-3 border-2 border-[#00a884] shadow-md w-full">
                   <div className="text-xs sm:text-sm font-bold text-[#008069] flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <Lock className="w-3.5 h-3.5" />
-                      <span>Ready to Encrypt & Send</span>
+                      <span>{stagedFiles.length} Document(s) Ready in RAM</span>
                     </span>
                     <button
-                      onClick={() => setSelectedFile(null)}
+                      onClick={() => setStagedFiles([])}
                       className="text-[#667781] hover:text-red-500 text-sm font-bold p-1 cursor-pointer"
-                      title="Cancel file"
+                      title="Clear all files"
                     >
                       ✕
                     </button>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-white flex items-center gap-3 border border-[#d1d7db]">
-                    <div className="p-2.5 rounded-xl bg-[#00a884]/15 text-[#008069]">
-                      <FileText className="w-6 h-6" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-bold text-[#111b21] truncate">{selectedFile.name}</div>
-                      <div className="text-xs text-[#667781] font-mono mt-0.5">
-                        {(selectedFile.size / 1024).toFixed(1)} KB • Staged in RAM
+                  {/* List of Staged Files */}
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {stagedFiles.map((file) => (
+                      <div
+                        key={file.id}
+                        className="p-2.5 rounded-xl bg-white flex items-center justify-between gap-2 border border-[#d1d7db]"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <FileText className="w-5 h-5 text-[#008069] shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-bold text-[#111b21] truncate">{file.name}</div>
+                            <div className="text-[10.5px] text-[#667781] font-mono">
+                              {(file.size / 1024).toFixed(1)} KB
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          {file.type.startsWith('image/') && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveRedactionFileId(file.id);
+                                setShowRedactionStudio(true);
+                              }}
+                              className="p-1.5 rounded-lg bg-[#e7f8ff] text-[#0284c7] hover:bg-[#d0f0fd] text-[11px] font-bold cursor-pointer"
+                              title="Mask private numbers"
+                            >
+                              <ShieldAlert className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => setStagedFiles((prev) => prev.filter((f) => f.id !== file.id))}
+                            className="p-1.5 rounded-lg text-[#667781] hover:text-red-500 cursor-pointer"
+                            title="Remove file"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
 
-                  {/* Sender Name in Staging */}
-                  <div className="bg-white p-2 rounded-xl border border-[#d1d7db] space-y-1">
-                    <label className="text-[11px] font-bold text-[#54656f] block">
-                      Sender Name (shown on Xerox counter):
+                  {/* Staged Sender Name */}
+                  <div className="bg-white p-2 rounded-xl border border-[#d1d7db]">
+                    <label className="text-[11px] font-bold text-[#54656f] block mb-1">
+                      Sender Name:
                     </label>
                     <input
                       type="text"
                       value={customerName}
                       onChange={(e) => handleNameChange(e.target.value)}
                       placeholder="Your Name (e.g. Rahul Sharma)"
-                      className="w-full text-xs sm:text-sm font-medium px-2.5 py-1 rounded bg-[#f0f2f5] border border-[#d1d7db] text-[#111b21] focus:outline-none focus:border-[#00a884]"
+                      className="w-full text-xs font-medium px-2.5 py-1 rounded bg-[#f0f2f5] border border-[#d1d7db] text-[#111b21] focus:outline-none focus:border-[#00a884]"
                     />
                   </div>
 
-                  {/* Quick Copies & Watermark row in Staging */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-white p-2 rounded-xl border border-[#d1d7db] text-left">
-                      <label className="text-[10.5px] font-bold text-[#54656f] block mb-1">Copies:</label>
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 5].map((cnt) => (
-                          <button
-                            key={cnt}
-                            type="button"
-                            onClick={() => setMaxCopies(cnt)}
-                            className={`flex-1 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
-                              maxCopies === cnt ? 'bg-[#008069] text-white shadow-xs' : 'bg-[#f0f2f5] text-[#54656f]'
-                            }`}
-                          >
-                            {cnt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-2 rounded-xl border border-[#d1d7db] text-left">
-                      <label className="text-[10.5px] font-bold text-[#54656f] block mb-1">Watermark:</label>
-                      <input
-                        type="text"
-                        value={watermarkText}
-                        onChange={(e) => setWatermarkText(e.target.value)}
-                        placeholder="e.g. FOR PHOTOCOPY"
-                        className="w-full text-[11px] px-2 py-1 rounded bg-[#f0f2f5] border border-[#d1d7db] text-[#111b21] focus:outline-none focus:border-[#00a884]"
-                      />
-                    </div>
-                  </div>
-
-                  {selectedFile.type.startsWith('image/') && (
-                    <button
-                      onClick={() => setShowRedactionStudio(true)}
-                      className="w-full py-2 rounded-xl bg-[#e7f8ff] text-[#0284c7] hover:bg-[#d0f0fd] text-xs font-bold flex items-center justify-center gap-2 transition-colors border border-[#0284c7]/30 cursor-pointer shadow-xs"
-                    >
-                      <ShieldAlert className="w-4 h-4" />
-                      <span>Blackout Private ID Numbers</span>
-                    </button>
-                  )}
-
-                  {/* Send Direct Action */}
+                  {/* Send All Action */}
                   <button
-                    onClick={handleSendDocument}
+                    onClick={handleSendAllStagedDocuments}
                     className="w-full py-2.5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-98 cursor-pointer"
                   >
                     <Send className="w-4 h-4" />
-                    <span>Send Encrypted to Shop ({maxCopies} {maxCopies === 1 ? 'copy' : 'copies'})</span>
+                    <span>Send {stagedFiles.length} Encrypted File(s) to Shop</span>
                   </button>
                 </div>
               </div>
@@ -681,7 +881,7 @@ export const CustomerPortal: React.FC = () => {
                 <div className="w-12 h-12 rounded-full bg-[#8f3985] text-white flex items-center justify-center shadow-md">
                   <FileText className="w-6 h-6" />
                 </div>
-                <span className="text-xs text-[#54656f] font-semibold">Document</span>
+                <span className="text-xs text-[#54656f] font-semibold">Document(s)</span>
               </button>
 
               <button
@@ -707,7 +907,7 @@ export const CustomerPortal: React.FC = () => {
           )}
 
           {/* Quick Print Instruction Chips Strip */}
-          <div className="bg-[#f0f2f5] px-3.5 py-2 border-t border-[#e9edef] flex items-center gap-1.5 overflow-x-auto shrink-0 no-scrollbar">
+          <div className="bg-[#f0f2f5] px-3.5 py-1.5 border-t border-[#e9edef] flex items-center gap-1.5 overflow-x-auto shrink-0 no-scrollbar">
             <span className="text-[11px] font-bold text-[#667781] uppercase tracking-wider shrink-0">Print Note:</span>
             {[
               '🖨️ 1 B&W Copy',
@@ -727,12 +927,13 @@ export const CustomerPortal: React.FC = () => {
             ))}
           </div>
 
-          {/* ── AUTHENTIC WHATSAPP INPUT BAR ── */}
+          {/* ── AUTHENTIC WHATSAPP INPUT BAR WITH LIVE VOICE RECORDING ── */}
           <div className="bg-[#f0f2f5] p-2.5 sm:p-3 flex items-center gap-2.5 border-t border-[#e9edef] shrink-0">
-            {/* Hidden native pickers */}
+            {/* Hidden native pickers with MULTIPLE enabled */}
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               accept=".pdf,image/png,image/jpeg,image/webp,application/pdf"
               onChange={handleFilePicked}
               className="hidden"
@@ -757,39 +958,82 @@ export const CustomerPortal: React.FC = () => {
               <Paperclip className="w-5 h-5" />
             </button>
 
-            {/* Real WhatsApp Text Input */}
-            <div className="flex-1 bg-white px-4 h-11 rounded-2xl border border-[#d1d7db] flex items-center focus-within:border-[#00a884] shadow-xs">
-              <input
-                type="text"
-                placeholder={selectedFile ? `Add print instruction for ${selectedFile.name}...` : "Type message or print note..."}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessageOrFile()}
-                className="w-full text-sm bg-transparent border-none focus:outline-none text-[#111b21] placeholder-[#667781]"
-              />
-            </div>
+            {/* If actively recording audio */}
+            {isRecordingVoice ? (
+              <div className="flex-1 bg-red-50 px-4 h-11 rounded-2xl border border-red-200 flex items-center justify-between animate-pulse">
+                <div className="flex items-center gap-2 text-red-600 font-bold text-xs">
+                  <span className="w-3 h-3 rounded-full bg-red-600 animate-ping" />
+                  <span>Recording Voice Note ({voiceSeconds}s)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => stopVoiceRecording(true)}
+                  className="text-xs text-red-600 hover:underline font-semibold"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              /* Real WhatsApp Text Input */
+              <div className="flex-1 bg-white px-4 h-11 rounded-2xl border border-[#d1d7db] flex items-center focus-within:border-[#00a884] shadow-xs">
+                <input
+                  type="text"
+                  placeholder="Type message or print note..."
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  className="w-full text-sm bg-transparent border-none focus:outline-none text-[#111b21] placeholder-[#667781]"
+                />
+              </div>
+            )}
 
-            {/* WhatsApp Send Button */}
-            <button
-              onClick={handleSendMessageOrFile}
-              disabled={!selectedFile && !inputText.trim()}
-              className="w-11 h-11 rounded-full bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 disabled:cursor-not-allowed shrink-0 cursor-pointer"
-              title="Send to Xerox Shop"
-            >
-              <Send className="w-5 h-5 ml-0.5" />
-            </button>
+            {/* Send or Voice Note Mic Button */}
+            {inputText.trim() ? (
+              <button
+                onClick={handleSendMessage}
+                className="w-11 h-11 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center shadow-md transition-transform active:scale-95 shrink-0 cursor-pointer"
+                title="Send Text"
+              >
+                <Send className="w-5 h-5 ml-0.5" />
+              </button>
+            ) : isRecordingVoice ? (
+              <button
+                onClick={() => stopVoiceRecording(false)}
+                className="w-11 h-11 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 shrink-0 cursor-pointer"
+                title="Finish & Send Voice Note"
+              >
+                <Square className="w-4 h-4 fill-white" />
+              </button>
+            ) : (
+              <button
+                onClick={startVoiceRecording}
+                className="w-11 h-11 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center shadow-md transition-transform active:scale-95 shrink-0 cursor-pointer"
+                title="Record Voice Note"
+              >
+                <Mic className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
       )}
 
       {/* Redaction Studio Modal */}
-      {showRedactionStudio && selectedFile && (
+      {showRedactionStudio && activeRedactionFileId && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm p-4 overflow-y-auto flex items-center justify-center">
-          <RedactionStudio
-            imageBuffer={selectedFile.buffer}
-            onApplyRedaction={handleApplyRedaction}
-            onCancel={() => setShowRedactionStudio(false)}
-          />
+          {(() => {
+            const file = stagedFiles.find((f) => f.id === activeRedactionFileId);
+            if (!file) return null;
+            return (
+              <RedactionStudio
+                imageBuffer={file.buffer}
+                onApplyRedaction={handleApplyRedaction}
+                onCancel={() => {
+                  setShowRedactionStudio(false);
+                  setActiveRedactionFileId(null);
+                }}
+              />
+            );
+          })()}
         </div>
       )}
 
