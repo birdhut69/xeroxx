@@ -113,6 +113,9 @@ export interface Translations {
   dragCropTip: string;
   cutAndCropBtn: string;
   quickMaskZone: string;
+  maskAadhaar: string;
+  maskSignature: string;
+  manualTips: string;
   undoBtn: string;
   clearAllBoxes: string;
   saveChangesToRam: string;
@@ -259,6 +262,9 @@ export const translations: Record<SupportedLanguage, Translations> = {
     dragCropTip: 'Drag corners to crop borders',
     cutAndCropBtn: 'Cut & Crop',
     quickMaskZone: 'Mask Number Zone',
+    maskAadhaar: 'Mask Aadhaar (8 Digits)',
+    maskSignature: 'Mask Signature',
+    manualTips: 'Drag to draw custom privacy box',
     undoBtn: 'Undo',
     clearAllBoxes: 'Clear All',
     saveChangesToRam: 'Save Changes to RAM',
@@ -401,6 +407,9 @@ export const translations: Record<SupportedLanguage, Translations> = {
     dragCropTip: 'कडा छाटण्यासाठी कोपरे ओढा',
     cutAndCropBtn: 'कापा आणि क्रॉप करा',
     quickMaskZone: 'नंबर झोन लपवा',
+    maskAadhaar: 'आधार ८ अंक लपवा',
+    maskSignature: 'स्वाक्षरी लपवा',
+    manualTips: 'मास्किंगसाठी बोटाने बॉक्स ओढा',
     undoBtn: 'पूर्ववत करा',
     clearAllBoxes: 'सर्व पुसा',
     saveChangesToRam: 'बदल RAM मध्ये सेव्ह करा',
@@ -543,6 +552,9 @@ export const translations: Record<SupportedLanguage, Translations> = {
     dragCropTip: 'किनारे काटने के लिए कोने खींचें',
     cutAndCropBtn: 'काटें और क्रॉप करें',
     quickMaskZone: 'नंबर ज़ोन छिपाएं',
+    maskAadhaar: 'आधार ८ अंक छिपाएं',
+    maskSignature: 'हस्ताक्षर (Sign) छिपाएं',
+    manualTips: 'मास्किंग के लिए बॉक्स बनाएं',
     undoBtn: 'पूर्ववत करें (Undo)',
     clearAllBoxes: 'सभी मिटाएं',
     saveChangesToRam: 'बदलाव RAM में सहेजें',

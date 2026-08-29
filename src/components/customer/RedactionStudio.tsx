@@ -386,6 +386,32 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
     ]);
   };
 
+  const handleMaskAadhaar8Digits = () => {
+    if (!workingCanvas) return;
+    const w = workingCanvas.width;
+    const h = workingCanvas.height;
+    // Mask first 8 digits of Aadhaar (regulatory compliance)
+    setRedactionBoxes((prev) => [
+      ...prev,
+      { x: w * 0.15, y: h * 0.62, w: w * 0.46, h: h * 0.08 },
+    ]);
+    sounds.playEncrypt();
+    toast.shield('Aadhaar Masked', 'First 8 digits covered with privacy bar.');
+  };
+
+  const handleMaskSignature = () => {
+    if (!workingCanvas) return;
+    const w = workingCanvas.width;
+    const h = workingCanvas.height;
+    // Mask signature block
+    setRedactionBoxes((prev) => [
+      ...prev,
+      { x: w * 0.5, y: h * 0.75, w: w * 0.42, h: h * 0.14 },
+    ]);
+    sounds.playEncrypt();
+    toast.shield('Signature Masked', 'Signature zone covered.');
+  };
+
   const handleSaveAndApply = () => {
     if (!workingCanvas) return;
 
@@ -493,35 +519,51 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
           </button>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-[#fef9f0] rounded-xl border border-[#bec9c5]/30 text-xs">
-          <button
-            type="button"
-            onClick={handleAutoMask}
-            className="px-2.5 py-1 rounded-lg bg-[#e7f8ff] text-[#0284c7] hover:bg-[#d0f0fd] text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
-          >
-            <Sparkles className="w-3 h-3" />
-            <span>{t('quickMaskZone')}</span>
-          </button>
-
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-2 p-2 bg-[#fef9f0] rounded-xl border border-[#bec9c5]/30 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
-              onClick={handleUndo}
-              disabled={redactionBoxes.length === 0}
-              className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#f0f2f5] disabled:opacity-30 text-[#54656f] text-[11px] font-semibold flex items-center gap-1 border border-[#bec9c5]/30 cursor-pointer"
-              title="Undo last box"
+              type="button"
+              onClick={handleMaskAadhaar8Digits}
+              className="px-2.5 py-1 rounded-lg bg-[#e7f8ff] text-[#0284c7] hover:bg-[#d0f0fd] text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
             >
-              <Undo className="w-3 h-3" />
-              <span>{t('undoBtn')}</span>
+              <Sparkles className="w-3 h-3" />
+              <span>{t('maskAadhaar')}</span>
             </button>
             <button
-              onClick={handleClearAll}
-              disabled={redactionBoxes.length === 0}
-              className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#fee2e2] disabled:opacity-30 text-[#dc2626] text-[11px] font-semibold flex items-center gap-1 border border-[#bec9c5]/30 cursor-pointer"
-              title="Clear all boxes"
+              type="button"
+              onClick={handleMaskSignature}
+              className="px-2.5 py-1 rounded-lg bg-[#f0fdf4] text-[#15803d] hover:bg-[#dcfce7] text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
             >
-              <Eraser className="w-3 h-3" />
-              <span>{t('clearAllBoxes')}</span>
+              <Shield className="w-3 h-3" />
+              <span>{t('maskSignature')}</span>
             </button>
+          </div>
+          <div className="flex items-center justify-between border-t border-[#bec9c5]/20 pt-2">
+            <button
+              type="button"
+              onClick={handleAutoMask}
+              className="text-[#6f7976] font-medium"
+            >
+              {t('manualTips')}
+            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleUndo}
+                disabled={redactionBoxes.length === 0}
+                className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#f0f2f5] disabled:opacity-30 text-[#54656f] text-[11px] font-semibold flex items-center gap-1 border border-[#bec9c5]/30 cursor-pointer"
+              >
+                <Undo className="w-3 h-3" />
+                <span>{t('undoBtn')}</span>
+              </button>
+              <button
+                onClick={handleClearAll}
+                disabled={redactionBoxes.length === 0}
+                className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#fee2e2] disabled:opacity-30 text-[#dc2626] text-[11px] font-semibold flex items-center gap-1 border border-[#bec9c5]/30 cursor-pointer"
+              >
+                <Eraser className="w-3 h-3" />
+                <span>{t('clearAllBoxes')}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

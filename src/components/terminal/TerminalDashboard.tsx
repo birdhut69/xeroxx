@@ -44,6 +44,7 @@ import { DRMCanvasViewer } from './DRMCanvasViewer';
 import { VoiceNotePlayer } from '../shared/VoiceNotePlayer';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLanguage } from '../../context/LanguageContext';
+import { StandeePrintModal } from './StandeePrintModal';
 
 interface QueuedDocument {
   id: string;
@@ -98,6 +99,7 @@ export const TerminalDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<'ALL' | 'PENDING' | 'PRINTED'>('ALL');
   const [showQRModal, setShowQRModal] = useState(false);
+  const [showStandeeModal, setShowStandeeModal] = useState(false);
   const [copiedQR, setCopiedQR] = useState(false);
   const [mobileTab, setMobileTab] = useState<'QUEUE' | 'WORKSPACE'>('QUEUE');
   const [replyText, setReplyText] = useState('');
@@ -732,8 +734,9 @@ export const TerminalDashboard: React.FC = () => {
               </button>
 
               <button
-                onClick={() => window.open(customerUrl, '_blank')}
+                onClick={() => setShowStandeeModal(true)}
                 className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#00453d] hover:bg-[#075e54] text-white text-[11.5px] font-bold flex items-center justify-center gap-1 shadow-xs cursor-pointer transition-colors"
+                title="Print Acrylic Counter Standee"
               >
                 <Smartphone className="w-3.5 h-3.5" />
                 <span>{t('standeeBtn')}</span>
@@ -1409,6 +1412,17 @@ export const TerminalDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Counter Standee Printable Sign Modal */}
+      {showStandeeModal && (
+        <StandeePrintModal
+          isOpen={showStandeeModal}
+          onClose={() => setShowStandeeModal(false)}
+          customerUrl={customerUrl}
+          shopName={shopName}
+          shopId={shopId}
+        />
       )}
     </div>
   );
