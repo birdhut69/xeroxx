@@ -473,9 +473,9 @@ export const CustomerPortal: React.FC = () => {
       ) : (
         /* ── STEP 2: Authentic WhatsApp Chat Interface ── */
         <div className="wa-panel-elevated rounded-2xl overflow-hidden flex flex-col h-[calc(100dvh-120px)] sm:h-[700px] border border-[#d1d7db] shadow-2xl relative">
-          {/* WhatsApp Chat Top Header */}
-          <div className="bg-[#008069] text-white px-3.5 py-2.5 sm:py-3 flex items-center justify-between shadow-md shrink-0">
-            <div className="flex items-center gap-2.5 min-w-0">
+          {/* WhatsApp Chat Top Header (#075E54) */}
+          <div className="bg-[#075E54] text-white px-4 py-3 flex items-center justify-between shadow-md shrink-0 h-[64px]">
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={handleReset}
                 className="p-1 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
@@ -485,19 +485,20 @@ export const CustomerPortal: React.FC = () => {
               </button>
 
               <div className="relative shrink-0">
-                <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40 flex items-center justify-center font-bold text-white text-sm shadow-sm">
+                <div className="w-10 h-10 rounded-full bg-white/20 border border-white/30 flex items-center justify-center font-bold text-white text-sm shadow-sm">
                   <Printer className="w-5 h-5" />
                 </div>
-                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#25d366] border-2 border-[#008069]" />
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#25D366] border-2 border-[#075E54]" />
               </div>
 
               <div className="text-left min-w-0">
-                <div className="text-sm font-bold truncate flex items-center gap-1">
-                  <span>{shopName}</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#25d366]" />
+                <div className="text-[15px] font-bold truncate flex items-center gap-1.5 leading-tight">
+                  <span>{shopName || 'QuickXerox Station #01'}</span>
+                  <ShieldCheck className="w-4 h-4 text-[#3de273] shrink-0" />
                 </div>
-                <div className="text-[11px] text-white/85 flex items-center gap-1 font-mono">
-                  <span>🟢 Online • Encrypted RAM</span>
+                <div className="text-[12px] text-white/85 flex items-center gap-1.5 font-medium mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#25D366] animate-pulse shrink-0" />
+                  <span className="truncate">Online • In-RAM Session Active</span>
                 </div>
               </div>
             </div>
@@ -509,33 +510,34 @@ export const CustomerPortal: React.FC = () => {
                 className={`p-2 rounded-full transition-colors cursor-pointer ${
                   showSettings ? 'bg-white/30 text-white' : 'hover:bg-white/15 text-white'
                 }`}
-                title="Printing & Watermark Options"
+                title="Print & Security Settings"
               >
-                <SlidersHorizontal className="w-4 h-4" />
+                <SlidersHorizontal className="w-5 h-5" />
               </button>
             </div>
           </div>
 
-          {/* Customer Name Bar */}
-          <div className="bg-[#f0f2f5] px-3.5 py-2 border-b border-[#d1d7db] flex items-center gap-2 text-left shrink-0">
-            <User className="w-4 h-4 text-[#008069] shrink-0" />
+          {/* Customer Strip */}
+          <div className="bg-[#fef9f0] px-4 py-2 border-b border-[#bec9c5]/30 flex items-center justify-between text-left shrink-0 shadow-xs">
+            <span className="text-[11px] font-bold text-[#6f7976] uppercase tracking-wider">Customer</span>
             <input
               type="text"
               value={customerName}
               onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="Enter Your Name (e.g. Rahul Sharma)..."
-              className="flex-1 text-xs sm:text-sm bg-white px-3 py-1.5 rounded-lg border border-[#d1d7db] focus:outline-none focus:border-[#00a884] text-[#111b21] font-medium"
+              placeholder="Rahul Sharma (Your Name)"
+              className="text-xs sm:text-sm font-bold text-[#00453d] bg-transparent border-none focus:outline-none text-right placeholder-[#6f7976]"
             />
           </div>
 
-          {/* Quick Settings Dropdown */}
+          {/* Slide-Up / Dropdown Security Settings */}
           {showSettings && (
-            <div className="bg-white p-3 border-b border-[#e9edef] shadow-md text-left animate-in slide-in-from-top duration-200 space-y-3 shrink-0">
+            <div className="bg-white p-4 border-b border-[#bec9c5] shadow-lg text-left animate-in slide-in-from-top duration-200 shrink-0">
               <WatermarkTool
                 watermarkText={watermarkText}
                 maxCopies={maxCopies}
                 onWatermarkChange={setWatermarkText}
                 onMaxCopiesChange={setMaxCopies}
+                onClose={() => setShowSettings(false)}
               />
             </div>
           )}
@@ -746,89 +748,77 @@ export const CustomerPortal: React.FC = () => {
 
             {/* ── MULTI-FILE BATCH STAGING CARD ── */}
             {stagedFiles.length > 0 && (
-              <div className="flex justify-end animate-in zoom-in-95 duration-150">
-                <div className="wa-bubble-out max-w-[94%] sm:max-w-md p-4 space-y-3 border-2 border-[#00a884] shadow-md w-full">
-                  <div className="text-xs sm:text-sm font-bold text-[#008069] flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>{stagedFiles.length} Document(s) Ready in RAM</span>
+              <div className="flex justify-end animate-in zoom-in-95 duration-150 pb-2">
+                <div className="bg-[#D9FDD3] text-[#1d1c17] rounded-2xl rounded-tr-sm p-3.5 max-w-[92%] sm:max-w-md w-[340px] relative bubble-shadow flex flex-col border border-[#c2f3ba]">
+                  {/* Staged Header */}
+                  <div className="flex items-center justify-between mb-3 border-b border-[#00453d]/10 pb-2">
+                    <span className="text-[12px] font-bold text-[#00453d] flex items-center">
+                      <FileText className="w-4 h-4 mr-1 text-[#00453d]" />
+                      <span>Staging Area</span>
                     </span>
-                    <button
-                      onClick={() => setStagedFiles([])}
-                      className="text-[#667781] hover:text-red-500 text-sm font-bold p-1 cursor-pointer"
-                      title="Clear all files"
-                    >
-                      ✕
-                    </button>
+                    <span className="text-[11px] font-mono text-[#6f7976]">
+                      {stagedFiles.length} {stagedFiles.length === 1 ? 'File' : 'Files'}
+                    </span>
                   </div>
 
                   {/* List of Staged Files */}
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                     {stagedFiles.map((file) => (
                       <div
                         key={file.id}
-                        className="p-2.5 rounded-xl bg-white flex items-center justify-between gap-2 border border-[#d1d7db]"
+                        className="bg-white rounded-xl p-3 border border-[#bec9c5]/30 shadow-xs flex flex-col relative overflow-hidden"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <FileText className="w-5 h-5 text-[#008069] shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xs font-bold text-[#111b21] truncate">{file.name}</div>
-                            <div className="text-[10.5px] text-[#667781] font-mono">
-                              {(file.size / 1024).toFixed(1)} KB
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center text-[#ba1a1a] shrink-0 font-bold">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[13px] font-bold text-[#1d1c17] truncate pr-2">{file.name}</span>
+                              <span className="text-[11px] font-mono text-[#6f7976]">{(file.size / 1024).toFixed(1)} KB</span>
                             </div>
                           </div>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          {file.type.startsWith('image/') && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveRedactionFileId(file.id);
-                                setShowRedactionStudio(true);
-                              }}
-                              className="p-1.5 rounded-lg bg-[#e7f8ff] text-[#0284c7] hover:bg-[#d0f0fd] text-[11px] font-bold cursor-pointer"
-                              title="Mask private numbers"
-                            >
-                              <ShieldAlert className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-
                           <button
                             type="button"
                             onClick={() => setStagedFiles((prev) => prev.filter((f) => f.id !== file.id))}
-                            className="p-1.5 rounded-lg text-[#667781] hover:text-red-500 cursor-pointer"
+                            className="text-[#6f7976] hover:text-[#ba1a1a] transition-colors shrink-0 p-1"
                             title="Remove file"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
+
+                        {/* Mask Badge if image */}
+                        {file.type.startsWith('image/') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveRedactionFileId(file.id);
+                              setShowRedactionStudio(true);
+                            }}
+                            className="mt-2 inline-flex items-center self-start bg-emerald-50 text-[#00453d] border border-[#00453d]/20 rounded-md px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 cursor-pointer"
+                          >
+                            <ShieldAlert className="w-3 h-3 mr-1 text-[#00453d]" />
+                            <span>Mask Sensitive ID Numbers</span>
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
 
-                  {/* Staged Sender Name */}
-                  <div className="bg-white p-2 rounded-xl border border-[#d1d7db]">
-                    <label className="text-[11px] font-bold text-[#54656f] block mb-1">
-                      Sender Name:
-                    </label>
-                    <input
-                      type="text"
-                      value={customerName}
-                      onChange={(e) => handleNameChange(e.target.value)}
-                      placeholder="Your Name (e.g. Rahul Sharma)"
-                      className="w-full text-xs font-medium px-2.5 py-1 rounded bg-[#f0f2f5] border border-[#d1d7db] text-[#111b21] focus:outline-none focus:border-[#00a884]"
-                    />
-                  </div>
-
-                  {/* Send All Action */}
+                  {/* Send CTA */}
                   <button
+                    type="button"
                     onClick={handleSendAllStagedDocuments}
-                    className="w-full py-2.5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-98 cursor-pointer"
+                    className="w-full mt-2.5 py-2.5 px-4 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-sm active:scale-[0.98] transition-all cursor-pointer"
                   >
-                    <Send className="w-4 h-4" />
-                    <span>Send {stagedFiles.length} Encrypted File(s) to Shop</span>
+                    <Lock className="w-4 h-4" />
+                    <span>Send {stagedFiles.length} Encrypted File(s) to Shop (AES-256)</span>
                   </button>
+
+                  <div className="flex items-center justify-end mt-1.5">
+                    <span className="text-[10.5px] font-mono text-[#6f7976] italic">Staged • Not sent yet</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -838,9 +828,12 @@ export const CustomerPortal: React.FC = () => {
 
           {/* WhatsApp Attachment Sheet Popover */}
           {showAttachmentMenu && (
-            <div className="absolute bottom-16 left-3 bg-white rounded-2xl p-4 shadow-2xl border border-[#d1d7db] flex items-center gap-4 animate-in slide-from-bottom duration-150 z-30">
+            <div className="absolute bottom-20 left-4 bg-white rounded-2xl p-4 shadow-2xl border border-[#bec9c5] flex items-center gap-4 animate-in slide-in-from-bottom duration-150 z-30">
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => {
+                  setShowAttachmentMenu(false);
+                  fileInputRef.current?.click();
+                }}
                 className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
               >
                 <div className="w-12 h-12 rounded-full bg-[#8f3985] text-white flex items-center justify-center shadow-md">
@@ -850,7 +843,10 @@ export const CustomerPortal: React.FC = () => {
               </button>
 
               <button
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={() => {
+                  setShowAttachmentMenu(false);
+                  cameraInputRef.current?.click();
+                }}
                 className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
               >
                 <div className="w-12 h-12 rounded-full bg-[#d3396d] text-white flex items-center justify-center shadow-md">
@@ -860,7 +856,10 @@ export const CustomerPortal: React.FC = () => {
               </button>
 
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => {
+                  setShowAttachmentMenu(false);
+                  fileInputRef.current?.click();
+                }}
                 className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
               >
                 <div className="w-12 h-12 rounded-full bg-[#ac44cf] text-white flex items-center justify-center shadow-md">
@@ -872,20 +871,20 @@ export const CustomerPortal: React.FC = () => {
           )}
 
           {/* Quick Print Instruction Chips Strip */}
-          <div className="bg-[#f0f2f5] px-3.5 py-1.5 border-t border-[#e9edef] flex items-center gap-1.5 overflow-x-auto shrink-0 no-scrollbar">
-            <span className="text-[11px] font-bold text-[#667781] uppercase tracking-wider shrink-0">Print Note:</span>
+          <div className="bg-[#EFEAE2] px-3.5 py-1.5 border-t border-[#bec9c5]/30 flex items-center gap-1.5 overflow-x-auto shrink-0 scrollbar-hide">
+            <span className="text-[11px] font-bold text-[#6f7976] uppercase tracking-wider shrink-0">Print Note:</span>
             {[
               '🖨️ 1 B&W Copy',
-              '📑 Double-sided print',
-              '🎨 Full Color Print',
-              '⚡ Urgent / Priority',
-              '📜 Legal / Stamp Paper',
+              '📑 Double-Sided',
+              '🎨 Full Color',
+              '⚡ Urgent',
+              '📜 Legal Paper',
             ].map((chip) => (
               <button
                 key={chip}
                 type="button"
                 onClick={() => setInputText(chip)}
-                className="px-2.5 py-1 rounded-full bg-white hover:bg-[#d9fdd3] hover:border-[#00a884] text-[#111b21] text-[11.5px] font-medium border border-[#d1d7db] shrink-0 cursor-pointer shadow-xs transition-colors"
+                className="px-3 py-1 rounded-full bg-white hover:bg-[#D9FDD3] hover:border-[#25D366] text-[#00453d] text-xs font-semibold border border-[#bec9c5]/40 shrink-0 cursor-pointer shadow-xs transition-colors"
               >
                 {chip}
               </button>
@@ -893,7 +892,7 @@ export const CustomerPortal: React.FC = () => {
           </div>
 
           {/* ── AUTHENTIC WHATSAPP INPUT BAR WITH LIVE VOICE RECORDING ── */}
-          <div className="bg-[#f0f2f5] p-2.5 sm:p-3 flex items-center gap-2.5 border-t border-[#e9edef] shrink-0">
+          <div className="bg-[#EFEAE2] p-2.5 sm:p-3 flex items-center gap-2 border-t border-[#bec9c5]/30 shrink-0">
             {/* Hidden native pickers with MULTIPLE enabled */}
             <input
               ref={fileInputRef}
@@ -912,20 +911,9 @@ export const CustomerPortal: React.FC = () => {
               className="hidden"
             />
 
-            {/* Paperclip Attachment Button */}
-            <button
-              onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-              className={`p-2 rounded-full transition-colors cursor-pointer ${
-                showAttachmentMenu ? 'bg-[#d1d7db] text-[#008069]' : 'hover:bg-[#e9edef] text-[#54656f]'
-              }`}
-              title="Attach Document / Camera"
-            >
-              <Paperclip className="w-5 h-5" />
-            </button>
-
             {/* If actively recording audio */}
             {isRecordingVoice ? (
-              <div className="flex-1 bg-red-50 px-4 h-11 rounded-2xl border border-red-200 flex items-center justify-between animate-pulse">
+              <div className="flex-1 bg-red-50 px-4 h-12 rounded-[24px] border border-red-200 flex items-center justify-between animate-pulse">
                 <div className="flex items-center gap-2 text-red-600 font-bold text-xs">
                   <span className="w-3 h-3 rounded-full bg-red-600 animate-ping" />
                   <span>Recording Voice Note ({voiceSeconds}s)</span>
@@ -933,47 +921,68 @@ export const CustomerPortal: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => stopVoiceRecording(true)}
-                  className="text-xs text-red-600 hover:underline font-semibold"
+                  className="text-xs text-red-600 hover:underline font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
               </div>
             ) : (
-              /* Real WhatsApp Text Input */
-              <div className="flex-1 bg-white px-4 h-11 rounded-2xl border border-[#d1d7db] flex items-center focus-within:border-[#00a884] shadow-xs">
+              /* Text Input Wrapper */
+              <div className="flex-1 bg-white rounded-[24px] flex items-center px-3 min-h-[48px] shadow-xs border border-[#bec9c5]/30">
+                <button
+                  type="button"
+                  onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                  className="text-[#6f7976] hover:text-[#00453d] transition-colors p-1 shrink-0 cursor-pointer"
+                  title="Attach Document or Photo"
+                >
+                  <Paperclip className="w-5 h-5 -rotate-45" />
+                </button>
+
                 <input
                   type="text"
-                  placeholder="Type message or print note..."
+                  placeholder="Message or Instructions..."
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  className="w-full text-sm bg-transparent border-none focus:outline-none text-[#111b21] placeholder-[#667781]"
+                  className="flex-1 text-sm bg-transparent border-none focus:outline-none px-2 text-[#1d1c17] placeholder-[#6f7976]"
                 />
+
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="text-[#6f7976] hover:text-[#00453d] transition-colors p-1 shrink-0 cursor-pointer"
+                  title="Camera Scan"
+                >
+                  <Camera className="w-5 h-5" />
+                </button>
               </div>
             )}
 
-            {/* Send or Voice Note Mic Button */}
+            {/* Circular Green Action Button (48x48) */}
             {inputText.trim() ? (
               <button
+                type="button"
                 onClick={handleSendMessage}
-                className="w-11 h-11 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center shadow-md transition-transform active:scale-95 shrink-0 cursor-pointer"
-                title="Send Text"
+                className="w-12 h-12 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
+                title="Send Message"
               >
-                <Send className="w-5 h-5 ml-0.5" />
+                <Send className="w-5 h-5" />
               </button>
             ) : isRecordingVoice ? (
               <button
+                type="button"
                 onClick={() => stopVoiceRecording(false)}
-                className="w-11 h-11 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 shrink-0 cursor-pointer"
-                title="Finish & Send Voice Note"
+                className="w-12 h-12 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
+                title="Send Voice Note"
               >
-                <Square className="w-4 h-4 fill-white" />
+                <Square className="w-5 h-5 fill-current" />
               </button>
             ) : (
               <button
+                type="button"
                 onClick={startVoiceRecording}
-                className="w-11 h-11 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center shadow-md transition-transform active:scale-95 shrink-0 cursor-pointer"
-                title="Record Voice Note"
+                className="w-12 h-12 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
+                title="Hold or tap to record voice note"
               >
                 <Mic className="w-5 h-5" />
               </button>

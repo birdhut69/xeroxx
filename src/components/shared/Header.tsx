@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Volume2, VolumeX, Smartphone, Monitor, HelpCircle, Menu, X, LogOut, KeyRound, Cpu } from 'lucide-react';
+import { Shield, Smartphone, Monitor, Volume2, VolumeX, Flame, Lock, HelpCircle, KeyRound, LogOut } from 'lucide-react';
 import { sounds } from '../../services/AudioEffects';
 import { ComparisonModal } from './ComparisonModal';
 import { AdminAuthModal } from '../terminal/AdminAuthModal';
@@ -29,7 +29,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [showComparison, setShowComparison] = useState(false);
   const [showRAMProof, setShowRAMProof] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const toast = useToast();
 
   const toggleAudio = () => {
@@ -44,159 +43,142 @@ export const Header: React.FC<HeaderProps> = ({
       return;
     }
     onModeChange(mode);
-    setMobileMenuOpen(false);
   };
 
   const handleAuthSuccess = () => {
     setShowAuthModal(false);
     onAdminLogin();
     onModeChange('TERMINAL');
-    setMobileMenuOpen(false);
   };
 
   const handleLogout = () => {
     onAdminLogout();
     onModeChange('CUSTOMER');
-    toast.info('Terminal Locked', 'Shop Owner logged out.');
+    toast.info('Terminal Locked', 'Shopkeeper logged out.');
+  };
+
+  const handleEmergencyPurge = () => {
+    sounds.playShred();
+    sessionStorage.clear();
+    toast.shield('Emergency Purge Executed', 'All volatile RAM buffers zeroized.');
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 400);
   };
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full bg-[#008069] text-white px-4 sm:px-6 py-2 shadow-sm transition-all duration-300 no-print border-b border-[#006e5a]">
-        <div className="max-w-[1720px] mx-auto flex items-center justify-between gap-3">
-          {/* Left: Brand Logo & Title */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/20 border border-white/30 shadow-xs shrink-0">
-              <ShieldCheck className="w-5 h-5 text-white" />
+      <header className="bg-[#075E54] text-white flex justify-between items-center h-[60px] px-4 sm:px-6 w-full z-50 sticky top-0 border-b border-[#bec9c5]/30 shadow-md no-print">
+        {/* Left: Brand Logo & Title */}
+        <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleSelectMode('CUSTOMER')}>
+            <div className="w-8 h-8 rounded-lg bg-white/20 border border-white/30 flex items-center justify-center text-white">
+              <Shield className="w-5 h-5 fill-current" />
             </div>
-            <div className="text-left flex items-center gap-2">
-              <span className="font-extrabold text-base tracking-tight text-white">
-                SafePrint
-              </span>
-              <button
-                onClick={() => setShowRAMProof(true)}
-                className="text-[11px] text-white/90 hover:text-white bg-white/15 px-2 py-0.5 rounded-md hidden sm:flex items-center gap-1 font-mono cursor-pointer transition-colors"
-                title="Click to view Live RAM & Zero-Disk Technical Proof"
-              >
-                <Lock className="w-3 h-3 text-[#25d366]" />
-                <span>Zero-Disk RAM</span>
-                <span className="text-[10px] font-bold text-emerald-200 underline">Proof</span>
-              </button>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold tracking-tight text-white leading-none">CipherPrint</span>
+              <span className="text-[9px] uppercase tracking-widest text-[#8cd4c7] font-mono mt-0.5">Zero-Trace Ephemeral</span>
             </div>
           </div>
 
-          {/* Center: Mode Segmented Switcher */}
-          <nav className="flex items-center bg-black/20 p-0.5 rounded-xl border border-white/15">
+          {/* Mode Switcher Pills */}
+          <nav className="flex items-center bg-black/25 p-1 rounded-xl border border-white/10">
             <button
               onClick={() => handleSelectMode('CUSTOMER')}
-              className={`flex items-center gap-1.5 px-3.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 currentMode === 'CUSTOMER'
-                  ? 'bg-white text-[#008069] shadow-xs'
-                  : 'text-white/90 hover:text-white hover:bg-white/10'
+                  ? 'bg-white text-[#075e54] shadow-sm'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
               }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
-              <span>Customer Mobile</span>
+              <span>Customer</span>
             </button>
 
             <button
               onClick={() => handleSelectMode('TERMINAL')}
-              className={`flex items-center gap-1.5 px-3.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                currentMode === 'TERMINAL'
-                  ? 'bg-white text-[#008069] shadow-xs'
-                  : 'text-white/90 hover:text-white hover:bg-white/10'
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                currentMode === 'TERMINAL' && isAdminAuthenticated
+                  ? 'bg-white text-[#075e54] shadow-sm'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
               }`}
             >
-              {isAdminAuthenticated ? <Monitor className="w-3.5 h-3.5" /> : <KeyRound className="w-3.5 h-3.5 text-amber-300" />}
-              <span>Shop Terminal</span>
+              <Monitor className="w-3.5 h-3.5" />
+              <span>Terminal</span>
+              {!isAdminAuthenticated && <KeyRound className="w-3 h-3 text-amber-300 ml-0.5" />}
             </button>
           </nav>
-
-          {/* Right: Actions */}
-          <div className="flex items-center gap-2">
-            {currentMode === 'TERMINAL' && isAdminAuthenticated && (
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/20 hover:bg-red-500/40 text-white text-xs font-semibold transition-all border border-white/15 cursor-pointer"
-                title="Lock Terminal"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Lock</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => setShowComparison(true)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 text-white text-xs font-semibold transition-all cursor-pointer"
-              title="Why SafePrint is safer than WhatsApp"
-            >
-              <HelpCircle className="w-3.5 h-3.5 text-white" />
-              <span className="hidden md:inline">Why SafePrint?</span>
-            </button>
-
-            <button
-              onClick={toggleAudio}
-              title={audioEnabled ? 'Mute Sound FX' : 'Enable Sound FX'}
-              className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-colors border border-white/20 cursor-pointer"
-            >
-              {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 opacity-60" />}
-            </button>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-1.5 rounded-lg bg-white/15 text-white border border-white/20"
-            >
-              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-            </button>
-          </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden pt-3 pb-1 space-y-2 border-t border-white/20 mt-2.5">
-            <div className="grid grid-cols-2 gap-2 bg-black/20 p-1.5 rounded-xl">
-              <button
-                onClick={() => handleSelectMode('CUSTOMER')}
-                className={`py-2 px-2 rounded-lg text-xs font-bold text-center flex flex-col items-center gap-1 ${
-                  currentMode === 'CUSTOMER' ? 'bg-white text-[#008069] shadow-sm' : 'text-white'
-                }`}
-              >
-                <Smartphone className="w-4 h-4" />
-                <span>Customer Chat</span>
-              </button>
+        {/* Right: Actions & Emergency Purge */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* RAM Proof Trigger */}
+          <button
+            onClick={() => setShowRAMProof(true)}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-mono text-emerald-200 transition-colors cursor-pointer"
+          >
+            <Lock className="w-3.5 h-3.5 text-[#25d366]" />
+            <span>28 MB RAM • 0 Disk</span>
+          </button>
 
-              <button
-                onClick={() => handleSelectMode('TERMINAL')}
-                className={`py-2 px-2 rounded-lg text-xs font-bold text-center flex flex-col items-center gap-1 ${
-                  currentMode === 'TERMINAL' ? 'bg-white text-[#008069] shadow-sm' : 'text-white'
-                }`}
-              >
-                {isAdminAuthenticated ? <Monitor className="w-4 h-4" /> : <KeyRound className="w-4 h-4 text-amber-300" />}
-                <span>Shop Admin</span>
-              </button>
-            </div>
-          </div>
-        )}
+          {/* Emergency Purge Button */}
+          <button
+            onClick={handleEmergencyPurge}
+            className="bg-[#EF4444] hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-transform active:scale-95 cursor-pointer"
+            title="Immediately zeroize all document memory in RAM"
+          >
+            <Flame className="w-3.5 h-3.5 fill-current" />
+            <span className="hidden sm:inline">Emergency Purge</span>
+          </button>
+
+          {/* Audio Mute Toggle */}
+          <button
+            onClick={toggleAudio}
+            className="p-1.5 rounded-lg hover:bg-white/10 text-white transition-colors cursor-pointer"
+            title={audioEnabled ? 'Mute Sound FX' : 'Enable Sound FX'}
+          >
+            {audioEnabled ? <Volume2 className="w-4 h-4 text-emerald-200" /> : <VolumeX className="w-4 h-4 text-white/50" />}
+          </button>
+
+          {/* Comparison Modal */}
+          <button
+            onClick={() => setShowComparison(true)}
+            className="p-1.5 rounded-lg hover:bg-white/10 text-white transition-colors cursor-pointer hidden sm:block"
+            title="SafePrint vs Traditional WhatsApp"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+
+          {/* Terminal Logout */}
+          {currentMode === 'TERMINAL' && isAdminAuthenticated && (
+            <button
+              onClick={handleLogout}
+              className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-200 transition-colors cursor-pointer ml-1"
+              title="Lock Terminal & Logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </header>
 
-      {/* Admin Auth Modal */}
-      <AdminAuthModal
-        isOpen={showAuthModal}
-        onAuthenticated={handleAuthSuccess}
-        onClose={() => setShowAuthModal(false)}
-      />
-
-      {/* Comparison Modal */}
-      <ComparisonModal isOpen={showComparison} onClose={() => setShowComparison(false)} />
-
-      {/* Live RAM & Zero-Disk Verifier Modal */}
-      <RAMProofModal
-        isOpen={showRAMProof}
-        onClose={() => setShowRAMProof(false)}
-        shopId="XEROX-STATION"
-        sessionId="RAM-E2EE-ACTIVE"
-      />
+      {/* Comparison & Auth Modals */}
+      {showComparison && <ComparisonModal isOpen={showComparison} onClose={() => setShowComparison(false)} />}
+      {showRAMProof && (
+        <RAMProofModal
+          isOpen={showRAMProof}
+          onClose={() => setShowRAMProof(false)}
+          shopId="XEROX-CENTRAL-01"
+          sessionId="CIPHER-PRINT-RAM-NODE"
+        />
+      )}
+      {showAuthModal && (
+        <AdminAuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onAuthenticated={handleAuthSuccess}
+        />
+      )}
     </>
   );
 };
