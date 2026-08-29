@@ -646,25 +646,25 @@ export const TerminalDashboard: React.FC = () => {
             mobileTab === 'WORKSPACE' && selectedCustomerId ? 'hidden lg:flex' : 'flex'
           }`}
         >
-          {/* Top WhatsApp Web Header */}
-          <div className="bg-[#f0f2f5] px-4 py-3 flex items-center justify-between border-b border-[#d1d7db] shrink-0 h-[64px]">
+          {/* Top Terminal Header */}
+          <div className="bg-[#075E54] px-4 py-3 flex items-center justify-between border-b border-[#bec9c5]/30 shrink-0 h-[64px]">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-full bg-[#008069] text-white flex items-center justify-center font-bold text-base shadow-sm shrink-0">
+              <div className="w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white flex items-center justify-center font-bold text-base shadow-sm shrink-0">
                 <Printer className="w-5 h-5" />
               </div>
               <div className="text-left leading-tight min-w-0">
-                <div className="text-[15px] font-bold text-[#111b21] truncate">{shopName}</div>
-                <div className="text-[12px] text-[#008069] font-semibold flex items-center gap-1.5 mt-0.5">
-                  <span className="w-2 h-2 rounded-full bg-[#25d366] inline-block shrink-0" />
-                  <span className="truncate">{shopId}</span>
+                <div className="text-[15px] font-bold text-white truncate">QuickXerox Terminal #01</div>
+                <div className="text-[12px] text-white/80 font-medium flex items-center gap-1.5 mt-0.5">
+                  <span className="w-2 h-2 rounded-full bg-[#25D366] inline-block shrink-0 animate-pulse" />
+                  <span className="truncate">Connected • 28 MB RAM • 0 Disk</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 text-[#54656f] shrink-0">
+            <div className="flex items-center gap-1 text-white/80 shrink-0">
               <button
                 onClick={() => setShowQRModal(true)}
-                className="p-2 rounded-full hover:bg-black/5 text-[#54656f] hover:text-[#111b21] transition-colors cursor-pointer"
+                className="p-2 rounded-full hover:bg-white/15 text-white/80 hover:text-white transition-colors cursor-pointer"
                 title="Show Fullscreen Counter QR"
               >
                 <QrCode className="w-5 h-5" />
@@ -672,7 +672,7 @@ export const TerminalDashboard: React.FC = () => {
 
               <button
                 onClick={initTerminal}
-                className="p-2 rounded-full hover:bg-black/5 text-[#54656f] hover:text-[#111b21] transition-colors cursor-pointer"
+                className="p-2 rounded-full hover:bg-white/15 text-white/80 hover:text-white transition-colors cursor-pointer"
                 title="Refresh Session Keys"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -680,31 +680,31 @@ export const TerminalDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* 📲 WhatsApp "Get Connected" Big Counter QR Card 📲 */}
-          <div className="bg-[#f8fafc] p-3.5 border-b border-[#d1d7db] flex flex-col items-center text-center shrink-0 space-y-2.5 shadow-xs">
+          {/* 📲 Secure Transfer QR Card 📲 */}
+          <div className="bg-[#fef9f0] p-3.5 border-b border-[#bec9c5]/30 flex flex-col items-center text-center shrink-0 space-y-2.5">
             <div className="w-full flex items-center justify-between px-1">
-              <span className="text-[13px] font-bold text-[#111b21] flex items-center gap-1.5">
-                <QrCode className="w-4 h-4 text-[#008069]" />
-                <span>Scan to Send Files</span>
+              <span className="text-[13px] font-bold text-[#00453d] flex items-center gap-1.5">
+                <QrCode className="w-4 h-4 text-[#00453d]" />
+                <span>Secure Transfer</span>
               </span>
-              <span className="text-[10px] font-bold text-[#008069] bg-[#d9fdd3] px-2 py-0.5 rounded-full border border-[#00a884]/30 uppercase">
+              <span className="text-[10px] font-bold text-[#006d2f] bg-[#D9FDD3] px-2 py-0.5 rounded-full border border-[#3de273]/30 uppercase">
                 Encrypted RAM
               </span>
             </div>
 
-            {/* Big High-Contrast QR Code */}
+            {/* Counter QR Code */}
             <div
               onClick={() => setShowQRModal(true)}
-              className="p-2.5 bg-white rounded-2xl border-2 border-[#00a884] shadow-md cursor-pointer hover:scale-102 transition-transform relative group"
+              className="p-2.5 bg-white rounded-2xl border-2 border-[#00453d]/20 shadow-md cursor-pointer hover:scale-[1.02] transition-transform relative group"
               title="Click to view Fullscreen QR"
             >
               <QRCodeSVG
                 value={customerUrl}
-                size={142}
+                size={140}
                 level="H"
                 includeMargin={false}
                 imageSettings={{
-                  src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23008069' stroke='%23ffffff' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>",
+                  src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300453d' stroke='%23ffffff' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>",
                   x: undefined,
                   y: undefined,
                   height: 32,
@@ -717,39 +717,39 @@ export const TerminalDashboard: React.FC = () => {
               </div>
             </div>
 
-            <p className="text-[11.5px] text-[#54656f] font-medium leading-tight">
-              Point phone camera to beam files into RAM
+            <p className="text-[11.5px] text-[#6f7976] font-medium leading-tight">
+              Scan to send encrypted files
             </p>
 
             <div className="flex gap-2 w-full">
               <button
                 onClick={handleCopyLink}
-                className="flex-1 py-1.5 px-2 rounded-xl bg-white hover:bg-[#f0f2f5] text-[#111b21] text-[11.5px] font-bold flex items-center justify-center gap-1 border border-[#d1d7db] shadow-xs cursor-pointer transition-colors"
+                className="flex-1 py-1.5 px-2 rounded-xl bg-white hover:bg-[#f2ede5] text-[#00453d] text-[11.5px] font-bold flex items-center justify-center gap-1 border border-[#bec9c5]/50 shadow-xs cursor-pointer transition-colors"
               >
-                {copiedQR ? <Check className="w-3.5 h-3.5 text-[#00a884]" /> : <Copy className="w-3.5 h-3.5 text-[#54656f]" />}
+                {copiedQR ? <Check className="w-3.5 h-3.5 text-[#006d2f]" /> : <Copy className="w-3.5 h-3.5 text-[#6f7976]" />}
                 <span>{copiedQR ? 'Copied' : 'Copy Link'}</span>
               </button>
 
               <button
                 onClick={() => window.open(customerUrl, '_blank')}
-                className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-[11.5px] font-bold flex items-center justify-center gap-1 shadow-xs cursor-pointer transition-colors"
+                className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#00453d] hover:bg-[#075e54] text-white text-[11.5px] font-bold flex items-center justify-center gap-1 shadow-xs cursor-pointer transition-colors"
               >
                 <Smartphone className="w-3.5 h-3.5" />
-                <span>Test Mobile</span>
+                <span>Standee</span>
               </button>
             </div>
           </div>
 
           {/* Search & Filter Bar */}
-          <div className="bg-white p-3 border-b border-[#e9edef] space-y-2.5 shrink-0">
-            <div className="bg-[#f0f2f5] rounded-xl h-10 flex items-center px-3.5 gap-2.5 border border-[#e9edef]">
-              <Search className="w-4 h-4 text-[#54656f] shrink-0" />
+          <div className="bg-[#fef9f0] p-3 border-b border-[#bec9c5]/30 space-y-2.5 shrink-0">
+            <div className="bg-white rounded-xl h-10 flex items-center px-3.5 gap-2.5 border border-[#bec9c5]/40">
+              <Search className="w-4 h-4 text-[#6f7976] shrink-0" />
               <input
                 type="text"
                 placeholder="Search customer or document..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-[13.5px] bg-transparent border-none focus:outline-none text-[#111b21] placeholder-[#667781]"
+                className="w-full text-[13.5px] bg-transparent border-none focus:outline-none text-[#1d1c17] placeholder-[#6f7976]"
               />
             </div>
 
@@ -904,8 +904,8 @@ export const TerminalDashboard: React.FC = () => {
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold text-[#111b21]">SafePrint for Xerox & Print Shops</h3>
-                  <p className="text-[13.5px] text-[#667781] mt-1.5 leading-relaxed">
+                  <h3 className="text-xl font-bold text-[#00453d]">CipherPrint for Xerox & Print Shops</h3>
+                  <p className="text-[13.5px] text-[#6f7976] mt-1.5 leading-relaxed">
                     Zero-disk ephemeral transmission. Print documents directly from RAM without saving customer files to your desktop or downloads.
                   </p>
                 </div>
