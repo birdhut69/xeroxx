@@ -7,6 +7,15 @@ class SoundEngine {
   private ctx: AudioContext | null = null;
   public enabled: boolean = true;
 
+  public isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  public toggle(): boolean {
+    this.enabled = !this.enabled;
+    return this.enabled;
+  }
+
   private initCtx() {
     if (!this.ctx && typeof window !== 'undefined') {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;

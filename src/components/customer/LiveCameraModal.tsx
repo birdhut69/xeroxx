@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, RefreshCw, X, Check, Zap, ZapOff, Image as ImageIcon, AlertCircle, ShieldAlert, Sparkles, Eye } from 'lucide-react';
 import { sounds } from '../../services/AudioEffects';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface LiveCameraModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
   onClose,
   onCapture,
 }) => {
+  const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileFallbackInputRef = useRef<HTMLInputElement | null>(null);
@@ -211,10 +213,10 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
             <Camera className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Document Camera</h3>
+            <h3 className="text-sm font-bold text-white">{t('docCameraTitle')}</h3>
             <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-[#25D366] animate-pulse" />
-              In-Memory Optical Scanner
+              {t('opticalScannerSubtitle')}
             </span>
           </div>
         </div>
@@ -227,7 +229,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
               className={`p-2 rounded-full border transition-colors cursor-pointer ${
                 torchOn ? 'bg-amber-400/20 border-amber-400 text-amber-300' : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
               }`}
-              title="Toggle Flashlight"
+              title={t('toggleFlash')}
             >
               {torchOn ? <Zap className="w-4 h-4 fill-current" /> : <ZapOff className="w-4 h-4" />}
             </button>
@@ -237,7 +239,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
             type="button"
             onClick={onClose}
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-colors cursor-pointer"
-            title="Close Camera"
+            title={t('close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -295,7 +297,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
             {cameraLoading && (
               <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/80 text-white text-xs font-mono">
                 <div className="w-8 h-8 rounded-full border-2 border-[#25D366] border-t-transparent animate-spin" />
-                <span>Starting Camera...</span>
+                <span>{t('startingCamera')}</span>
               </div>
             )}
 
@@ -316,7 +318,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
 
               <div className="text-center">
                 <span className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-semibold text-white/90 border border-white/20">
-                  Align document inside frame
+                  {t('alignDocFrame')}
                 </span>
               </div>
 
@@ -340,7 +342,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
               className="flex-1 py-3 px-4 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-white/20"
             >
               <RefreshCw className="w-4 h-4" />
-              <span>Retake</span>
+              <span>{t('retake')}</span>
             </button>
 
             <button
@@ -350,7 +352,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
               title="Open in Redaction Studio to mask sensitive details"
             >
               <Eye className="w-4 h-4" />
-              <span>Mask ID</span>
+              <span>{t('maskIdPhoto')}</span>
             </button>
 
             <button
@@ -359,7 +361,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
               className="flex-1 py-3 px-4 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold text-xs flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-lg"
             >
               <Check className="w-4 h-4" />
-              <span>Use Photo</span>
+              <span>{t('usePhoto')}</span>
             </button>
           </div>
         ) : (
@@ -370,7 +372,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
               type="button"
               onClick={() => fileFallbackInputRef.current?.click()}
               className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
-              title="Pick from Gallery"
+              title={t('gallery')}
             >
               <ImageIcon className="w-5 h-5" />
             </button>
@@ -394,7 +396,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
               onClick={toggleCameraFacing}
               disabled={cameraLoading || !!cameraError}
               className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-colors cursor-pointer disabled:opacity-40"
-              title="Flip Camera"
+              title={t('flipCameraTip')}
             >
               <RefreshCw className="w-5 h-5" />
             </button>

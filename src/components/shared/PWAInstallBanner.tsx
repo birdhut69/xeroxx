@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Download, X, Smartphone, Check } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const PWAInstallBanner: React.FC = () => {
+  const { t } = useLanguage();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -53,8 +55,8 @@ export const PWAInstallBanner: React.FC = () => {
           <Smartphone className="w-5 h-5" />
         </div>
         <div className="text-left min-w-0">
-          <div className="text-xs font-bold text-[#111b21] truncate">Install CipherPrint App</div>
-          <div className="text-[11px] text-[#006d2f] font-medium truncate">Enables 1-tap WhatsApp Direct Share</div>
+          <div className="text-xs font-bold text-[#111b21] truncate">{t('installPwaTitle')}</div>
+          <div className="text-[11px] text-[#006d2f] font-medium truncate">{t('installPwaDesc')}</div>
         </div>
       </div>
 
@@ -64,7 +66,7 @@ export const PWAInstallBanner: React.FC = () => {
           className="px-3 py-1.5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer transition-transform active:scale-95"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>Install</span>
+          <span>{t('installBtn')}</span>
         </button>
 
         <button

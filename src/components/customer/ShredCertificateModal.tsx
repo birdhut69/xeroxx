@@ -4,6 +4,7 @@ import { Shield, Check, Copy, Download, RefreshCw, X, Flame, ArrowDown, FileText
 import type { DestructionCertificate } from '../../crypto/ledger';
 import { sounds } from '../../services/AudioEffects';
 import { useToast } from '../shared/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ShredCertificateModalProps {
   certificate: DestructionCertificate;
@@ -16,6 +17,7 @@ export const ShredCertificateModal: React.FC<ShredCertificateModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const toast = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     sounds.playSuccess();
@@ -134,9 +136,9 @@ export const ShredCertificateModal: React.FC<ShredCertificateModalProps> = ({
             <CheckCircle className="w-8 h-8 text-white absolute fill-emerald-500" />
           </div>
           <h1 className="text-base font-extrabold text-[#00453d] uppercase tracking-wide">
-            Certificate of RAM Zeroization
+            {t('certTitle')}
           </h1>
-          <p className="text-xs text-[#3f4946] mt-0.5">Verifiable Zero-Disk Merkle Audit Proof</p>
+          <p className="text-xs text-[#3f4946] mt-0.5">{t('certSubtitle')}</p>
         </div>
 
         {/* Details Grid Box */}
@@ -170,7 +172,7 @@ export const ShredCertificateModal: React.FC<ShredCertificateModalProps> = ({
         {/* Cryptographic Chain of Custody */}
         <div className="px-2">
           <h3 className="text-[11px] font-bold text-[#6f7976] uppercase tracking-widest text-center mb-2.5">
-            Cryptographic Chain of Custody
+            {t('chainOfCustody')}
           </h3>
           <div className="flex flex-col gap-2 text-xs">
             <div className="flex items-center gap-3">
@@ -178,7 +180,7 @@ export const ShredCertificateModal: React.FC<ShredCertificateModalProps> = ({
                 1
               </div>
               <div>
-                <div className="font-bold text-[#1d1c17]">Genesis Block Verified</div>
+                <div className="font-bold text-[#1d1c17]">{t('genesisBlock')}</div>
                 <div className="text-[10px] text-[#6f7976]">Parent root: 0x0000000000000000</div>
               </div>
             </div>
@@ -188,7 +190,7 @@ export const ShredCertificateModal: React.FC<ShredCertificateModalProps> = ({
                 2
               </div>
               <div>
-                <div className="font-bold text-[#1d1c17]">RAM Ingest Verified</div>
+                <div className="font-bold text-[#1d1c17]">{t('ramIngestBlock')}</div>
                 <div className="text-[10px] text-[#6f7976]">AES-256-GCM Volatile Memory Only</div>
               </div>
             </div>
@@ -198,7 +200,7 @@ export const ShredCertificateModal: React.FC<ShredCertificateModalProps> = ({
                 3
               </div>
               <div>
-                <div className="font-bold text-[#1d1c17]">Hardware Spool Executed</div>
+                <div className="font-bold text-[#1d1c17]">{t('hardwareSpoolBlock')}</div>
                 <div className="text-[10px] text-[#6f7976]">{certificate.pagesPrinted} page(s) spooled</div>
               </div>
             </div>
@@ -208,7 +210,7 @@ export const ShredCertificateModal: React.FC<ShredCertificateModalProps> = ({
                 4
               </div>
               <div>
-                <div className="font-bold text-[#006d2f]">Cryptographically Purged</div>
+                <div className="font-bold text-[#006d2f]">{t('ramZeroizedBlock')}</div>
                 <div className="text-[10px] text-[#006d2f]">Zero Bytes Persisted</div>
               </div>
             </div>
@@ -234,7 +236,7 @@ export const ShredCertificateModal: React.FC<ShredCertificateModalProps> = ({
             className="w-full bg-[#f2ede5] border border-[#bec9c5] text-[#00453d] text-xs font-bold rounded-full py-2.5 px-4 flex items-center justify-center gap-1.5 hover:bg-[#e7e2da] transition-colors cursor-pointer"
           >
             <Download className="w-4 h-4" />
-            <span>Save Digital Receipt (PNG)</span>
+            <span>{t('downloadCertBtn')}</span>
           </button>
 
           <button
@@ -242,7 +244,7 @@ export const ShredCertificateModal: React.FC<ShredCertificateModalProps> = ({
             className="w-full bg-[#00453d] hover:bg-[#075e54] text-white text-xs font-bold rounded-full py-2.5 px-4 flex items-center justify-center gap-1.5 shadow-md transition-transform active:scale-98 cursor-pointer"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>End Session & Start New</span>
+            <span>{t('newPrintSession')}</span>
           </button>
         </div>
       </div>

@@ -43,6 +43,7 @@ import { useToast } from '../shared/ToastContext';
 import { DRMCanvasViewer } from './DRMCanvasViewer';
 import { VoiceNotePlayer } from '../shared/VoiceNotePlayer';
 import { QRCodeSVG } from 'qrcode.react';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface QueuedDocument {
   id: string;
@@ -82,6 +83,7 @@ type FilterMode = 'NORMAL' | 'BW' | 'GRAYSCALE' | 'HIGH_CONTRAST';
 
 export const TerminalDashboard: React.FC = () => {
   const toast = useToast();
+  const { t } = useLanguage();
 
   // Stable Session & Cryptography State
   const [sessionId, setSessionId] = useState('');
@@ -683,12 +685,11 @@ export const TerminalDashboard: React.FC = () => {
           {/* 📲 Secure Transfer QR Card 📲 */}
           <div className="bg-[#fef9f0] p-3.5 border-b border-[#bec9c5]/30 flex flex-col items-center text-center shrink-0 space-y-2.5">
             <div className="w-full flex items-center justify-between px-1">
-              <span className="text-[13px] font-bold text-[#00453d] flex items-center gap-1.5">
-                <QrCode className="w-4 h-4 text-[#00453d]" />
-                <span>Secure Transfer</span>
+              <span className="text-xs font-bold text-[#00453d] uppercase tracking-wider">
+                {t('secureTransferCardTitle')}
               </span>
               <span className="text-[10px] font-bold text-[#006d2f] bg-[#D9FDD3] px-2 py-0.5 rounded-full border border-[#3de273]/30 uppercase">
-                Encrypted RAM
+                {t('encryptedRamBadge')}
               </span>
             </div>
 
@@ -718,7 +719,7 @@ export const TerminalDashboard: React.FC = () => {
             </div>
 
             <p className="text-[11.5px] text-[#6f7976] font-medium leading-tight">
-              Scan to send encrypted files
+              {t('pointPhoneTip')}
             </p>
 
             <div className="flex gap-2 w-full">
@@ -727,7 +728,7 @@ export const TerminalDashboard: React.FC = () => {
                 className="flex-1 py-1.5 px-2 rounded-xl bg-white hover:bg-[#f2ede5] text-[#00453d] text-[11.5px] font-bold flex items-center justify-center gap-1 border border-[#bec9c5]/50 shadow-xs cursor-pointer transition-colors"
               >
                 {copiedQR ? <Check className="w-3.5 h-3.5 text-[#006d2f]" /> : <Copy className="w-3.5 h-3.5 text-[#6f7976]" />}
-                <span>{copiedQR ? 'Copied' : 'Copy Link'}</span>
+                <span>{copiedQR ? t('copied') : t('copyLink')}</span>
               </button>
 
               <button
@@ -735,7 +736,7 @@ export const TerminalDashboard: React.FC = () => {
                 className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#00453d] hover:bg-[#075e54] text-white text-[11.5px] font-bold flex items-center justify-center gap-1 shadow-xs cursor-pointer transition-colors"
               >
                 <Smartphone className="w-3.5 h-3.5" />
-                <span>Standee</span>
+                <span>{t('standeeBtn')}</span>
               </button>
             </div>
           </div>
@@ -746,7 +747,7 @@ export const TerminalDashboard: React.FC = () => {
               <Search className="w-4 h-4 text-[#6f7976] shrink-0" />
               <input
                 type="text"
-                placeholder="Search customer or document..."
+                placeholder={t('searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full text-[13.5px] bg-transparent border-none focus:outline-none text-[#1d1c17] placeholder-[#6f7976]"
@@ -794,9 +795,9 @@ export const TerminalDashboard: React.FC = () => {
                 <div className="w-14 h-14 rounded-full bg-[#f0f2f5] flex items-center justify-center mx-auto text-[#008069]">
                   <Users className="w-7 h-7" />
                 </div>
-                <div className="text-[16px] font-bold text-[#111b21]">No Customers in Queue</div>
+                <div className="text-[16px] font-bold text-[#111b21]">{t('noCustomersActive')}</div>
                 <p className="text-[13px] text-[#667781] leading-relaxed max-w-xs mx-auto">
-                  Customers scan your counter QR code above to beam documents directly into printer RAM.
+                  {t('welcomeTerminalDesc')}
                 </p>
               </div>
             ) : (
@@ -904,9 +905,9 @@ export const TerminalDashboard: React.FC = () => {
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold text-[#00453d]">CipherPrint for Xerox & Print Shops</h3>
+                  <h3 className="text-xl font-bold text-[#00453d]">{t('welcomeTerminalTitle')}</h3>
                   <p className="text-[13.5px] text-[#6f7976] mt-1.5 leading-relaxed">
-                    Zero-disk ephemeral transmission. Print documents directly from RAM without saving customer files to your desktop or downloads.
+                    {t('welcomeTerminalDesc')}
                   </p>
                 </div>
 
@@ -934,7 +935,7 @@ export const TerminalDashboard: React.FC = () => {
                     className="py-2.5 px-4 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] text-[#111b21] text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-colors border border-[#d1d7db] cursor-pointer"
                   >
                     {copiedQR ? <Check className="w-4 h-4 text-[#00a884]" /> : <Copy className="w-4 h-4 text-[#54656f]" />}
-                    <span>{copiedQR ? 'Link Copied!' : 'Copy Pairing Link'}</span>
+                    <span>{copiedQR ? t('copied') : t('copyLink')}</span>
                   </button>
 
                   <button
@@ -1224,7 +1225,7 @@ export const TerminalDashboard: React.FC = () => {
                   className="px-4 py-2 rounded-xl bg-[#25d366] hover:bg-[#20ba5a] text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md cursor-pointer"
                 >
                   <Printer className="w-4 h-4" />
-                  <span>{isPrinting ? 'Printing...' : 'Print Document'}</span>
+                  <span>{isPrinting ? 'Printing...' : t('printDocBtn')}</span>
                 </button>
 
                 <button
@@ -1247,7 +1248,7 @@ export const TerminalDashboard: React.FC = () => {
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <span className="text-xs font-mono font-bold text-[#111b21]">
-                  Page {currentPage} / {totalPages}
+                  {t('pageCounter')} {currentPage} / {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
@@ -1272,25 +1273,25 @@ export const TerminalDashboard: React.FC = () => {
                     onClick={() => setFilterMode('NORMAL')}
                     className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${filterMode === 'NORMAL' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f] hover:text-[#111b21]'}`}
                   >
-                    Color
+                    {t('filterColor')}
                   </button>
                   <button
                     onClick={() => setFilterMode('GRAYSCALE')}
                     className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${filterMode === 'GRAYSCALE' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f] hover:text-[#111b21]'}`}
                   >
-                    Grayscale
+                    {t('filterGrayscale')}
                   </button>
                   <button
                     onClick={() => setFilterMode('BW')}
                     className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${filterMode === 'BW' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f] hover:text-[#111b21]'}`}
                   >
-                    Photocopy B&W
+                    {t('filterPhotocopy')}
                   </button>
                 </div>
 
                 {/* Copies Selector */}
                 <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-[#d1d7db] text-xs">
-                  <span className="text-[#54656f] font-medium">Copies:</span>
+                  <span className="text-[#54656f] font-medium">{t('copiesLabel')}</span>
                   <select
                     value={copies}
                     onChange={(e) => setCopies(parseInt(e.target.value, 10))}
@@ -1321,7 +1322,7 @@ export const TerminalDashboard: React.FC = () => {
                   className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold border border-red-200 flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete from RAM</span>
+                  <span>{t('deleteFromRamBtn')}</span>
                 </button>
               </div>
             </div>

@@ -44,6 +44,7 @@ import { VoiceNotePlayer } from '../shared/VoiceNotePlayer';
 import { LiveCameraModal } from './LiveCameraModal';
 import { DestructionCertificate } from '../../crypto/ledger';
 import { getSharedFiles, clearSharedFiles } from '../../services/shareTarget';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface StagedFile {
   id: string;
@@ -80,6 +81,7 @@ interface ChatMessage {
 
 export const CustomerPortal: React.FC = () => {
   const toast = useToast();
+  const { t } = useLanguage();
 
   // Session & Pairing
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -157,7 +159,7 @@ export const CustomerPortal: React.FC = () => {
           if (newStaged.length > 0) {
             setStagedFiles((prev) => [...prev, ...newStaged]);
             sounds.playSuccess();
-            toast.shield('Shared Document Received', `${newStaged.length} file(s) received from WhatsApp staged in RAM.`);
+            toast.shield(t('sharedDocReadyTitle'), `${newStaged.length} file(s) received from WhatsApp staged in RAM.`);
             await clearSharedFiles();
           }
         }
@@ -173,7 +175,7 @@ export const CustomerPortal: React.FC = () => {
     return () => {
       window.removeEventListener('focus', checkIncomingSharedFiles);
     };
-  }, [watermarkText, maxCopies, toast]);
+  }, [watermarkText, maxCopies, toast, t]);
 
   // Parse URL parameters on load
   useEffect(() => {
@@ -262,7 +264,7 @@ export const CustomerPortal: React.FC = () => {
             destructionCert: data.certificate,
           }))
         );
-        toast.shield('Document Shredded', 'Shopkeeper RAM zeroized. Proof generated.');
+        toast.shield(t('statusShredded'), 'Shopkeeper RAM zeroized. Proof generated.');
       },
     });
   };
@@ -569,8 +571,8 @@ export const CustomerPortal: React.FC = () => {
                     <Sparkles className="w-4 h-4 text-[#25D366]" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-[#00453d] uppercase tracking-wider">Document Ready to Print</div>
-                    <div className="text-[11px] text-[#006d2f] font-medium">Shared directly from WhatsApp / Storage</div>
+                    <div className="text-xs font-bold text-[#00453d] uppercase tracking-wider">{t('sharedDocReadyTitle')}</div>
+                    <div className="text-[11px] text-[#006d2f] font-medium">{t('sharedDocReadySubtitle')}</div>
                   </div>
                 </div>
                 <button
@@ -578,7 +580,7 @@ export const CustomerPortal: React.FC = () => {
                   onClick={() => setStagedFiles([])}
                   className="text-xs text-red-600 hover:underline font-semibold cursor-pointer"
                 >
-                  Clear
+                  {t('clear')}
                 </button>
               </div>
 
@@ -596,7 +598,7 @@ export const CustomerPortal: React.FC = () => {
 
               <div className="mt-3 text-center bg-white/80 py-2 px-3 rounded-xl border border-[#00a884]/30 text-xs font-bold text-[#00453d] flex items-center justify-center gap-1.5 shadow-xs">
                 <QrCode className="w-4 h-4 text-[#006d2f] animate-pulse" />
-                <span>Point camera at the Xerox Standee QR below to print now</span>
+                <span>{t('scanStandeeToPrintNow')}</span>
               </div>
             </div>
           )}
@@ -608,10 +610,10 @@ export const CustomerPortal: React.FC = () => {
           <div className="w-full max-w-[480px] bg-white rounded-2xl p-3.5 border border-[#bec9c5]/40 shadow-xs text-left mt-2 space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold text-[#00453d]">
               <Share2 className="w-4 h-4 text-[#006d2f]" />
-              <span>Direct Share from WhatsApp</span>
+              <span>{t('directWhatsAppShareTitle')}</span>
             </div>
             <p className="text-[11.5px] text-[#54656f] leading-relaxed">
-              Inside WhatsApp, tap any PDF or photo ➔ tap <strong>Share (📤)</strong> ➔ select <strong>CipherPrint</strong> to load documents instantly without saving to phone!
+              {t('directWhatsAppShareDesc')}
             </p>
           </div>
         </div>
@@ -624,7 +626,7 @@ export const CustomerPortal: React.FC = () => {
               <button
                 onClick={handleReset}
                 className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
-                title="Disconnect from Counter"
+                title={t('disconnectTitle')}
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
@@ -643,7 +645,7 @@ export const CustomerPortal: React.FC = () => {
                 </div>
                 <div className="text-[11.5px] text-emerald-200 flex items-center gap-1.5 font-medium mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#25D366] animate-pulse shrink-0" />
-                  <span className="truncate">Online • Printer RAM Handshake</span>
+                  <span className="truncate">{t('online')} • {t('inRamSession')}</span>
                 </div>
               </div>
             </div>
@@ -655,7 +657,7 @@ export const CustomerPortal: React.FC = () => {
                 className={`p-2 rounded-full transition-colors cursor-pointer relative ${
                   showSettings ? 'bg-white/30 text-white' : 'hover:bg-white/15 text-white'
                 }`}
-                title="Print & Security Settings"
+                title={t('printSettingsTitle')}
               >
                 <SlidersHorizontal className="w-5 h-5" />
                 {(watermarkText || maxCopies > 1) && (
@@ -666,7 +668,7 @@ export const CustomerPortal: React.FC = () => {
               <button
                 onClick={handleReset}
                 className="p-2 rounded-full hover:bg-red-500/30 text-red-200 hover:text-white transition-colors cursor-pointer"
-                title="Disconnect Session"
+                title={t('disconnectTitle')}
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -677,14 +679,14 @@ export const CustomerPortal: React.FC = () => {
           <div className="bg-[#fef9f0] px-4 py-1.5 border-b border-[#bec9c5]/30 flex items-center justify-between text-left shrink-0 shadow-xs z-10">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#6f7976] uppercase tracking-wider">
               <User className="w-3.5 h-3.5 text-[#00453d]" />
-              <span>Customer Name</span>
+              <span>{t('customerNameLabel')}</span>
             </div>
             <div className="flex items-center gap-1">
               <input
                 type="text"
                 value={customerName}
                 onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="Your Name (e.g. Rahul)"
+                placeholder={t('customerNamePlaceholder')}
                 className="text-xs sm:text-sm font-bold text-[#00453d] bg-transparent border-none focus:outline-none text-right placeholder-[#6f7976]"
               />
               <Edit2 className="w-3 h-3 text-[#6f7976] opacity-60" />
@@ -717,7 +719,7 @@ export const CustomerPortal: React.FC = () => {
                 <div className="w-16 h-16 rounded-3xl bg-white/20 border-2 border-dashed border-white flex items-center justify-center mb-3 scale-110 animate-bounce">
                   <FileText className="w-8 h-8 text-white" />
                 </div>
-                <h4 className="text-base font-bold">Drop Files to Stage in RAM</h4>
+                <h4 className="text-base font-bold">{t('stagingTitle')}</h4>
                 <p className="text-xs text-white/80 mt-1">PDFs, ID cards, and images accepted (Max 50MB)</p>
               </div>
             )}
@@ -726,7 +728,7 @@ export const CustomerPortal: React.FC = () => {
             <div className="wa-system-pill flex items-center justify-center gap-2 text-center text-xs py-1.5 px-3.5 shadow-xs">
               <Lock className="w-3.5 h-3.5 text-[#006d2f] shrink-0" />
               <span>
-                🔒 End-to-end encrypted. Files decrypted in RAM only & zeroized after printing.
+                {t('lockNotice')}
               </span>
             </div>
 
@@ -735,28 +737,28 @@ export const CustomerPortal: React.FC = () => {
               <div className="bg-white/95 rounded-2xl p-4 sm:p-5 border border-[#d1d7db] shadow-sm max-w-md mx-auto my-3 text-left space-y-3">
                 <div className="text-xs font-bold text-[#00453d] uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-[#006d2f]" />
-                  <span>Ready to Print Direct from RAM</span>
+                  <span>{t('brandTagline')}</span>
                 </div>
 
                 <div className="space-y-2 text-xs text-[#54656f]">
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-[#00a884]/15 text-[#00453d] font-bold flex items-center justify-center text-[11px] shrink-0">1</span>
                     <div>
-                      <strong className="text-[#111b21]">Attach Document:</strong> Tap <Paperclip className="w-3.5 h-3.5 inline mx-0.5 text-[#54656f]" /> or <Camera className="w-3.5 h-3.5 inline mx-0.5 text-[#00453d]" /> below, or share directly from WhatsApp.
+                      <strong className="text-[#111b21]">{t('onboardingStep1')}:</strong> {t('onboardingStep1Desc')}
                     </div>
                   </div>
 
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-[#00a884]/15 text-[#00453d] font-bold flex items-center justify-center text-[11px] shrink-0">2</span>
                     <div>
-                      <strong className="text-[#111b21]">Instructions:</strong> Type copies needed, double-sided preference, or record a voice note.
+                      <strong className="text-[#111b21]">{t('onboardingStep2')}:</strong> {t('onboardingStep2Desc')}
                     </div>
                   </div>
 
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-[#00a884]/15 text-[#00453d] font-bold flex items-center justify-center text-[11px] shrink-0">3</span>
                     <div>
-                      <strong className="text-[#111b21]">Destruction Proof:</strong> Shopkeeper prints directly from RAM and issues a Merkle destruction proof.
+                      <strong className="text-[#111b21]">{t('onboardingStep3')}:</strong> {t('onboardingStep3Desc')}
                     </div>
                   </div>
                 </div>
@@ -768,7 +770,7 @@ export const CustomerPortal: React.FC = () => {
                     className="flex-1 py-2 px-3 rounded-xl bg-[#00453d] hover:bg-[#075e54] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-transform active:scale-95"
                   >
                     <Camera className="w-3.5 h-3.5" />
-                    <span>Scan Document</span>
+                    <span>{t('scanDocBtn')}</span>
                   </button>
 
                   <button
@@ -777,7 +779,7 @@ export const CustomerPortal: React.FC = () => {
                     className="flex-1 py-2 px-3 rounded-xl bg-white hover:bg-[#f2ede5] text-[#00453d] text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm border border-[#bec9c5]/50 cursor-pointer transition-transform active:scale-95"
                   >
                     <Paperclip className="w-3.5 h-3.5" />
-                    <span>Pick PDF / File</span>
+                    <span>{t('pickPdfBtn')}</span>
                   </button>
                 </div>
               </div>
@@ -808,7 +810,7 @@ export const CustomerPortal: React.FC = () => {
                     {doc.status === 'STREAMING' && (
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs text-[#54656f] font-mono">
-                          <span>Streaming AES-256 chunks...</span>
+                          <span>{t('statusSending')}</span>
                           <span>{doc.uploadProgress}%</span>
                         </div>
                         <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
@@ -835,31 +837,31 @@ export const CustomerPortal: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         {doc.status === 'ENCRYPTING' && (
                           <span className="text-[#54656f] flex items-center gap-1 font-semibold text-[11px]">
-                            <Clock className="w-3 h-3 animate-spin" /> Encrypting
+                            <Clock className="w-3 h-3 animate-spin" /> {t('statusEncrypting')}
                           </span>
                         )}
 
                         {doc.status === 'STREAMING' && (
                           <span className="text-[#008069] flex items-center gap-1 font-semibold text-[11px]">
-                            <Check className="w-3.5 h-3.5" /> Sending
+                            <Check className="w-3.5 h-3.5" /> {t('statusSending')}
                           </span>
                         )}
 
                         {doc.status === 'DELIVERED' && (
                           <span className="text-[#54656f] flex items-center gap-1 font-bold text-[11px]">
-                            <CheckCheck className="w-3.5 h-3.5 text-[#54656f]" /> In Shop RAM
+                            <CheckCheck className="w-3.5 h-3.5 text-[#54656f]" /> {t('statusInShopRam')}
                           </span>
                         )}
 
                         {doc.status === 'PRINTING' && (
                           <span className="text-[#0284c7] font-bold flex items-center gap-1 animate-pulse text-[11px]">
-                            <Printer className="w-3.5 h-3.5" /> Printing...
+                            <Printer className="w-3.5 h-3.5" /> {t('statusPrinting')}
                           </span>
                         )}
 
                         {doc.status === 'PRINTED' && (
                           <span className="text-[#53bdeb] font-bold flex items-center gap-1 text-[11px]">
-                            <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" /> Printed
+                            <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" /> {t('statusPrinted')}
                           </span>
                         )}
 
@@ -868,7 +870,7 @@ export const CustomerPortal: React.FC = () => {
                             onClick={() => doc.destructionCert && setActiveCert(doc.destructionCert)}
                             className="text-[#dc2626] font-bold flex items-center gap-1 hover:underline cursor-pointer text-[11px]"
                           >
-                            <Flame className="w-3.5 h-3.5 text-[#dc2626]" /> Shredded Proof
+                            <Flame className="w-3.5 h-3.5 text-[#dc2626]" /> {t('viewShredProof')}
                           </button>
                         )}
                       </div>
@@ -925,14 +927,14 @@ export const CustomerPortal: React.FC = () => {
                   <div className="flex items-center justify-between mb-2.5 border-b border-[#00453d]/15 pb-2">
                     <span className="text-[12px] font-bold text-[#00453d] flex items-center gap-1">
                       <FileText className="w-4 h-4 text-[#00453d]" />
-                      <span>Ready to Send ({stagedFiles.length} file{stagedFiles.length > 1 ? 's' : ''})</span>
+                      <span>{t('stagingTitle')} ({stagedFiles.length})</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => setStagedFiles([])}
                       className="text-[11px] text-[#ba1a1a] hover:underline font-semibold cursor-pointer"
                     >
-                      Clear All
+                      {t('clearAll')}
                     </button>
                   </div>
 
@@ -981,7 +983,7 @@ export const CustomerPortal: React.FC = () => {
                             className="mt-2 inline-flex items-center self-start bg-emerald-50 text-[#00453d] border border-[#00453d]/20 rounded-md px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 cursor-pointer transition-colors"
                           >
                             <ShieldAlert className="w-3 h-3 mr-1 text-[#00453d]" />
-                            <span>Crop & Mask Sensitive ID Numbers</span>
+                            <span>{t('maskIdBtn')}</span>
                           </button>
                         )}
                       </div>
@@ -995,12 +997,12 @@ export const CustomerPortal: React.FC = () => {
                     className="w-full mt-2.5 py-2.5 px-4 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-md active:scale-[0.98] transition-all cursor-pointer"
                   >
                     <Lock className="w-4 h-4" />
-                    <span>Send {stagedFiles.length} File{stagedFiles.length > 1 ? 's' : ''} to Xerox RAM (AES-256)</span>
+                    <span>{t('sendFilesToRam')}</span>
                   </button>
 
                   <div className="flex items-center justify-between mt-1.5 text-[10.5px] font-mono text-[#6f7976]">
-                    <span>🔒 Volatile RAM Spool</span>
-                    <span className="italic">Staged in browser memory</span>
+                    <span>{t('volatileRamSpool')}</span>
+                    <span className="italic">{t('stagedInMemory')}</span>
                   </div>
                 </div>
               </div>
@@ -1022,7 +1024,7 @@ export const CustomerPortal: React.FC = () => {
                 <div className="w-12 h-12 rounded-full bg-[#8f3985] text-white flex items-center justify-center shadow-md">
                   <FileText className="w-6 h-6" />
                 </div>
-                <span className="text-xs text-[#54656f] font-semibold">Document(s)</span>
+                <span className="text-xs text-[#54656f] font-semibold">{t('attachDoc')}</span>
               </button>
 
               <button
@@ -1035,7 +1037,7 @@ export const CustomerPortal: React.FC = () => {
                 <div className="w-12 h-12 rounded-full bg-[#d3396d] text-white flex items-center justify-center shadow-md">
                   <Camera className="w-6 h-6" />
                 </div>
-                <span className="text-xs text-[#54656f] font-semibold">Live Camera</span>
+                <span className="text-xs text-[#54656f] font-semibold">{t('liveCamera')}</span>
               </button>
 
               <button
@@ -1048,7 +1050,7 @@ export const CustomerPortal: React.FC = () => {
                 <div className="w-12 h-12 rounded-full bg-[#ac44cf] text-white flex items-center justify-center shadow-md">
                   <ImageIcon className="w-6 h-6" />
                 </div>
-                <span className="text-xs text-[#54656f] font-semibold">Gallery</span>
+                <span className="text-xs text-[#54656f] font-semibold">{t('gallery')}</span>
               </button>
 
               <button
@@ -1061,20 +1063,20 @@ export const CustomerPortal: React.FC = () => {
                 <div className="w-12 h-12 rounded-full bg-[#00453d] text-white flex items-center justify-center shadow-md">
                   <SlidersHorizontal className="w-6 h-6" />
                 </div>
-                <span className="text-xs text-[#54656f] font-semibold">Settings</span>
+                <span className="text-xs text-[#54656f] font-semibold">{t('settings')}</span>
               </button>
             </div>
           )}
 
           {/* Quick Print Instruction Chips Strip */}
           <div className="bg-[#EFEAE2] px-3 py-1.5 border-t border-[#bec9c5]/30 flex items-center gap-1.5 overflow-x-auto shrink-0 scrollbar-hide">
-            <span className="text-[11px] font-bold text-[#6f7976] uppercase tracking-wider shrink-0">Note:</span>
+            <span className="text-[11px] font-bold text-[#6f7976] uppercase tracking-wider shrink-0">{t('notePrefix')}</span>
             {[
-              '🖨️ 1 B&W Copy',
-              '📑 Double-Sided',
-              '🎨 Full Color',
-              '⚡ Urgent Print',
-              '📜 Legal Paper',
+              t('chipBw'),
+              t('chipDoubleSided'),
+              t('chipColor'),
+              t('chipUrgent'),
+              t('chipLegal'),
             ].map((chip) => (
               <button
                 key={chip}
@@ -1112,14 +1114,14 @@ export const CustomerPortal: React.FC = () => {
               <div className="flex-1 bg-red-50 px-4 h-12 rounded-[24px] border border-red-200 flex items-center justify-between animate-pulse">
                 <div className="flex items-center gap-2 text-red-600 font-bold text-xs">
                   <span className="w-3 h-3 rounded-full bg-red-600 animate-ping" />
-                  <span>Recording Voice Note ({voiceSeconds}s)</span>
+                  <span>{t('recordingVoice')} ({voiceSeconds}s)</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => stopVoiceRecording(true)}
                   className="text-xs text-red-600 hover:underline font-semibold cursor-pointer"
                 >
-                  Cancel
+                  {t('cancelRecording')}
                 </button>
               </div>
             ) : (
@@ -1129,14 +1131,14 @@ export const CustomerPortal: React.FC = () => {
                   type="button"
                   onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
                   className="text-[#6f7976] hover:text-[#00453d] transition-colors p-1 shrink-0 cursor-pointer"
-                  title="Attach Document or Photo"
+                  title={t('attachDoc')}
                 >
                   <Paperclip className="w-5 h-5 -rotate-45" />
                 </button>
 
                 <input
                   type="text"
-                  placeholder="Message or Instructions..."
+                  placeholder={t('inputPlaceholder')}
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -1147,7 +1149,7 @@ export const CustomerPortal: React.FC = () => {
                   type="button"
                   onClick={() => setShowLiveCamera(true)}
                   className="text-[#6f7976] hover:text-[#00453d] transition-colors p-1 shrink-0 cursor-pointer"
-                  title="Open Document Camera"
+                  title={t('liveCamera')}
                 >
                   <Camera className="w-5 h-5" />
                 </button>
@@ -1160,7 +1162,7 @@ export const CustomerPortal: React.FC = () => {
                 type="button"
                 onClick={handleSendMessage}
                 className="w-11 h-11 sm:w-12 sm:h-12 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
-                title="Send Message"
+                title={t('sendBtn')}
               >
                 <Send className="w-5 h-5" />
               </button>
@@ -1169,7 +1171,7 @@ export const CustomerPortal: React.FC = () => {
                 type="button"
                 onClick={() => stopVoiceRecording(false)}
                 className="w-11 h-11 sm:w-12 sm:h-12 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
-                title="Send Voice Note"
+                title={t('sendBtn')}
               >
                 <Square className="w-5 h-5 fill-current" />
               </button>
@@ -1178,7 +1180,7 @@ export const CustomerPortal: React.FC = () => {
                 type="button"
                 onClick={startVoiceRecording}
                 className="w-11 h-11 sm:w-12 sm:h-12 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
-                title="Tap to record voice note"
+                title={t('micTip')}
               >
                 <Mic className="w-5 h-5" />
               </button>

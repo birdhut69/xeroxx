@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Shield, Lock, Cpu, QrCode, ArrowRight, Image as ImageIcon, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
 import { sounds } from '../../services/AudioEffects';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface QRScannerProps {
   onSessionDecoded: (roomId: string, keyHex: string) => void;
@@ -16,6 +17,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
 
   const scannerInstanceRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { t } = useLanguage();
 
   const handleDecodedUrl = useCallback((text: string) => {
     try {
@@ -98,7 +100,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
         if (scannerInstanceRef.current) {
           const cameras = await Html5Qrcode.getCameras();
           if (cameras && cameras.length > 0) {
-            const cameraId = cameras[cameras.length - 1].id; // usually rear camera
+            const cameraId = cameras[cameras.length - 1].id;
             await scannerInstanceRef.current.start(
               cameraId,
               { fps: 15, qrbox: { width: 230, height: 230 } },
@@ -183,11 +185,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
       <div className="text-center w-full px-2">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D9FDD3] text-[#00453d] text-xs font-bold font-mono mb-2 border border-[#3de273]/30">
           <Sparkles className="w-3.5 h-3.5 text-[#006d2f]" />
-          <span>Zero-Trace RAM Handshake</span>
+          <span>{t('zeroTraceHandshake')}</span>
         </div>
-        <h2 className="text-xl sm:text-2xl font-bold text-[#1d1c17]">Scan Counter Standee QR</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-[#1d1c17]">{t('scanTitle')}</h2>
         <p className="text-xs sm:text-sm text-[#6f7976] mt-1 leading-relaxed">
-          Point your phone camera at the Xerox shop QR standee to beam documents directly to printer memory.
+          {t('scanSubtitle')}
         </p>
       </div>
 
@@ -212,7 +214,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
         {cameraLoading && (
           <div className="absolute inset-0 z-30 bg-black/80 flex flex-col items-center justify-center gap-2 text-white text-xs font-mono">
             <div className="w-8 h-8 rounded-full border-2 border-[#25D366] border-t-transparent animate-spin" />
-            <span>Initializing Camera...</span>
+            <span>{t('initCamera')}</span>
           </div>
         )}
 
@@ -222,7 +224,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
             type="button"
             onClick={toggleCameraFacing}
             className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 transition-transform active:scale-90 cursor-pointer"
-            title="Switch Camera"
+            title={t('switchCamera')}
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -230,7 +232,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 transition-transform active:scale-90 cursor-pointer"
-            title="Scan QR from photo"
+            title={t('uploadScreenshot')}
           >
             <ImageIcon className="w-4 h-4" />
           </button>
@@ -252,7 +254,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
           className="flex-1 py-2 px-3 rounded-xl bg-white hover:bg-[#f2ede5] border border-[#bec9c5]/60 text-[#00453d] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
         >
           <ImageIcon className="w-4 h-4 text-[#00453d]" />
-          <span>Upload QR Screenshot</span>
+          <span>{t('uploadScreenshot')}</span>
         </button>
 
         <button
@@ -261,7 +263,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
           className="py-2 px-3 rounded-xl bg-[#f2ede5] hover:bg-[#e7e2da] text-[#1d1c17] font-semibold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          <span>Refresh</span>
+          <span>{t('refresh')}</span>
         </button>
       </div>
 
@@ -270,20 +272,20 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
         <div className="grid grid-cols-3 gap-2 text-center divide-x divide-[#bec9c5]/30">
           <div className="px-1 flex flex-col items-center">
             <Lock className="w-4 h-4 text-[#00453d] mb-1" />
-            <span className="text-[10px] text-[#6f7976] font-bold uppercase">Encryption</span>
+            <span className="text-[10px] text-[#6f7976] font-bold uppercase">{t('encryptionBadge')}</span>
             <span className="text-[11px] font-mono font-bold text-[#1d1c17]">AES-GCM-256</span>
           </div>
 
           <div className="px-1 flex flex-col items-center">
             <Shield className="w-4 h-4 text-[#006d2f] mb-1" />
-            <span className="text-[10px] text-[#6f7976] font-bold uppercase">Key Exchange</span>
-            <span className="text-[11px] font-mono font-bold text-[#1d1c17]">URL Fragment</span>
+            <span className="text-[10px] text-[#6f7976] font-bold uppercase">{t('keyExchangeBadge')}</span>
+            <span className="text-[11px] font-mono font-bold text-[#1d1c17]">{t('urlFragment')}</span>
           </div>
 
           <div className="px-1 flex flex-col items-center">
             <Cpu className="w-4 h-4 text-[#ba1a1a] mb-1" />
-            <span className="text-[10px] text-[#6f7976] font-bold uppercase">Storage</span>
-            <span className="text-[11px] font-mono font-bold text-[#ba1a1a]">0 KB Disk (RAM)</span>
+            <span className="text-[10px] text-[#6f7976] font-bold uppercase">{t('storageBadge')}</span>
+            <span className="text-[11px] font-mono font-bold text-[#ba1a1a]">{t('zeroDiskRam')}</span>
           </div>
         </div>
       </div>
@@ -294,14 +296,14 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
           type="text"
           value={manualInput}
           onChange={(e) => setManualInput(e.target.value)}
-          placeholder="Or paste pairing link with #key=..."
+          placeholder={t('pasteLinkPlaceholder')}
           className="flex-1 px-3.5 py-2.5 bg-white border border-[#bec9c5] rounded-xl text-xs text-[#1d1c17] placeholder:text-[#6f7976] focus:outline-none focus:ring-1 focus:ring-[#00453d]"
         />
         <button
           type="submit"
           className="px-4 py-2.5 bg-[#00453d] text-white rounded-xl text-xs font-bold hover:bg-[#075e54] flex items-center gap-1 cursor-pointer transition-transform active:scale-95 shadow-sm"
         >
-          <span>Join</span>
+          <span>{t('joinBtn')}</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </form>

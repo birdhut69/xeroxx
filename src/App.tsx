@@ -8,6 +8,8 @@ import { NetworkStatusBanner } from './components/shared/NetworkStatusBanner';
 import { PWAInstallBanner } from './components/shared/PWAInstallBanner';
 import { ShieldCheck, Lock, Flame, Key } from 'lucide-react';
 
+import { LanguageProvider } from './context/LanguageContext';
+
 type AppMode = 'TERMINAL' | 'CUSTOMER';
 
 export const AppContent: React.FC = () => {
@@ -98,11 +100,13 @@ export const AppContent: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <ErrorBoundary>
-      <ToastProvider>
-        <NetworkStatusBanner />
-        <PWAInstallBanner />
-        <AppContent />
-      </ToastProvider>
+      <LanguageProvider>
+        <ToastProvider>
+          <NetworkStatusBanner />
+          <PWAInstallBanner />
+          <AppContent />
+        </ToastProvider>
+      </LanguageProvider>
     </ErrorBoundary>
   );
 };

@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Shield, Eraser, Undo, Check, Sparkles, X, Crop, RotateCw, RefreshCw, Scissors, Move, Square } from 'lucide-react';
 import { useToast } from '../shared/ToastContext';
 import { sounds } from '../../services/AudioEffects';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface RedactionStudioProps {
   imageBuffer: ArrayBuffer;
@@ -23,6 +24,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
   onApplyRedaction,
   onCancel,
 }) => {
+  const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [activeMode, setActiveMode] = useState<StudioMode>('CROP');
@@ -419,8 +421,8 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
             <Scissors className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm sm:text-base font-bold text-[#1d1c17]">Crop & Redact Studio</h3>
-            <p className="text-[11px] text-[#6f7976]">Trim document edges & mask sensitive ID numbers</p>
+            <h3 className="text-sm sm:text-base font-bold text-[#1d1c17]">{t('studioTitle')}</h3>
+            <p className="text-[11px] text-[#6f7976]">{t('studioSubtitle')}</p>
           </div>
         </div>
 
@@ -445,7 +447,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
             }`}
           >
             <Crop className="w-3.5 h-3.5" />
-            <span>Crop & Trim</span>
+            <span>{t('tabCrop')}</span>
           </button>
 
           <button
@@ -458,7 +460,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
             }`}
           >
             <Square className="w-3.5 h-3.5" />
-            <span>Mask ID ({redactionBoxes.length})</span>
+            <span>{t('tabMask')} ({redactionBoxes.length})</span>
           </button>
         </div>
 
@@ -469,7 +471,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
           title="Rotate Document 90°"
         >
           <RotateCw className="w-3.5 h-3.5 text-[#00453d]" />
-          <span>Rotate</span>
+          <span>{t('rotateBtn')}</span>
         </button>
       </div>
 
@@ -478,7 +480,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
         <div className="flex items-center justify-between gap-2 p-2 bg-[#fef9f0] rounded-xl border border-[#bec9c5]/30 text-xs">
           <span className="text-[11.5px] text-[#6f7976] font-medium flex items-center gap-1">
             <Move className="w-3.5 h-3.5 text-[#00453d]" />
-            <span>Drag corners to crop borders</span>
+            <span>{t('dragCropTip')}</span>
           </span>
 
           <button
@@ -487,7 +489,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
             className="px-3 py-1.5 rounded-lg bg-[#00453d] hover:bg-[#075e54] text-white font-bold flex items-center gap-1 cursor-pointer transition-transform active:scale-95 shadow-xs"
           >
             <Crop className="w-3.5 h-3.5" />
-            <span>Cut & Crop</span>
+            <span>{t('cutAndCropBtn')}</span>
           </button>
         </div>
       ) : (
@@ -498,7 +500,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
             className="px-2.5 py-1 rounded-lg bg-[#e7f8ff] text-[#0284c7] hover:bg-[#d0f0fd] text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
           >
             <Sparkles className="w-3 h-3" />
-            <span>Mask Number Zone</span>
+            <span>{t('quickMaskZone')}</span>
           </button>
 
           <div className="flex items-center gap-1.5">
@@ -509,7 +511,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
               title="Undo last box"
             >
               <Undo className="w-3 h-3" />
-              <span>Undo</span>
+              <span>{t('undoBtn')}</span>
             </button>
             <button
               onClick={handleClearAll}
@@ -518,7 +520,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
               title="Clear all boxes"
             >
               <Eraser className="w-3 h-3" />
-              <span>Clear</span>
+              <span>{t('clearAllBoxes')}</span>
             </button>
           </div>
         </div>
@@ -537,9 +539,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
           onTouchStart={handlePointerDown}
           onTouchMove={handlePointerMove}
           onTouchEnd={handlePointerUp}
-          className={`max-w-full max-h-[420px] object-contain rounded-lg ${
-            activeMode === 'CROP' ? 'cursor-crosshair' : 'cursor-crosshair'
-          }`}
+          className="max-w-full max-h-[420px] object-contain rounded-lg cursor-crosshair"
         />
       </div>
 
@@ -549,7 +549,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
           onClick={onCancel}
           className="px-4 py-2 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] text-[#54656f] text-xs font-semibold cursor-pointer"
         >
-          Cancel
+          {t('cancel')}
         </button>
 
         <button
@@ -557,7 +557,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
           className="px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-transform active:scale-95"
         >
           <Check className="w-4 h-4" />
-          <span>Save Changes to RAM</span>
+          <span>{t('saveChangesToRam')}</span>
         </button>
       </div>
     </div>
