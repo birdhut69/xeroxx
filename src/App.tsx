@@ -5,6 +5,7 @@ import { CustomerPortal } from './components/customer/CustomerPortal';
 import { ToastProvider } from './components/shared/ToastContext';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { NetworkStatusBanner } from './components/shared/NetworkStatusBanner';
+import { PWAInstallBanner } from './components/shared/PWAInstallBanner';
 import { ShieldCheck, Lock, Flame, Key } from 'lucide-react';
 
 type AppMode = 'TERMINAL' | 'CUSTOMER';
@@ -147,6 +148,7 @@ export const App: React.FC = () => {
     <ErrorBoundary>
       <ToastProvider>
         <NetworkStatusBanner />
+        <PWAInstallBanner />
         <AppContent />
       </ToastProvider>
     </ErrorBoundary>
