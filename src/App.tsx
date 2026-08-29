@@ -18,6 +18,7 @@ export const AppContent: React.FC = () => {
     return sessionStorage.getItem('safeprint_admin_auth') === 'true';
   });
   const [serverOnline, setServerOnline] = useState(true);
+  const [isCustomerSessionActive, setIsCustomerSessionActive] = useState(false);
 
   // Auto-detect mode on URL load
   useEffect(() => {
@@ -74,24 +75,31 @@ export const AppContent: React.FC = () => {
     sessionStorage.removeItem('safeprint_admin_auth');
   };
 
+  // If customer is in an active chat session, CustomerPortal renders its own WhatsApp top bar
+  const shouldShowOuterHeader = currentMode === 'TERMINAL' || !isCustomerSessionActive;
+
   return (
     <div className={`flex flex-col text-[#111b21] selection:bg-[#00a884] selection:text-white ${
       currentMode === 'TERMINAL' && isAdminAuthenticated
         ? 'h-[100dvh] overflow-hidden wa-web-backdrop p-0 lg:p-4'
         : 'h-[100dvh] overflow-hidden bg-[#f0f2f5]'
     }`}>
-      <Header
-        currentMode={currentMode}
-        onModeChange={handleModeChange}
-        serverOnline={serverOnline}
-        isAdminAuthenticated={isAdminAuthenticated}
-        onAdminLogin={handleAdminLogin}
-        onAdminLogout={handleAdminLogout}
-      />
+      {shouldShowOuterHeader && (
+        <Header
+          currentMode={currentMode}
+          onModeChange={handleModeChange}
+          serverOnline={serverOnline}
+          isAdminAuthenticated={isAdminAuthenticated}
+          onAdminLogin={handleAdminLogin}
+          onAdminLogout={handleAdminLogout}
+        />
+      )}
 
       <main className="flex-1 min-h-0 flex flex-col w-full h-full overflow-hidden max-w-[1720px] mx-auto">
         {currentMode === 'TERMINAL' && isAdminAuthenticated && <TerminalDashboard />}
-        {currentMode === 'CUSTOMER' && <CustomerPortal />}
+        {currentMode === 'CUSTOMER' && (
+          <CustomerPortal onSessionActiveChange={setIsCustomerSessionActive} />
+        )}
       </main>
     </div>
   );

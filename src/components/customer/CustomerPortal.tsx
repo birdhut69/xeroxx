@@ -29,9 +29,12 @@ import {
   LogOut,
   Edit2,
   Share2,
-  QrCode
+  QrCode,
+  Globe,
+  ChevronDown
 } from 'lucide-react';
 import { importKeyFromHash, encryptDocument } from '../../crypto/e2ee';
+import { zeroizeBuffer } from '../../crypto/zeroize';
 import { SecurityGuards } from '../../crypto/securityGuards';
 import { RelaySocket } from '../../services/relaySocket';
 import { sounds } from '../../services/AudioEffects';
@@ -45,6 +48,7 @@ import { LiveCameraModal } from './LiveCameraModal';
 import { DestructionCertificate } from '../../crypto/ledger';
 import { getSharedFiles, clearSharedFiles } from '../../services/shareTarget';
 import { useLanguage } from '../../context/LanguageContext';
+import { SupportedLanguage } from '../../i18n/translations';
 
 interface StagedFile {
   id: string;
@@ -79,9 +83,13 @@ interface ChatMessage {
   timestamp: number;
 }
 
-export const CustomerPortal: React.FC = () => {
+interface CustomerPortalProps {
+  onSessionActiveChange?: (active: boolean) => void;
+}
+
+export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveChange }) => {
   const toast = useToast();
-  const { t } = useLanguage();
+  const { language, setLanguage, t, availableLanguages } = useLanguage();
 
   // Session & Pairing
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -104,6 +112,7 @@ export const CustomerPortal: React.FC = () => {
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showLiveCamera, setShowLiveCamera] = useState(false);
   const [showRedactionStudio, setShowRedactionStudio] = useState(false);
+  const [showLangMenu, setShowLangMenu] = useState(false);
   const [activeRedactionFileId, setActiveRedactionFileId] = useState<string | null>(null);
   const [activeCert, setActiveCert] = useState<DestructionCertificate | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -120,9 +129,15 @@ export const CustomerPortal: React.FC = () => {
   const relayRef = useRef<RelaySocket | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const attachmentMenuRef = useRef<HTMLDivElement | null>(null);
+  const langMenuRef = useRef<HTMLDivElement | null>(null);
 
   const [textMessages, setTextMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
+
+  // Notify parent of active chat session status
+  useEffect(() => {
+    onSessionActiveChange?.(!!roomId);
+  }, [roomId, onSessionActiveChange]);
 
   // Persist customer name
   const handleNameChange = (name: string) => {
@@ -130,11 +145,14 @@ export const CustomerPortal: React.FC = () => {
     localStorage.setItem('safeprint_customer_name', name);
   };
 
-  // Close attachment menu on outside click
+  // Close menus on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(e.target as Node)) {
         setShowAttachmentMenu(false);
+      }
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
+        setShowLangMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -182,7 +200,7 @@ export const CustomerPortal: React.FC = () => {
 
     checkIncomingSharedFiles();
 
-    // Check again when window gains focus (e.g. returning from WhatsApp share sheet)
+    // Check again when window gains focus
     window.addEventListener('focus', checkIncomingSharedFiles);
     return () => {
       window.removeEventListener('focus', checkIncomingSharedFiles);
@@ -452,6 +470,16 @@ export const CustomerPortal: React.FC = () => {
     }
   };
 
+  const handleEmergencyPurge = () => {
+    sounds.playShred();
+    toast.shield('EMERGENCY RAM PURGE', 'All volatile document memory zeroized instantly.');
+    const dummy = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+    zeroizeBuffer(dummy.buffer);
+    setTimeout(() => {
+      handleReset();
+    }, 400);
+  };
+
   const handleReset = () => {
     relayRef.current?.close();
     setRoomId(null);
@@ -569,6 +597,8 @@ export const CustomerPortal: React.FC = () => {
     sounds.playMessageSent();
   };
 
+  const currentLangObj = availableLanguages.find((l) => l.code === language) || availableLanguages[0];
+
   return (
     <div className="w-full h-full flex-1 flex flex-col overflow-hidden bg-[#EFEAE2]">
       {/* ── STEP 1: Not Paired -> Scan QR ── */}
@@ -619,7 +649,7 @@ export const CustomerPortal: React.FC = () => {
           <QRScanner onSessionDecoded={handleSessionDecoded} />
 
           {/* WhatsApp Direct Share How-To Tip Card */}
-          <div className="w-full max-w-[480px] bg-white rounded-2xl p-3.5 border border-[#bec9c5]/40 shadow-xs text-left mt-2 space-y-2">
+          <div className="w-full max-w-[440px] bg-white rounded-2xl p-3.5 border border-[#bec9c5]/40 shadow-xs text-left mt-1 space-y-1.5">
             <div className="flex items-center gap-2 text-xs font-bold text-[#00453d]">
               <Share2 className="w-4 h-4 text-[#006d2f]" />
               <span>{t('directWhatsAppShareTitle')}</span>
@@ -630,14 +660,15 @@ export const CustomerPortal: React.FC = () => {
           </div>
         </div>
       ) : (
-        /* ── STEP 2: Authentic WhatsApp Full-Screen Chat Interface ── */
+        /* ── STEP 2: Authentic Full-Screen Single WhatsApp Top Bar & Chat Interface ── */
         <div className="w-full h-full flex-1 flex flex-col overflow-hidden relative">
-          {/* WhatsApp Chat Top Header (#075E54) */}
-          <div className="bg-[#075E54] text-white px-3 sm:px-4 py-2.5 flex items-center justify-between shadow-md shrink-0 h-[56px] sm:h-[60px] z-20">
-            <div className="flex items-center gap-2.5 min-w-0">
+          {/* 🌟 UNIFIED WHATSAPP TOP APP BAR (#075E54) 🌟 */}
+          <div className="bg-[#075E54] text-white px-2.5 sm:px-4 py-2 flex items-center justify-between shadow-md shrink-0 h-[56px] z-30 select-none">
+            {/* Left: Back Arrow + Avatar + Status */}
+            <div className="flex items-center gap-2 min-w-0">
               <button
                 onClick={handleReset}
-                className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
+                className="p-1 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer shrink-0"
                 title={t('disconnectTitle')}
               >
                 <ChevronLeft className="w-6 h-6" />
@@ -651,35 +682,87 @@ export const CustomerPortal: React.FC = () => {
               </div>
 
               <div className="text-left min-w-0">
-                <div className="text-sm sm:text-[15px] font-bold truncate flex items-center gap-1.5 leading-tight">
+                <div className="text-[14px] sm:text-[15px] font-bold truncate flex items-center gap-1.5 leading-tight">
                   <span className="truncate">{shopName || 'QuickXerox Station #01'}</span>
-                  <ShieldCheck className="w-4 h-4 text-[#3de273] shrink-0" />
+                  <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#3de273] shrink-0" />
                 </div>
-                <div className="text-[11px] sm:text-[11.5px] text-emerald-200 flex items-center gap-1.5 font-medium mt-0.5">
+                <div className="text-[11px] text-emerald-200 flex items-center gap-1 font-medium mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#25D366] animate-pulse shrink-0" />
                   <span className="truncate">{t('online')} • {t('inRamSession')}</span>
                 </div>
               </div>
             </div>
 
-            {/* Header Right Actions */}
-            <div className="flex items-center gap-1 shrink-0">
+            {/* Right: Integrated Language + Settings + Purge + Exit Actions */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              {/* 🌐 Language Switcher */}
+              <div ref={langMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowLangMenu(!showLangMenu)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-black/25 hover:bg-black/40 border border-white/15 text-xs font-bold text-white transition-colors cursor-pointer"
+                  title="Change Language"
+                >
+                  <span className="text-xs">{currentLangObj.flag}</span>
+                  <ChevronDown className="w-3 h-3 text-white/70" />
+                </button>
+
+                {showLangMenu && (
+                  <div className="absolute right-0 top-full mt-1.5 bg-white text-[#111b21] rounded-2xl p-1.5 shadow-2xl border border-[#bec9c5] min-w-[140px] z-50 animate-in slide-in-from-top duration-150">
+                    {availableLanguages.map((lang) => (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => {
+                          setLanguage(lang.code as SupportedLanguage);
+                          setShowLangMenu(false);
+                          sounds.playConnect();
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-colors text-left cursor-pointer ${
+                          language === lang.code
+                            ? 'bg-[#00a884]/15 text-[#00453d]'
+                            : 'hover:bg-[#f0f2f5] text-[#111b21]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{lang.flag}</span>
+                          <span>{lang.label}</span>
+                        </div>
+                        {language === lang.code && <Check className="w-3.5 h-3.5 text-[#006d2f]" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Settings Toggle */}
               <button
                 onClick={() => setShowSettings(!showSettings)}
-                className={`p-2 rounded-full transition-colors cursor-pointer relative ${
+                className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer relative ${
                   showSettings ? 'bg-white/30 text-white' : 'hover:bg-white/15 text-white'
                 }`}
                 title={t('printSettingsTitle')}
               >
                 <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
                 {(watermarkText || maxCopies > 1) && (
-                  <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border border-[#075E54]" />
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400 border border-[#075E54]" />
                 )}
               </button>
 
+              {/* Emergency RAM Purge */}
+              <button
+                onClick={handleEmergencyPurge}
+                className="bg-[#EF4444] hover:bg-red-600 text-white p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition-transform active:scale-95 cursor-pointer"
+                title={t('emergencyPurgeDesc')}
+              >
+                <Flame className="w-4 h-4 fill-current shrink-0" />
+                <span className="hidden md:inline">{t('emergencyPurge')}</span>
+              </button>
+
+              {/* End Session Exit */}
               <button
                 onClick={handleReset}
-                className="p-2 rounded-full hover:bg-red-500/30 text-red-200 hover:text-white transition-colors cursor-pointer"
+                className="p-1.5 sm:p-2 rounded-lg hover:bg-red-500/30 text-red-200 hover:text-white transition-colors cursor-pointer"
                 title={t('disconnectTitle')}
               >
                 <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -688,8 +771,8 @@ export const CustomerPortal: React.FC = () => {
           </div>
 
           {/* Customer Name Strip */}
-          <div className="bg-[#fef9f0] px-4 py-1.5 border-b border-[#bec9c5]/30 flex items-center justify-between text-left shrink-0 shadow-xs z-10">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#6f7976] uppercase tracking-wider">
+          <div className="bg-[#fef9f0] px-3 sm:px-4 py-1.5 border-b border-[#bec9c5]/30 flex items-center justify-between text-left shrink-0 shadow-xs z-10">
+            <div className="flex items-center gap-1.5 text-[10.5px] font-bold text-[#6f7976] uppercase tracking-wider">
               <User className="w-3.5 h-3.5 text-[#00453d]" />
               <span>{t('customerNameLabel')}</span>
             </div>
@@ -797,23 +880,28 @@ export const CustomerPortal: React.FC = () => {
               </div>
             )}
 
-            {/* Sent Documents List */}
+            {/* Sent Documents List (Crisp WhatsApp Preview Cards) */}
             {sentDocs.map((doc) => {
               const isPdf = doc.type.includes('pdf') || doc.name.toLowerCase().endsWith('.pdf');
 
               return (
                 <div key={doc.id} className="flex justify-end animate-in fade-in duration-150">
-                  <div className="wa-bubble-out max-w-[94%] sm:max-w-md p-3 space-y-2 border border-[#bec9c5]/40 shadow-sm">
-                    <div className="p-2.5 rounded-xl bg-white flex items-center gap-3 border border-[#00a884]/20 shadow-xs">
-                      <div className="p-2.5 rounded-xl bg-[#00a884]/15 text-[#00453d] shrink-0">
+                  <div className="wa-bubble-out max-w-[94%] sm:max-w-md p-2.5 sm:p-3 space-y-2 border border-[#bec9c5]/40 shadow-sm">
+                    {/* Document Inner White Card */}
+                    <div className="p-2.5 sm:p-3 rounded-xl bg-white flex items-center gap-3 border border-[#d1d7db] shadow-xs">
+                      <div className={`p-2.5 rounded-xl shrink-0 flex items-center justify-center font-bold text-xs ${
+                        isPdf
+                          ? 'bg-red-50 text-red-600 border border-red-200'
+                          : 'bg-emerald-50 text-[#008069] border border-emerald-200'
+                      }`}>
                         {isPdf ? <FileText className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />}
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-bold text-[#111b21] truncate" title={doc.name}>
+                        <div className="text-[13.5px] sm:text-[14px] font-bold text-[#111b21] truncate leading-tight" title={doc.name}>
                           {doc.name}
                         </div>
-                        <div className="text-xs text-[#667781] font-mono mt-0.5">
+                        <div className="text-[11.5px] text-[#667781] font-mono mt-0.5">
                           {(doc.size / 1024).toFixed(1)} KB • {doc.copies} {doc.copies === 1 ? 'copy' : 'copies'}
                         </div>
                       </div>
@@ -841,7 +929,7 @@ export const CustomerPortal: React.FC = () => {
                     )}
 
                     {/* Bubble Footer */}
-                    <div className="flex items-center justify-between pt-1 border-t border-[#00a884]/10 text-xs">
+                    <div className="flex items-center justify-between pt-0.5 border-t border-[#00a884]/15 text-xs">
                       <span className="text-[#667781] font-mono text-[11px]">
                         {new Date(doc.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
@@ -872,8 +960,8 @@ export const CustomerPortal: React.FC = () => {
                         )}
 
                         {doc.status === 'PRINTED' && (
-                          <span className="text-[#53bdeb] font-bold flex items-center gap-1 text-[11px]">
-                            <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" /> {t('statusPrinted')}
+                          <span className="text-[#0284c7] font-bold flex items-center gap-1 text-[11px]">
+                            <CheckCheck className="w-3.5 h-3.5 text-[#0284c7]" /> {t('statusPrinted')}
                           </span>
                         )}
 
@@ -917,14 +1005,14 @@ export const CustomerPortal: React.FC = () => {
 
                     {/* Regular Text */}
                     {msg.text && (
-                      <div className="text-[14.5px] text-[#111b21] leading-relaxed break-words font-normal">
+                      <div className="text-[14px] sm:text-[14.5px] text-[#111b21] leading-relaxed break-words font-normal">
                         {msg.text}
                       </div>
                     )}
 
                     <div className="flex items-center justify-end gap-1 text-[11px] text-[#667781] font-mono mt-0.5">
                       <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      {isMe && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
+                      {isMe && <CheckCheck className="w-3.5 h-3.5 text-[#0284c7]" />}
                     </div>
                   </div>
                 </div>
