@@ -1203,10 +1203,10 @@ export const TerminalDashboard: React.FC = () => {
 
       {/* 📄 Interactive WhatsApp Document Viewer Modal / Drawer 📄 */}
       {isViewerOpen && selectedDoc && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md p-2 sm:p-4 flex items-center justify-center animate-in zoom-in-95 duration-150">
-          <div className="bg-white rounded-3xl max-w-5xl w-full h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-[#d1d7db]">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md p-2 sm:p-4 flex items-center justify-center animate-in zoom-in-95 duration-150 print:static print:p-0 print:m-0 print:bg-transparent print:backdrop-blur-none print:block">
+          <div className="bg-white rounded-3xl max-w-5xl w-full h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-[#d1d7db] print:rounded-none print:border-none print:shadow-none print:w-full print:h-auto print:max-w-none print:p-0 print:m-0 print:bg-transparent">
             {/* Modal Header */}
-            <div className="bg-[#008069] text-white px-5 py-3.5 flex items-center justify-between shadow-sm shrink-0">
+            <div className="bg-[#008069] text-white px-5 py-3.5 flex items-center justify-between shadow-sm shrink-0 no-print">
               <div className="flex items-center gap-3">
                 <FileText className="w-5 h-5 text-white" />
                 <div className="text-left">
@@ -1237,7 +1237,7 @@ export const TerminalDashboard: React.FC = () => {
             </div>
 
             {/* Modal Adjustment Toolbar */}
-            <div className="bg-[#f0f2f5] px-4 py-2.5 border-b border-[#d1d7db] flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+            <div className="bg-[#f0f2f5] px-4 py-2.5 border-b border-[#d1d7db] flex flex-wrap items-center justify-between gap-2.5 shrink-0 no-print">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -1327,7 +1327,7 @@ export const TerminalDashboard: React.FC = () => {
             </div>
 
             {/* Modal Canvas Viewer Area */}
-            <div className="flex-1 min-h-0 bg-[#1e293b] p-4 flex items-center justify-center overflow-auto">
+            <div className="flex-1 min-h-0 bg-[#1e293b] p-4 flex items-center justify-center overflow-auto print:bg-transparent print:p-0 print:m-0 print:overflow-visible">
               <DRMCanvasViewer
                 documentBuffer={selectedDoc.decryptedBuffer}
                 fileType={selectedDoc.fileType}

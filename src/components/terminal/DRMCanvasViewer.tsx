@@ -341,7 +341,7 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
       ctx.font = '10px monospace';
       ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
       ctx.textAlign = 'right';
-      ctx.fillText(`SAFEPRINT • ${shopId} • RAM PHYSICAL PRINT ONLY`, canvas.width - 14, canvas.height - 12);
+      ctx.fillText(`CIPHERPRINT • ${shopId} • RAM PHYSICAL PRINT ONLY`, canvas.width - 14, canvas.height - 12);
       ctx.restore();
     } catch (e) {
       console.warn('[SafePrint] Filter note:', e);

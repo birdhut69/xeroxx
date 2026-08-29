@@ -172,27 +172,93 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* ── Print-Specific Styles ── */
+/* ── Print-Specific Styles (Strict Document-Only Spooling) ── */
 @media print {
-  .no-print {
+  @page {
+    size: auto;
+    margin: 0mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide all generic UI components */
+  header, footer, nav, aside, .no-print, button, input, select, textarea,
+  .forensic-watermark-overlay, .wa-system-pill, .wa-panel, .wa-chat-wallpaper {
     display: none !important;
   }
-  .print-page-canvas {
-    page-break-after: always;
-    display: block;
+
+  /* Target fixed modal wrappers and neutralize them completely */
+  div[class*="fixed"][class*="inset-0"] {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
     width: 100% !important;
     height: auto !important;
-    max-width: 100% !important;
-    margin: 0 auto;
+    display: block !important;
+    border: none !important;
     box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
-  .forensic-watermark-overlay {
-    display: none !important;
+
+  /* Neutralize modal card frames */
+  div[class*="rounded-3xl"], div[class*="max-w-5xl"], div[class*="shadow-2xl"] {
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
-  body {
-    background: white !important;
-    margin: 0;
-    padding: 0;
+
+  /* DRM Canvas Container in Print Mode */
+  .drm-canvas-container {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  #print-area {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    position: static !important;
+  }
+
+  .print-page-canvas {
+    page-break-after: always !important;
+    page-break-inside: avoid !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 100vh !important;
+    object-fit: contain !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
   }
 }
 
