@@ -13,6 +13,7 @@ import {
   Paperclip,
   Smile,
   Send,
+  ShieldCheck,
   ShieldAlert,
   SlidersHorizontal,
   User,
@@ -564,6 +565,50 @@ export const CustomerPortal: React.FC = () => {
                 🔒 Messages and documents sent in this chat are AES-256 encrypted directly in printer RAM.
               </span>
             </div>
+
+            {/* User-Friendly Quick Onboarding Card */}
+            {sentDocs.length === 0 && textMessages.length === 0 && stagedFiles.length === 0 && (
+              <div className="bg-white/95 rounded-2xl p-4 sm:p-5 border border-[#d1d7db] shadow-sm max-w-md mx-auto my-3 text-left space-y-3">
+                <div className="text-xs font-bold text-[#008069] uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>3-Step Easy Printing</span>
+                </div>
+
+                <div className="space-y-2 text-xs text-[#54656f]">
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-[#008069]/15 text-[#008069] font-bold flex items-center justify-center text-[11px] shrink-0">1</span>
+                    <div>
+                      <strong className="text-[#111b21]">Attach Document:</strong> Tap <Paperclip className="w-3.5 h-3.5 inline mx-0.5 text-[#54656f]" /> below to pick PDFs, ID scans, or photos.
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-[#008069]/15 text-[#008069] font-bold flex items-center justify-center text-[11px] shrink-0">2</span>
+                    <div>
+                      <strong className="text-[#111b21]">Add Notes:</strong> Type a message or tap <Mic className="w-3.5 h-3.5 inline mx-0.5 text-[#008069]" /> to speak your instructions.
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-[#008069]/15 text-[#008069] font-bold flex items-center justify-center text-[11px] shrink-0">3</span>
+                    <div>
+                      <strong className="text-[#111b21]">Zero-Disk Print:</strong> File is decrypted in printer RAM only and shredded after printing.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-[#e9edef] flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer transition-transform active:scale-95"
+                  >
+                    <Paperclip className="w-3.5 h-3.5" />
+                    <span>Select Document(s) to Start</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Sent Documents List */}
             {sentDocs.map((doc) => {

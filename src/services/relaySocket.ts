@@ -99,6 +99,12 @@ export class RelaySocket {
       socket.onclose = () => {
         this.ws = null;
         this.wsConnected = false;
+        // Auto-reconnect after 2.5 seconds
+        setTimeout(() => {
+          if (!this.ws && (this.activeRoomId || this.role)) {
+            this.initWebSocket();
+          }
+        }, 2500);
       };
 
       socket.onerror = () => {

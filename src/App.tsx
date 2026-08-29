@@ -3,6 +3,8 @@ import { Header } from './components/shared/Header';
 import { TerminalDashboard } from './components/terminal/TerminalDashboard';
 import { CustomerPortal } from './components/customer/CustomerPortal';
 import { ToastProvider } from './components/shared/ToastContext';
+import { ErrorBoundary } from './components/shared/ErrorBoundary';
+import { NetworkStatusBanner } from './components/shared/NetworkStatusBanner';
 import { ShieldCheck, Lock, Flame, Key } from 'lucide-react';
 
 type AppMode = 'TERMINAL' | 'CUSTOMER';
@@ -142,9 +144,12 @@ export const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <ToastProvider>
-      <AppContent />
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <NetworkStatusBanner />
+        <AppContent />
+      </ToastProvider>
+    </ErrorBoundary>
   );
 };
 
