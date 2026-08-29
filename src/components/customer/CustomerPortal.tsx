@@ -23,7 +23,11 @@ import {
   Smartphone,
   ExternalLink,
   Plus,
-  Trash2
+  Trash2,
+  Sparkles,
+  Eye,
+  LogOut,
+  Edit2
 } from 'lucide-react';
 import { importKeyFromHash, encryptDocument } from '../../crypto/e2ee';
 import { SecurityGuards } from '../../crypto/securityGuards';
@@ -35,6 +39,7 @@ import { RedactionStudio } from './RedactionStudio';
 import { WatermarkTool } from './WatermarkTool';
 import { ShredCertificateModal } from './ShredCertificateModal';
 import { VoiceNotePlayer } from '../shared/VoiceNotePlayer';
+import { LiveCameraModal } from './LiveCameraModal';
 import { DestructionCertificate } from '../../crypto/ledger';
 
 interface StagedFile {
@@ -75,11 +80,11 @@ export const CustomerPortal: React.FC = () => {
   // Session & Pairing
   const [roomId, setRoomId] = useState<string | null>(null);
   const [keyHex, setKeyHex] = useState<string | null>(null);
-  const [shopName, setShopName] = useState('SafePrint Express Station');
+  const [shopName, setShopName] = useState('QuickXerox Station #01');
   const [shopId, setShopId] = useState('');
   const [customerId] = useState(() => `CUST-${Math.random().toString(36).substring(2, 7).toUpperCase()}`);
   const [customerName, setCustomerName] = useState<string>(() => {
-    return localStorage.getItem('safeprint_customer_name') || '';
+    return localStorage.getItem('safeprint_customer_name') || 'Rahul Sharma';
   });
 
   // Multi-File Staging
@@ -88,13 +93,15 @@ export const CustomerPortal: React.FC = () => {
   const [watermarkText, setWatermarkText] = useState('');
   const [maxCopies, setMaxCopies] = useState(1);
 
-  // UI state
+  // UI Modals & State
   const [showSettings, setShowSettings] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [showLiveCamera, setShowLiveCamera] = useState(false);
   const [showRedactionStudio, setShowRedactionStudio] = useState(false);
   const [activeRedactionFileId, setActiveRedactionFileId] = useState<string | null>(null);
   const [activeCert, setActiveCert] = useState<DestructionCertificate | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
 
   // Voice recording state
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -104,7 +111,7 @@ export const CustomerPortal: React.FC = () => {
   const voiceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const relayRef = useRef<RelaySocket | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -245,7 +252,40 @@ export const CustomerPortal: React.FC = () => {
     if (!e.target.files || e.target.files.length === 0) return;
     await processIncomingFiles(e.target.files);
     if (fileInputRef.current) fileInputRef.current.value = '';
-    if (cameraInputRef.current) cameraInputRef.current.value = '';
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
+  };
+
+  const handleLiveCameraCapture = (
+    buffer: ArrayBuffer,
+    filename: string,
+    fileType: string,
+    fileSize: number,
+    openRedaction: boolean = false
+  ) => {
+    if (!SecurityGuards.validateFileSize(fileSize)) {
+      toast.error('File Too Large', `${filename} exceeds 50 MB limit.`);
+      return;
+    }
+
+    const stagedId = `STAGED-${Math.random().toString(36).substring(2, 8)}`;
+    const newStaged: StagedFile = {
+      id: stagedId,
+      name: filename,
+      type: fileType,
+      size: fileSize,
+      buffer,
+      watermark: watermarkText || undefined,
+      copies: maxCopies,
+    };
+
+    setStagedFiles((prev) => [...prev, newStaged]);
+    sounds.playSuccess();
+    toast.success('Photo Staged', 'Captured document stored in RAM.');
+
+    if (openRedaction) {
+      setActiveRedactionFileId(stagedId);
+      setShowRedactionStudio(true);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -275,7 +315,7 @@ export const CustomerPortal: React.FC = () => {
     setShowRedactionStudio(false);
     setActiveRedactionFileId(null);
     sounds.playSuccess();
-    toast.success('Redaction Applied', 'Sensitive ID masked in RAM.');
+    toast.success('Redaction Applied', 'Sensitive details masked in RAM.');
   };
 
   const handleSendAllStagedDocuments = async () => {
@@ -341,7 +381,7 @@ export const CustomerPortal: React.FC = () => {
         );
         sounds.playSuccess();
       } catch (err) {
-        console.error('[SafePrint Customer] Send error:', err);
+        console.error('[CipherPrint Customer] Send error:', err);
         toast.error('Send Failed', `Could not send ${staged.name}`);
       }
     }
@@ -355,6 +395,7 @@ export const CustomerPortal: React.FC = () => {
     setTextMessages([]);
     setStagedFiles([]);
     window.history.replaceState({}, '', window.location.pathname);
+    toast.info('Session Closed', 'Ephemeral RAM connection cleared.');
   };
 
   // ── IN-MEMORY VOICE NOTE RECORDING ──
@@ -401,7 +442,7 @@ export const CustomerPortal: React.FC = () => {
             timestamp,
           });
 
-          sounds.playSuccess();
+          sounds.playMessageSent();
         };
         reader.readAsDataURL(audioBlob);
       };
@@ -411,8 +452,8 @@ export const CustomerPortal: React.FC = () => {
       setVoiceSeconds(0);
       voiceTimerRef.current = setInterval(() => setVoiceSeconds((s) => s + 1), 1000);
       sounds.playConnect();
-    } catch (err) {
-      toast.error('Microphone Access', 'Please allow microphone access to record voice note.');
+    } catch {
+      toast.error('Microphone Access', 'Please allow microphone access in browser to record voice notes.');
     }
   };
 
@@ -460,26 +501,26 @@ export const CustomerPortal: React.FC = () => {
     });
 
     setInputText('');
-    sounds.playSuccess();
+    sounds.playMessageSent();
   };
 
   return (
-    <div className="max-w-xl mx-auto px-2 sm:px-4 py-2 sm:py-3 w-full">
+    <div className="w-full h-full flex-1 flex flex-col overflow-hidden bg-[#EFEAE2]">
       {/* ── STEP 1: Not Paired -> Scan QR ── */}
       {!roomId ? (
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 flex flex-col items-center justify-center">
           <QRScanner onSessionDecoded={handleSessionDecoded} />
         </div>
       ) : (
-        /* ── STEP 2: Authentic WhatsApp Chat Interface ── */
-        <div className="wa-panel-elevated rounded-2xl overflow-hidden flex flex-col h-[calc(100dvh-120px)] sm:h-[700px] border border-[#d1d7db] shadow-2xl relative">
+        /* ── STEP 2: Authentic WhatsApp Full-Screen Chat Interface ── */
+        <div className="w-full h-full flex-1 flex flex-col overflow-hidden relative">
           {/* WhatsApp Chat Top Header (#075E54) */}
-          <div className="bg-[#075E54] text-white px-4 py-3 flex items-center justify-between shadow-md shrink-0 h-[64px]">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="bg-[#075E54] text-white px-3 sm:px-4 py-2.5 flex items-center justify-between shadow-md shrink-0 h-[60px] z-20">
+            <div className="flex items-center gap-2.5 min-w-0">
               <button
                 onClick={handleReset}
-                className="p-1 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
-                title="Disconnect"
+                className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
+                title="Disconnect from Counter"
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
@@ -493,45 +534,62 @@ export const CustomerPortal: React.FC = () => {
 
               <div className="text-left min-w-0">
                 <div className="text-[15px] font-bold truncate flex items-center gap-1.5 leading-tight">
-                  <span>{shopName || 'QuickXerox Station #01'}</span>
+                  <span className="truncate">{shopName || 'QuickXerox Station #01'}</span>
                   <ShieldCheck className="w-4 h-4 text-[#3de273] shrink-0" />
                 </div>
-                <div className="text-[12px] text-white/85 flex items-center gap-1.5 font-medium mt-0.5">
+                <div className="text-[11.5px] text-emerald-200 flex items-center gap-1.5 font-medium mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#25D366] animate-pulse shrink-0" />
-                  <span className="truncate">Online • In-RAM Session Active</span>
+                  <span className="truncate">Online • Printer RAM Handshake</span>
                 </div>
               </div>
             </div>
 
-            {/* Header Right Settings */}
-            <div className="flex items-center gap-1">
+            {/* Header Right Actions */}
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => setShowSettings(!showSettings)}
-                className={`p-2 rounded-full transition-colors cursor-pointer ${
+                className={`p-2 rounded-full transition-colors cursor-pointer relative ${
                   showSettings ? 'bg-white/30 text-white' : 'hover:bg-white/15 text-white'
                 }`}
                 title="Print & Security Settings"
               >
                 <SlidersHorizontal className="w-5 h-5" />
+                {(watermarkText || maxCopies > 1) && (
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border border-[#075E54]" />
+                )}
+              </button>
+
+              <button
+                onClick={handleReset}
+                className="p-2 rounded-full hover:bg-red-500/30 text-red-200 hover:text-white transition-colors cursor-pointer"
+                title="Disconnect Session"
+              >
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Customer Strip */}
-          <div className="bg-[#fef9f0] px-4 py-2 border-b border-[#bec9c5]/30 flex items-center justify-between text-left shrink-0 shadow-xs">
-            <span className="text-[11px] font-bold text-[#6f7976] uppercase tracking-wider">Customer</span>
-            <input
-              type="text"
-              value={customerName}
-              onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="Rahul Sharma (Your Name)"
-              className="text-xs sm:text-sm font-bold text-[#00453d] bg-transparent border-none focus:outline-none text-right placeholder-[#6f7976]"
-            />
+          {/* Customer Name Strip */}
+          <div className="bg-[#fef9f0] px-4 py-1.5 border-b border-[#bec9c5]/30 flex items-center justify-between text-left shrink-0 shadow-xs z-10">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#6f7976] uppercase tracking-wider">
+              <User className="w-3.5 h-3.5 text-[#00453d]" />
+              <span>Customer Name</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => handleNameChange(e.target.value)}
+                placeholder="Your Name (e.g. Rahul)"
+                className="text-xs sm:text-sm font-bold text-[#00453d] bg-transparent border-none focus:outline-none text-right placeholder-[#6f7976]"
+              />
+              <Edit2 className="w-3 h-3 text-[#6f7976] opacity-60" />
+            </div>
           </div>
 
           {/* Slide-Up / Dropdown Security Settings */}
           {showSettings && (
-            <div className="bg-white p-4 border-b border-[#bec9c5] shadow-lg text-left animate-in slide-in-from-top duration-200 shrink-0">
+            <div className="bg-white p-4 border-b border-[#bec9c5] shadow-xl text-left animate-in slide-in-from-top duration-200 shrink-0 z-20">
               <WatermarkTool
                 watermarkText={watermarkText}
                 maxCopies={maxCopies}
@@ -547,66 +605,75 @@ export const CustomerPortal: React.FC = () => {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className="flex-1 wa-chat-wallpaper overflow-y-auto p-4 sm:p-5 space-y-3.5 text-left relative"
+            className="flex-1 wa-chat-wallpaper overflow-y-auto p-3 sm:p-4 space-y-3 text-left relative"
           >
             {/* Visual Drag & Drop Overlay */}
             {isDragging && (
-              <div className="absolute inset-0 z-30 bg-[#008069]/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white text-center animate-in fade-in duration-100">
+              <div className="absolute inset-0 z-30 bg-[#00453d]/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white text-center animate-in fade-in duration-100">
                 <div className="w-16 h-16 rounded-3xl bg-white/20 border-2 border-dashed border-white flex items-center justify-center mb-3 scale-110 animate-bounce">
                   <FileText className="w-8 h-8 text-white" />
                 </div>
                 <h4 className="text-base font-bold">Drop Files to Stage in RAM</h4>
-                <p className="text-xs text-white/80 mt-1">PDFs, ID scans, and images accepted (Max 50MB)</p>
+                <p className="text-xs text-white/80 mt-1">PDFs, ID cards, and images accepted (Max 50MB)</p>
               </div>
             )}
 
             {/* System Encryption Pill */}
-            <div className="wa-system-pill flex items-center justify-center gap-2 text-center text-xs py-2 px-4 shadow-sm">
-              <Lock className="w-3.5 h-3.5 text-[#54656f] shrink-0" />
+            <div className="wa-system-pill flex items-center justify-center gap-2 text-center text-xs py-1.5 px-3.5 shadow-xs">
+              <Lock className="w-3.5 h-3.5 text-[#006d2f] shrink-0" />
               <span>
-                🔒 Messages and documents sent in this chat are AES-256 encrypted directly in printer RAM.
+                🔒 End-to-end encrypted. Files decrypted in RAM only & zeroized after printing.
               </span>
             </div>
 
-            {/* User-Friendly Quick Onboarding Card */}
+            {/* Quick Onboarding Card when empty */}
             {sentDocs.length === 0 && textMessages.length === 0 && stagedFiles.length === 0 && (
               <div className="bg-white/95 rounded-2xl p-4 sm:p-5 border border-[#d1d7db] shadow-sm max-w-md mx-auto my-3 text-left space-y-3">
-                <div className="text-xs font-bold text-[#008069] uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>3-Step Easy Printing</span>
+                <div className="text-xs font-bold text-[#00453d] uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#006d2f]" />
+                  <span>Ready to Print Direct from RAM</span>
                 </div>
 
                 <div className="space-y-2 text-xs text-[#54656f]">
                   <div className="flex items-start gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-[#008069]/15 text-[#008069] font-bold flex items-center justify-center text-[11px] shrink-0">1</span>
+                    <span className="w-5 h-5 rounded-full bg-[#00a884]/15 text-[#00453d] font-bold flex items-center justify-center text-[11px] shrink-0">1</span>
                     <div>
-                      <strong className="text-[#111b21]">Attach Document:</strong> Tap <Paperclip className="w-3.5 h-3.5 inline mx-0.5 text-[#54656f]" /> below to pick PDFs, ID scans, or photos.
+                      <strong className="text-[#111b21]">Attach Document:</strong> Tap <Paperclip className="w-3.5 h-3.5 inline mx-0.5 text-[#54656f]" /> or <Camera className="w-3.5 h-3.5 inline mx-0.5 text-[#00453d]" /> below to scan ID cards or select PDFs.
                     </div>
                   </div>
 
                   <div className="flex items-start gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-[#008069]/15 text-[#008069] font-bold flex items-center justify-center text-[11px] shrink-0">2</span>
+                    <span className="w-5 h-5 rounded-full bg-[#00a884]/15 text-[#00453d] font-bold flex items-center justify-center text-[11px] shrink-0">2</span>
                     <div>
-                      <strong className="text-[#111b21]">Add Notes:</strong> Type a message or tap <Mic className="w-3.5 h-3.5 inline mx-0.5 text-[#008069]" /> to speak your instructions.
+                      <strong className="text-[#111b21]">Instructions:</strong> Type copies needed, double-sided preference, or record a voice note.
                     </div>
                   </div>
 
                   <div className="flex items-start gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-[#008069]/15 text-[#008069] font-bold flex items-center justify-center text-[11px] shrink-0">3</span>
+                    <span className="w-5 h-5 rounded-full bg-[#00a884]/15 text-[#00453d] font-bold flex items-center justify-center text-[11px] shrink-0">3</span>
                     <div>
-                      <strong className="text-[#111b21]">Zero-Disk Print:</strong> File is decrypted in printer RAM only and shredded after printing.
+                      <strong className="text-[#111b21]">Destruction Proof:</strong> Shopkeeper prints directly from RAM and issues a Merkle destruction proof.
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-[#e9edef] flex justify-center">
+                <div className="pt-2 border-t border-[#e9edef] flex gap-2 justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowLiveCamera(true)}
+                    className="flex-1 py-2 px-3 rounded-xl bg-[#00453d] hover:bg-[#075e54] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-transform active:scale-95"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Scan Document</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer transition-transform active:scale-95"
+                    className="flex-1 py-2 px-3 rounded-xl bg-white hover:bg-[#f2ede5] text-[#00453d] text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm border border-[#bec9c5]/50 cursor-pointer transition-transform active:scale-95"
                   >
                     <Paperclip className="w-3.5 h-3.5" />
-                    <span>Select Document(s) to Start</span>
+                    <span>Pick PDF / File</span>
                   </button>
                 </div>
               </div>
@@ -618,10 +685,10 @@ export const CustomerPortal: React.FC = () => {
 
               return (
                 <div key={doc.id} className="flex justify-end animate-in fade-in duration-150">
-                  <div className="wa-bubble-out max-w-[94%] sm:max-w-md p-3.5 space-y-2.5 border border-[#d1d7db]/40 shadow-sm">
-                    <div className="p-3 rounded-xl bg-white flex items-center gap-3.5 border border-[#00a884]/20 shadow-sm">
-                      <div className="p-2.5 rounded-xl bg-[#00a884]/15 text-[#008069] shrink-0">
-                        {isPdf ? <FileText className="w-6 h-6" /> : <ImageIcon className="w-6 h-6" />}
+                  <div className="wa-bubble-out max-w-[94%] sm:max-w-md p-3 space-y-2 border border-[#bec9c5]/40 shadow-sm">
+                    <div className="p-2.5 rounded-xl bg-white flex items-center gap-3 border border-[#00a884]/20 shadow-xs">
+                      <div className="p-2.5 rounded-xl bg-[#00a884]/15 text-[#00453d] shrink-0">
+                        {isPdf ? <FileText className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />}
                       </div>
 
                       <div className="min-w-0 flex-1">
@@ -650,52 +717,52 @@ export const CustomerPortal: React.FC = () => {
                     )}
 
                     {doc.watermark && (
-                      <div className="text-xs text-[#008069] font-mono bg-[#d9fdd3] px-2.5 py-1 rounded-md border border-[#00a884]/30 inline-block font-semibold">
+                      <div className="text-xs text-[#ba1a1a] font-mono bg-red-50 px-2.5 py-1 rounded-md border border-red-200 inline-block font-bold">
                         Watermark: {doc.watermark}
                       </div>
                     )}
 
                     {/* Bubble Footer */}
-                    <div className="flex items-center justify-between pt-1.5 border-t border-[#00a884]/10 text-xs">
-                      <span className="text-[#667781] font-mono">
+                    <div className="flex items-center justify-between pt-1 border-t border-[#00a884]/10 text-xs">
+                      <span className="text-[#667781] font-mono text-[11px]">
                         {new Date(doc.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
 
                       <div className="flex items-center gap-1.5">
                         {doc.status === 'ENCRYPTING' && (
-                          <span className="text-[#54656f] flex items-center gap-1 font-semibold">
-                            <Clock className="w-3.5 h-3.5 animate-spin" /> Encrypting
+                          <span className="text-[#54656f] flex items-center gap-1 font-semibold text-[11px]">
+                            <Clock className="w-3 h-3 animate-spin" /> Encrypting
                           </span>
                         )}
 
                         {doc.status === 'STREAMING' && (
-                          <span className="text-[#008069] flex items-center gap-1 font-semibold">
-                            <Check className="w-4 h-4" /> Sending
+                          <span className="text-[#008069] flex items-center gap-1 font-semibold text-[11px]">
+                            <Check className="w-3.5 h-3.5" /> Sending
                           </span>
                         )}
 
                         {doc.status === 'DELIVERED' && (
-                          <span className="text-[#54656f] flex items-center gap-1 font-bold">
-                            <CheckCheck className="w-4 h-4 text-[#54656f]" /> In Shop RAM
+                          <span className="text-[#54656f] flex items-center gap-1 font-bold text-[11px]">
+                            <CheckCheck className="w-3.5 h-3.5 text-[#54656f]" /> In Shop RAM
                           </span>
                         )}
 
                         {doc.status === 'PRINTING' && (
-                          <span className="text-[#0284c7] font-bold flex items-center gap-1 animate-pulse">
-                            <Printer className="w-4 h-4" /> Printing...
+                          <span className="text-[#0284c7] font-bold flex items-center gap-1 animate-pulse text-[11px]">
+                            <Printer className="w-3.5 h-3.5" /> Printing...
                           </span>
                         )}
 
                         {doc.status === 'PRINTED' && (
-                          <span className="text-[#53bdeb] font-bold flex items-center gap-1">
-                            <CheckCheck className="w-4 h-4 text-[#53bdeb]" /> Printed
+                          <span className="text-[#53bdeb] font-bold flex items-center gap-1 text-[11px]">
+                            <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" /> Printed
                           </span>
                         )}
 
                         {doc.status === 'SHREDDED' && (
                           <button
                             onClick={() => doc.destructionCert && setActiveCert(doc.destructionCert)}
-                            className="text-[#dc2626] font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                            className="text-[#dc2626] font-bold flex items-center gap-1 hover:underline cursor-pointer text-[11px]"
                           >
                             <Flame className="w-3.5 h-3.5 text-[#dc2626]" /> Shredded Proof
                           </button>
@@ -719,7 +786,7 @@ export const CustomerPortal: React.FC = () => {
                   <div
                     className={`${
                       isMe ? 'wa-bubble-out' : 'wa-bubble-in'
-                    } max-w-[88%] sm:max-w-md px-4 py-2.5 space-y-1 shadow-sm border border-[#d1d7db]/40`}
+                    } max-w-[88%] sm:max-w-md px-3.5 py-2 space-y-1 shadow-sm border border-[#bec9c5]/40`}
                   >
                     {/* Voice Note Player */}
                     {msg.voiceBase64 && (
@@ -748,17 +815,21 @@ export const CustomerPortal: React.FC = () => {
 
             {/* ── MULTI-FILE BATCH STAGING CARD ── */}
             {stagedFiles.length > 0 && (
-              <div className="flex justify-end animate-in zoom-in-95 duration-150 pb-2">
-                <div className="bg-[#D9FDD3] text-[#1d1c17] rounded-2xl rounded-tr-sm p-3.5 max-w-[92%] sm:max-w-md w-[340px] relative bubble-shadow flex flex-col border border-[#c2f3ba]">
+              <div className="flex justify-end animate-in zoom-in-95 duration-150 pb-1">
+                <div className="bg-[#D9FDD3] text-[#1d1c17] rounded-2xl rounded-tr-sm p-3.5 max-w-[94%] sm:max-w-md w-full relative bubble-shadow flex flex-col border border-[#c2f3ba]">
                   {/* Staged Header */}
-                  <div className="flex items-center justify-between mb-3 border-b border-[#00453d]/10 pb-2">
-                    <span className="text-[12px] font-bold text-[#00453d] flex items-center">
-                      <FileText className="w-4 h-4 mr-1 text-[#00453d]" />
-                      <span>Staging Area</span>
+                  <div className="flex items-center justify-between mb-2.5 border-b border-[#00453d]/15 pb-2">
+                    <span className="text-[12px] font-bold text-[#00453d] flex items-center gap-1">
+                      <FileText className="w-4 h-4 text-[#00453d]" />
+                      <span>Ready to Send ({stagedFiles.length} file{stagedFiles.length > 1 ? 's' : ''})</span>
                     </span>
-                    <span className="text-[11px] font-mono text-[#6f7976]">
-                      {stagedFiles.length} {stagedFiles.length === 1 ? 'File' : 'Files'}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStagedFiles([])}
+                      className="text-[11px] text-[#ba1a1a] hover:underline font-semibold cursor-pointer"
+                    >
+                      Clear All
+                    </button>
                   </div>
 
                   {/* List of Staged Files */}
@@ -766,12 +837,12 @@ export const CustomerPortal: React.FC = () => {
                     {stagedFiles.map((file) => (
                       <div
                         key={file.id}
-                        className="bg-white rounded-xl p-3 border border-[#bec9c5]/30 shadow-xs flex flex-col relative overflow-hidden"
+                        className="bg-white rounded-xl p-2.5 border border-[#bec9c5]/30 shadow-xs flex flex-col relative overflow-hidden"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center text-[#ba1a1a] shrink-0 font-bold">
-                              <FileText className="w-5 h-5" />
+                            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center text-[#ba1a1a] shrink-0 font-bold">
+                              <FileText className="w-4 h-4" />
                             </div>
                             <div className="flex flex-col min-w-0">
                               <span className="text-[13px] font-bold text-[#1d1c17] truncate pr-2">{file.name}</span>
@@ -796,7 +867,7 @@ export const CustomerPortal: React.FC = () => {
                               setActiveRedactionFileId(file.id);
                               setShowRedactionStudio(true);
                             }}
-                            className="mt-2 inline-flex items-center self-start bg-emerald-50 text-[#00453d] border border-[#00453d]/20 rounded-md px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 cursor-pointer"
+                            className="mt-2 inline-flex items-center self-start bg-emerald-50 text-[#00453d] border border-[#00453d]/20 rounded-md px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 cursor-pointer transition-colors"
                           >
                             <ShieldAlert className="w-3 h-3 mr-1 text-[#00453d]" />
                             <span>Mask Sensitive ID Numbers</span>
@@ -810,14 +881,15 @@ export const CustomerPortal: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleSendAllStagedDocuments}
-                    className="w-full mt-2.5 py-2.5 px-4 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-sm active:scale-[0.98] transition-all cursor-pointer"
+                    className="w-full mt-2.5 py-2.5 px-4 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-md active:scale-[0.98] transition-all cursor-pointer"
                   >
                     <Lock className="w-4 h-4" />
-                    <span>Send {stagedFiles.length} Encrypted File(s) to Shop (AES-256)</span>
+                    <span>Send {stagedFiles.length} File{stagedFiles.length > 1 ? 's' : ''} to Xerox RAM (AES-256)</span>
                   </button>
 
-                  <div className="flex items-center justify-end mt-1.5">
-                    <span className="text-[10.5px] font-mono text-[#6f7976] italic">Staged • Not sent yet</span>
+                  <div className="flex items-center justify-between mt-1.5 text-[10.5px] font-mono text-[#6f7976]">
+                    <span>🔒 Volatile RAM Spool</span>
+                    <span className="italic">Staged in browser memory</span>
                   </div>
                 </div>
               </div>
@@ -828,7 +900,7 @@ export const CustomerPortal: React.FC = () => {
 
           {/* WhatsApp Attachment Sheet Popover */}
           {showAttachmentMenu && (
-            <div className="absolute bottom-20 left-4 bg-white rounded-2xl p-4 shadow-2xl border border-[#bec9c5] flex items-center gap-4 animate-in slide-in-from-bottom duration-150 z-30">
+            <div className="absolute bottom-20 left-3 sm:left-4 bg-white rounded-2xl p-3 sm:p-4 shadow-2xl border border-[#bec9c5] flex items-center gap-3 sm:gap-4 animate-in slide-in-from-bottom duration-150 z-30">
               <button
                 onClick={() => {
                   setShowAttachmentMenu(false);
@@ -845,20 +917,20 @@ export const CustomerPortal: React.FC = () => {
               <button
                 onClick={() => {
                   setShowAttachmentMenu(false);
-                  cameraInputRef.current?.click();
+                  setShowLiveCamera(true);
                 }}
                 className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
               >
                 <div className="w-12 h-12 rounded-full bg-[#d3396d] text-white flex items-center justify-center shadow-md">
                   <Camera className="w-6 h-6" />
                 </div>
-                <span className="text-xs text-[#54656f] font-semibold">Camera</span>
+                <span className="text-xs text-[#54656f] font-semibold">Live Camera</span>
               </button>
 
               <button
                 onClick={() => {
                   setShowAttachmentMenu(false);
-                  fileInputRef.current?.click();
+                  galleryInputRef.current?.click();
                 }}
                 className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
               >
@@ -867,24 +939,37 @@ export const CustomerPortal: React.FC = () => {
                 </div>
                 <span className="text-xs text-[#54656f] font-semibold">Gallery</span>
               </button>
+
+              <button
+                onClick={() => {
+                  setShowAttachmentMenu(false);
+                  setShowSettings(true);
+                }}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#00453d] text-white flex items-center justify-center shadow-md">
+                  <SlidersHorizontal className="w-6 h-6" />
+                </div>
+                <span className="text-xs text-[#54656f] font-semibold">Settings</span>
+              </button>
             </div>
           )}
 
           {/* Quick Print Instruction Chips Strip */}
-          <div className="bg-[#EFEAE2] px-3.5 py-1.5 border-t border-[#bec9c5]/30 flex items-center gap-1.5 overflow-x-auto shrink-0 scrollbar-hide">
-            <span className="text-[11px] font-bold text-[#6f7976] uppercase tracking-wider shrink-0">Print Note:</span>
+          <div className="bg-[#EFEAE2] px-3 py-1.5 border-t border-[#bec9c5]/30 flex items-center gap-1.5 overflow-x-auto shrink-0 scrollbar-hide">
+            <span className="text-[11px] font-bold text-[#6f7976] uppercase tracking-wider shrink-0">Note:</span>
             {[
               '🖨️ 1 B&W Copy',
               '📑 Double-Sided',
               '🎨 Full Color',
-              '⚡ Urgent',
+              '⚡ Urgent Print',
               '📜 Legal Paper',
             ].map((chip) => (
               <button
                 key={chip}
                 type="button"
                 onClick={() => setInputText(chip)}
-                className="px-3 py-1 rounded-full bg-white hover:bg-[#D9FDD3] hover:border-[#25D366] text-[#00453d] text-xs font-semibold border border-[#bec9c5]/40 shrink-0 cursor-pointer shadow-xs transition-colors"
+                className="px-2.5 py-1 rounded-full bg-white hover:bg-[#D9FDD3] hover:border-[#25D366] text-[#00453d] text-xs font-semibold border border-[#bec9c5]/40 shrink-0 cursor-pointer shadow-xs transition-colors"
               >
                 {chip}
               </button>
@@ -892,7 +977,7 @@ export const CustomerPortal: React.FC = () => {
           </div>
 
           {/* ── AUTHENTIC WHATSAPP INPUT BAR WITH LIVE VOICE RECORDING ── */}
-          <div className="bg-[#EFEAE2] p-2.5 sm:p-3 flex items-center gap-2 border-t border-[#bec9c5]/30 shrink-0">
+          <div className="bg-[#EFEAE2] p-2 sm:p-2.5 flex items-center gap-2 border-t border-[#bec9c5]/30 shrink-0 z-20">
             {/* Hidden native pickers with MULTIPLE enabled */}
             <input
               ref={fileInputRef}
@@ -903,10 +988,10 @@ export const CustomerPortal: React.FC = () => {
               className="hidden"
             />
             <input
-              ref={cameraInputRef}
+              ref={galleryInputRef}
               type="file"
+              multiple
               accept="image/*"
-              capture="environment"
               onChange={handleFilePicked}
               className="hidden"
             />
@@ -928,7 +1013,7 @@ export const CustomerPortal: React.FC = () => {
               </div>
             ) : (
               /* Text Input Wrapper */
-              <div className="flex-1 bg-white rounded-[24px] flex items-center px-3 min-h-[48px] shadow-xs border border-[#bec9c5]/30">
+              <div className="flex-1 bg-white rounded-[24px] flex items-center px-3 min-h-[46px] shadow-xs border border-[#bec9c5]/30">
                 <button
                   type="button"
                   onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
@@ -949,9 +1034,9 @@ export const CustomerPortal: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={() => setShowLiveCamera(true)}
                   className="text-[#6f7976] hover:text-[#00453d] transition-colors p-1 shrink-0 cursor-pointer"
-                  title="Camera Scan"
+                  title="Open Document Camera"
                 >
                   <Camera className="w-5 h-5" />
                 </button>
@@ -963,7 +1048,7 @@ export const CustomerPortal: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSendMessage}
-                className="w-12 h-12 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
+                className="w-11 h-11 sm:w-12 sm:h-12 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
                 title="Send Message"
               >
                 <Send className="w-5 h-5" />
@@ -972,7 +1057,7 @@ export const CustomerPortal: React.FC = () => {
               <button
                 type="button"
                 onClick={() => stopVoiceRecording(false)}
-                className="w-12 h-12 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
+                className="w-11 h-11 sm:w-12 sm:h-12 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
                 title="Send Voice Note"
               >
                 <Square className="w-5 h-5 fill-current" />
@@ -981,14 +1066,23 @@ export const CustomerPortal: React.FC = () => {
               <button
                 type="button"
                 onClick={startVoiceRecording}
-                className="w-12 h-12 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
-                title="Hold or tap to record voice note"
+                className="w-11 h-11 sm:w-12 sm:h-12 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
+                title="Tap to record voice note"
               >
                 <Mic className="w-5 h-5" />
               </button>
             )}
           </div>
         </div>
+      )}
+
+      {/* Live Camera Scanner Modal */}
+      {showLiveCamera && (
+        <LiveCameraModal
+          isOpen={showLiveCamera}
+          onClose={() => setShowLiveCamera(false)}
+          onCapture={handleLiveCameraCapture}
+        />
       )}
 
       {/* Redaction Studio Modal */}
