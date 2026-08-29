@@ -1,6 +1,18 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Shield, Lock, Cpu, QrCode, ArrowRight, Image as ImageIcon, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
+import {
+  Shield,
+  Lock,
+  Cpu,
+  QrCode,
+  ArrowRight,
+  Image as ImageIcon,
+  RefreshCw,
+  AlertCircle,
+  Sparkles,
+  Camera,
+  Play
+} from 'lucide-react';
 import { sounds } from '../../services/AudioEffects';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -13,7 +25,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
   const [scanError, setScanError] = useState<string | null>(null);
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
   const [isScanning, setIsScanning] = useState(false);
-  const [cameraLoading, setCameraLoading] = useState(true);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [hasRequestedCamera, setHasRequestedCamera] = useState(false);
 
   const scannerInstanceRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -41,7 +54,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
         }
         onSessionDecoded(room, keyHex);
       } else {
-        setScanError('Invalid CipherPrint QR format. Make sure it contains room & #key=');
+        setScanError('Invalid CipherPrint QR. Must contain ?room= and #key=');
       }
     } catch {
       setScanError('Failed to parse QR code link.');
@@ -61,6 +74,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
   const startCamera = useCallback(async (facing: 'environment' | 'user') => {
     setCameraLoading(true);
     setScanError(null);
+    setHasRequestedCamera(true);
 
     await stopCamera();
 
@@ -78,8 +92,9 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
         });
       }
 
+      // Try environment camera first
       await scannerInstanceRef.current.start(
-        { facingMode: { ideal: facing } },
+        { facingMode: facing },
         {
           fps: 15,
           qrbox: { width: 230, height: 230 },
@@ -95,14 +110,15 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
       setCameraLoading(false);
     } catch (err: any) {
       console.warn('[CipherPrint QR] Scanner start error:', err);
-      // If ideal facingMode failed, try starting with generic constraint
+
+      // Fallback 1: Try getting available video device IDs
       try {
         if (scannerInstanceRef.current) {
           const cameras = await Html5Qrcode.getCameras();
           if (cameras && cameras.length > 0) {
-            const cameraId = cameras[cameras.length - 1].id;
+            const backCamera = cameras.find((c) => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('rear')) || cameras[cameras.length - 1];
             await scannerInstanceRef.current.start(
-              cameraId,
+              backCamera.id,
               { fps: 15, qrbox: { width: 230, height: 230 } },
               (decodedText) => handleDecodedUrl(decodedText),
               () => {}
@@ -116,9 +132,9 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
         console.warn('[CipherPrint QR] Fallback camera error:', fallbackErr);
       }
 
-      let errorMsg = 'Camera access unavailable.';
+      let errorMsg = 'Camera access unavailable. Tap below to retry or upload QR screenshot.';
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        errorMsg = 'Camera permission denied. Allow camera in browser settings or upload a QR image below.';
+        errorMsg = 'Camera permission denied. Allow camera in browser settings or upload a QR image.';
       }
       setScanError(errorMsg);
       setIsScanning(false);
@@ -140,6 +156,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
       }
     }
 
+    // Auto-attempt camera start on mount
     startCamera(cameraFacing);
 
     return () => {
@@ -168,7 +185,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
       const decodedText = await html5QrCode.scanFile(file, true);
       handleDecodedUrl(decodedText);
     } catch {
-      setScanError('No valid QR code found in this image.');
+      setScanError('No valid QR code found in this image. Make sure the QR is clear.');
       setCameraLoading(false);
     }
   };
@@ -179,8 +196,16 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
     handleDecodedUrl(manualInput.trim());
   };
 
+  // Launch a 1-tap demo test session for instant mobile preview
+  const handleLaunchDemoSession = () => {
+    sounds.playConnect();
+    const demoRoom = `ROOM-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const demoKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    onSessionDecoded(demoRoom, demoKey);
+  };
+
   return (
-    <div className="w-full max-w-[480px] mx-auto flex flex-col items-center justify-start gap-4 p-3 sm:p-4 text-center animate-in fade-in duration-200">
+    <div className="w-full max-w-[440px] mx-auto flex flex-col items-center justify-start gap-3.5 p-2 sm:p-4 text-center animate-in fade-in duration-200">
       {/* Title */}
       <div className="text-center w-full px-2">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D9FDD3] text-[#00453d] text-xs font-bold font-mono mb-2 border border-[#3de273]/30">
@@ -188,17 +213,22 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
           <span>{t('zeroTraceHandshake')}</span>
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-[#1d1c17]">{t('scanTitle')}</h2>
-        <p className="text-xs sm:text-sm text-[#6f7976] mt-1 leading-relaxed">
+        <p className="text-xs sm:text-sm text-[#6f7976] mt-0.5 leading-relaxed">
           {t('scanSubtitle')}
         </p>
       </div>
 
       {/* Viewfinder Area */}
-      <div className="relative w-[280px] h-[280px] sm:w-[300px] sm:h-[300px] bg-[#1d1c17] rounded-[28px] shadow-2xl overflow-hidden flex items-center justify-center border-2 border-[#00453d]/30">
-        {/* Hardware scan animation */}
-        <div className="absolute top-0 left-0 w-full h-[2px] bg-[#25D366] shadow-[0_0_16px_4px_rgba(37,211,102,0.7)] animate-scan z-20 pointer-events-none" />
+      <div
+        onClick={() => !isScanning && !cameraLoading && startCamera(cameraFacing)}
+        className="relative w-[260px] h-[260px] sm:w-[290px] sm:h-[290px] bg-[#111b21] rounded-[28px] shadow-2xl overflow-hidden flex items-center justify-center border-2 border-[#00453d]/40 group cursor-pointer"
+      >
+        {/* Hardware scan laser animation if active */}
+        {isScanning && (
+          <div className="absolute top-0 left-0 w-full h-[2.5px] bg-[#25D366] shadow-[0_0_16px_4px_rgba(37,211,102,0.8)] animate-scan z-20 pointer-events-none" />
+        )}
 
-        {/* 4 Corner Brackets */}
+        {/* 4 Corner Reticle Brackets */}
         <div className="absolute top-0 left-0 w-8 h-8 border-t-[3.5px] border-l-[3.5px] border-[#25D366] rounded-tl-[16px] m-4 z-20 pointer-events-none" />
         <div className="absolute top-0 right-0 w-8 h-8 border-t-[3.5px] border-r-[3.5px] border-[#25D366] rounded-tr-[16px] m-4 z-20 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-8 h-8 border-b-[3.5px] border-l-[3.5px] border-[#25D366] rounded-bl-[16px] m-4 z-20 pointer-events-none" />
@@ -212,33 +242,66 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
 
         {/* Loading Spinner */}
         {cameraLoading && (
-          <div className="absolute inset-0 z-30 bg-black/80 flex flex-col items-center justify-center gap-2 text-white text-xs font-mono">
-            <div className="w-8 h-8 rounded-full border-2 border-[#25D366] border-t-transparent animate-spin" />
+          <div className="absolute inset-0 z-30 bg-[#111b21]/90 flex flex-col items-center justify-center gap-2 text-white text-xs font-mono">
+            <div className="w-9 h-9 rounded-full border-2 border-[#25D366] border-t-transparent animate-spin" />
             <span>{t('initCamera')}</span>
           </div>
         )}
 
-        {/* Camera Flip and Image Picker Quick Floating Buttons */}
-        <div className="absolute bottom-3 right-3 z-30 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleCameraFacing}
-            className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 transition-transform active:scale-90 cursor-pointer"
-            title={t('switchCamera')}
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 transition-transform active:scale-90 cursor-pointer"
-            title={t('uploadScreenshot')}
-          >
-            <ImageIcon className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Friendly Interactive Camera Activation Fallback */}
+        {!isScanning && !cameraLoading && (
+          <div className="absolute inset-0 z-25 bg-[#111b21]/95 flex flex-col items-center justify-center p-4 text-center text-white space-y-3">
+            <div className="w-14 h-14 rounded-full bg-[#00a884]/20 border border-[#25D366]/40 flex items-center justify-center text-[#25D366] shadow-lg animate-pulse-glow">
+              <Camera className="w-7 h-7" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white">Tap to Enable Camera</div>
+              <p className="text-[11px] text-[#8cd4c7] mt-0.5">Allows instant QR standee scanning</p>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                startCamera(cameraFacing);
+              }}
+              className="py-2 px-4 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-transform cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Start Camera Scanner</span>
+            </button>
+          </div>
+        )}
+
+        {/* Camera Flip and Image Picker Floating Controls */}
+        {isScanning && (
+          <div className="absolute bottom-3 right-3 z-30 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleCameraFacing();
+              }}
+              className="p-2 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 transition-transform active:scale-90 cursor-pointer"
+              title={t('switchCamera')}
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+              className="p-2 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 transition-transform active:scale-90 cursor-pointer"
+              title={t('uploadScreenshot')}
+            >
+              <ImageIcon className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* Error Alert */}
       {scanError && (
         <div className="text-xs text-red-700 bg-red-50 border border-red-200 px-3.5 py-2 rounded-xl max-w-sm flex items-center gap-2 text-left">
           <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
@@ -246,8 +309,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
         </div>
       )}
 
-      {/* Alternative Action: Scan from Photo or Retry */}
-      <div className="w-full flex gap-2 justify-center">
+      {/* Alternative Action: Scan from Photo & 1-Tap Demo Test */}
+      <div className="w-full flex gap-2 justify-center max-w-[360px]">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
@@ -259,33 +322,34 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
 
         <button
           type="button"
-          onClick={() => startCamera(cameraFacing)}
-          className="py-2 px-3 rounded-xl bg-[#f2ede5] hover:bg-[#e7e2da] text-[#1d1c17] font-semibold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+          onClick={handleLaunchDemoSession}
+          className="py-2 px-3.5 rounded-xl bg-[#00a884]/15 hover:bg-[#00a884]/25 text-[#00453d] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-[#00a884]/30"
+          title="Try live test session without second device"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>{t('refresh')}</span>
+          <Play className="w-3.5 h-3.5 fill-current text-[#006d2f]" />
+          <span>Test Demo</span>
         </button>
       </div>
 
       {/* Security Telemetry Card */}
-      <div className="w-full bg-white rounded-2xl p-3.5 border border-[#bec9c5]/30 shadow-xs text-left">
-        <div className="grid grid-cols-3 gap-2 text-center divide-x divide-[#bec9c5]/30">
+      <div className="w-full bg-white rounded-2xl p-3 border border-[#bec9c5]/30 shadow-xs text-left">
+        <div className="grid grid-cols-3 gap-1 text-center divide-x divide-[#bec9c5]/30">
           <div className="px-1 flex flex-col items-center">
-            <Lock className="w-4 h-4 text-[#00453d] mb-1" />
-            <span className="text-[10px] text-[#6f7976] font-bold uppercase">{t('encryptionBadge')}</span>
-            <span className="text-[11px] font-mono font-bold text-[#1d1c17]">AES-GCM-256</span>
+            <Lock className="w-3.5 h-3.5 text-[#00453d] mb-1" />
+            <span className="text-[9.5px] text-[#6f7976] font-bold uppercase">{t('encryptionBadge')}</span>
+            <span className="text-[10.5px] font-mono font-bold text-[#1d1c17]">AES-GCM-256</span>
           </div>
 
           <div className="px-1 flex flex-col items-center">
-            <Shield className="w-4 h-4 text-[#006d2f] mb-1" />
-            <span className="text-[10px] text-[#6f7976] font-bold uppercase">{t('keyExchangeBadge')}</span>
-            <span className="text-[11px] font-mono font-bold text-[#1d1c17]">{t('urlFragment')}</span>
+            <Shield className="w-3.5 h-3.5 text-[#006d2f] mb-1" />
+            <span className="text-[9.5px] text-[#6f7976] font-bold uppercase">{t('keyExchangeBadge')}</span>
+            <span className="text-[10.5px] font-mono font-bold text-[#1d1c17]">{t('urlFragment')}</span>
           </div>
 
           <div className="px-1 flex flex-col items-center">
-            <Cpu className="w-4 h-4 text-[#ba1a1a] mb-1" />
-            <span className="text-[10px] text-[#6f7976] font-bold uppercase">{t('storageBadge')}</span>
-            <span className="text-[11px] font-mono font-bold text-[#ba1a1a]">{t('zeroDiskRam')}</span>
+            <Cpu className="w-3.5 h-3.5 text-[#ba1a1a] mb-1" />
+            <span className="text-[9.5px] text-[#6f7976] font-bold uppercase">{t('storageBadge')}</span>
+            <span className="text-[10.5px] font-mono font-bold text-[#ba1a1a]">{t('zeroDiskRam')}</span>
           </div>
         </div>
       </div>
@@ -297,11 +361,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
           value={manualInput}
           onChange={(e) => setManualInput(e.target.value)}
           placeholder={t('pasteLinkPlaceholder')}
-          className="flex-1 px-3.5 py-2.5 bg-white border border-[#bec9c5] rounded-xl text-xs text-[#1d1c17] placeholder:text-[#6f7976] focus:outline-none focus:ring-1 focus:ring-[#00453d]"
+          className="flex-1 px-3 py-2 bg-white border border-[#bec9c5] rounded-xl text-xs text-[#1d1c17] placeholder:text-[#6f7976] focus:outline-none focus:ring-1 focus:ring-[#00453d]"
         />
         <button
           type="submit"
-          className="px-4 py-2.5 bg-[#00453d] text-white rounded-xl text-xs font-bold hover:bg-[#075e54] flex items-center gap-1 cursor-pointer transition-transform active:scale-95 shadow-sm"
+          className="px-3.5 py-2 bg-[#00453d] text-white rounded-xl text-xs font-bold hover:bg-[#075e54] flex items-center gap-1 cursor-pointer transition-transform active:scale-95 shadow-sm shrink-0"
         >
           <span>{t('joinBtn')}</span>
           <ArrowRight className="w-3.5 h-3.5" />
