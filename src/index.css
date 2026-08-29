@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 @layer base {
-  body {
+  html, body {
     -webkit-tap-highlight-color: transparent;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    touch-action: manipulation;
   }
   ::selection {
     background: #00a884;
@@ -13,6 +14,22 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+}
+
+/* ── Custom Sleek Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 168, 132, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 168, 132, 0.5);
 }
 
 /* ── Material Symbols ── */
@@ -60,23 +77,23 @@
 
 /* ── System Encryption Pill ── */
 .wa-system-pill {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.94);
   border: 1px solid #d1d7db;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #54656f;
   font-size: 11.5px;
   font-weight: 500;
   max-width: 500px;
   margin-left: auto;
   margin-right: auto;
-  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.06);
+  box-shadow: 0 1px 3px rgba(11, 20, 26, 0.06);
 }
 
 /* ── Speech Bubble Tails (WhatsApp Authentic) ── */
 .wa-bubble-in {
   position: relative;
   background: #ffffff;
-  border-radius: 8px 8px 8px 2px;
+  border-radius: 12px 12px 12px 2px;
 }
 .wa-bubble-in::before {
   content: '';
@@ -91,7 +108,7 @@
 .wa-bubble-out {
   position: relative;
   background: #d9fdd3;
-  border-radius: 8px 8px 2px 8px;
+  border-radius: 12px 12px 2px 12px;
 }
 .wa-bubble-out::after {
   content: '';
@@ -106,10 +123,10 @@
 
 /* ── Bubble Shadow ── */
 .bubble-shadow {
-  box-shadow: 0px 1px 2px rgba(11, 20, 26, 0.13);
+  box-shadow: 0px 2px 4px rgba(11, 20, 26, 0.09);
 }
 
-/* ── QR Scanner Scan Line Animation ── */
+/* ── Animations & Keyframes ── */
 @keyframes scanline {
   0% { transform: translateY(-100%); opacity: 0; }
   10% { opacity: 1; }
@@ -120,11 +137,27 @@
   animation: scanline 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(37, 211, 102, 0); }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes sound-bar {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
+}
+.animate-sound-bar {
+  animation: sound-bar 0.8s ease-in-out infinite;
+}
+
 /* ── Glass Card Effect ── */
 .glass-card {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 /* ── CipherPrint Design System Patterns ── */

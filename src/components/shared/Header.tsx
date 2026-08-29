@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Shield,
   Smartphone,
@@ -11,7 +11,8 @@ import {
   KeyRound,
   Lock,
   Globe,
-  ChevronDown
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { AdminAuthModal } from '../terminal/AdminAuthModal';
 import { ComparisonModal } from './ComparisonModal';
@@ -43,8 +44,20 @@ export const Header: React.FC<HeaderProps> = ({
   const [showRAMProof, setShowRAMProof] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(sounds.isEnabled());
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement | null>(null);
   const toast = useToast();
   const { language, setLanguage, t, availableLanguages } = useLanguage();
+
+  // Close language menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
+        setShowLangMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSelectMode = (mode: 'TERMINAL' | 'CUSTOMER') => {
     if (mode === 'TERMINAL' && !isAdminAuthenticated) {
@@ -83,16 +96,16 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="bg-[#075E54] text-white flex justify-between items-center h-[56px] sm:h-[60px] px-3 sm:px-6 w-full z-50 sticky top-0 border-b border-[#bec9c5]/30 shadow-md no-print select-none">
+      <header className="bg-[#075E54] text-white flex justify-between items-center h-[54px] sm:h-[60px] px-3 sm:px-6 w-full z-50 sticky top-0 border-b border-[#bec9c5]/30 shadow-md no-print select-none">
         {/* Left: Brand Logo & Title */}
-        <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+        <div className="flex items-center gap-2.5 sm:gap-6 min-w-0">
           <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => handleSelectMode('CUSTOMER')}>
-            <div className="w-8 h-8 rounded-lg bg-white/20 border border-white/30 flex items-center justify-center text-white shadow-xs">
-              <Shield className="w-5 h-5 fill-current" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/20 border border-white/30 flex items-center justify-center text-white shadow-xs">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
             </div>
             <div className="flex flex-col">
               <span className="text-base sm:text-lg font-bold tracking-tight text-white leading-none">{t('brandName')}</span>
-              <span className="text-[8.5px] sm:text-[9px] uppercase tracking-wider text-[#8cd4c7] font-mono mt-0.5 hidden xs:inline truncate">
+              <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-[#8cd4c7] font-mono mt-0.5 hidden xs:inline truncate">
                 {t('brandTagline')}
               </span>
             </div>
@@ -102,25 +115,25 @@ export const Header: React.FC<HeaderProps> = ({
           <nav className="flex items-center bg-black/25 p-0.5 sm:p-1 rounded-xl border border-white/10 shrink-0">
             <button
               onClick={() => handleSelectMode('CUSTOMER')}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
                 currentMode === 'CUSTOMER'
                   ? 'bg-white text-[#075e54] shadow-sm'
                   : 'text-white/80 hover:text-white hover:bg-white/10'
               }`}
             >
-              <Smartphone className="w-3.5 h-3.5" />
+              <Smartphone className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               <span>{t('customerMode')}</span>
             </button>
 
             <button
               onClick={() => handleSelectMode('TERMINAL')}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
                 currentMode === 'TERMINAL' && isAdminAuthenticated
                   ? 'bg-white text-[#075e54] shadow-sm'
                   : 'text-white/80 hover:text-white hover:bg-white/10'
               }`}
             >
-              <Monitor className="w-3.5 h-3.5" />
+              <Monitor className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               <span>{t('terminalMode')}</span>
               {!isAdminAuthenticated && <KeyRound className="w-3 h-3 text-amber-300 ml-0.5" />}
             </button>
@@ -130,20 +143,20 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Right: Language Selector & Actions & Emergency Purge */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* 🌐 Language Switcher Dropdown */}
-          <div className="relative">
+          <div ref={langMenuRef} className="relative">
             <button
               type="button"
               onClick={() => setShowLangMenu(!showLangMenu)}
-              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl bg-black/25 hover:bg-black/40 border border-white/15 text-xs font-bold text-white transition-colors cursor-pointer"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl bg-black/25 hover:bg-black/40 border border-white/15 text-xs font-bold text-white transition-colors cursor-pointer"
               title="Change Language (भाषा बदला)"
             >
-              <span className="text-sm">{currentLangObj.flag}</span>
-              <span className="hidden sm:inline font-semibold">{currentLangObj.label}</span>
+              <span className="text-xs sm:text-sm">{currentLangObj.flag}</span>
+              <span className="hidden sm:inline font-semibold text-[11px] sm:text-xs">{currentLangObj.label}</span>
               <ChevronDown className="w-3 h-3 text-white/70" />
             </button>
 
             {showLangMenu && (
-              <div className="absolute right-0 top-full mt-1.5 bg-white text-[#111b21] rounded-2xl p-1.5 shadow-2xl border border-[#bec9c5] min-w-[130px] z-50 animate-in slide-in-from-top duration-150">
+              <div className="absolute right-0 top-full mt-1.5 bg-white text-[#111b21] rounded-2xl p-1.5 shadow-2xl border border-[#bec9c5] min-w-[140px] z-50 animate-in slide-in-from-top duration-150">
                 {availableLanguages.map((lang) => (
                   <button
                     key={lang.code}
@@ -153,14 +166,17 @@ export const Header: React.FC<HeaderProps> = ({
                       setShowLangMenu(false);
                       sounds.playConnect();
                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-colors text-left cursor-pointer ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-colors text-left cursor-pointer ${
                       language === lang.code
                         ? 'bg-[#00a884]/15 text-[#00453d]'
                         : 'hover:bg-[#f0f2f5] text-[#111b21]'
                     }`}
                   >
-                    <span className="text-sm">{lang.flag}</span>
-                    <span>{lang.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{lang.flag}</span>
+                      <span>{lang.label}</span>
+                    </div>
+                    {language === lang.code && <Check className="w-3.5 h-3.5 text-[#006d2f]" />}
                   </button>
                 ))}
               </div>
@@ -208,7 +224,7 @@ export const Header: React.FC<HeaderProps> = ({
           {currentMode === 'TERMINAL' && isAdminAuthenticated && (
             <button
               onClick={handleLogout}
-              className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-200 transition-colors cursor-pointer ml-1"
+              className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-200 transition-colors cursor-pointer ml-0.5"
               title="Lock Terminal & Logout"
             >
               <LogOut className="w-4 h-4" />

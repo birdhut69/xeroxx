@@ -119,6 +119,7 @@ export const CustomerPortal: React.FC = () => {
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const relayRef = useRef<RelaySocket | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
+  const attachmentMenuRef = useRef<HTMLDivElement | null>(null);
 
   const [textMessages, setTextMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
@@ -128,6 +129,17 @@ export const CustomerPortal: React.FC = () => {
     setCustomerName(name);
     localStorage.setItem('safeprint_customer_name', name);
   };
+
+  // Close attachment menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(e.target as Node)) {
+        setShowAttachmentMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // ── 1. CHECK FOR INCOMING FILES FROM WHATSAPP / ANDROID SHARE TARGET ──
   useEffect(() => {
@@ -621,7 +633,7 @@ export const CustomerPortal: React.FC = () => {
         /* ── STEP 2: Authentic WhatsApp Full-Screen Chat Interface ── */
         <div className="w-full h-full flex-1 flex flex-col overflow-hidden relative">
           {/* WhatsApp Chat Top Header (#075E54) */}
-          <div className="bg-[#075E54] text-white px-3 sm:px-4 py-2.5 flex items-center justify-between shadow-md shrink-0 h-[60px] z-20">
+          <div className="bg-[#075E54] text-white px-3 sm:px-4 py-2.5 flex items-center justify-between shadow-md shrink-0 h-[56px] sm:h-[60px] z-20">
             <div className="flex items-center gap-2.5 min-w-0">
               <button
                 onClick={handleReset}
@@ -632,18 +644,18 @@ export const CustomerPortal: React.FC = () => {
               </button>
 
               <div className="relative shrink-0">
-                <div className="w-10 h-10 rounded-full bg-white/20 border border-white/30 flex items-center justify-center font-bold text-white text-sm shadow-sm">
-                  <Printer className="w-5 h-5" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/20 border border-white/30 flex items-center justify-center font-bold text-white text-sm shadow-sm">
+                  <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#25D366] border-2 border-[#075E54]" />
               </div>
 
               <div className="text-left min-w-0">
-                <div className="text-[15px] font-bold truncate flex items-center gap-1.5 leading-tight">
+                <div className="text-sm sm:text-[15px] font-bold truncate flex items-center gap-1.5 leading-tight">
                   <span className="truncate">{shopName || 'QuickXerox Station #01'}</span>
                   <ShieldCheck className="w-4 h-4 text-[#3de273] shrink-0" />
                 </div>
-                <div className="text-[11.5px] text-emerald-200 flex items-center gap-1.5 font-medium mt-0.5">
+                <div className="text-[11px] sm:text-[11.5px] text-emerald-200 flex items-center gap-1.5 font-medium mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#25D366] animate-pulse shrink-0" />
                   <span className="truncate">{t('online')} • {t('inRamSession')}</span>
                 </div>
@@ -659,7 +671,7 @@ export const CustomerPortal: React.FC = () => {
                 }`}
                 title={t('printSettingsTitle')}
               >
-                <SlidersHorizontal className="w-5 h-5" />
+                <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
                 {(watermarkText || maxCopies > 1) && (
                   <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border border-[#075E54]" />
                 )}
@@ -670,7 +682,7 @@ export const CustomerPortal: React.FC = () => {
                 className="p-2 rounded-full hover:bg-red-500/30 text-red-200 hover:text-white transition-colors cursor-pointer"
                 title={t('disconnectTitle')}
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
@@ -734,7 +746,7 @@ export const CustomerPortal: React.FC = () => {
 
             {/* Quick Onboarding Card when empty */}
             {sentDocs.length === 0 && textMessages.length === 0 && stagedFiles.length === 0 && (
-              <div className="bg-white/95 rounded-2xl p-4 sm:p-5 border border-[#d1d7db] shadow-sm max-w-md mx-auto my-3 text-left space-y-3">
+              <div className="bg-white/95 rounded-2xl p-4 sm:p-5 border border-[#d1d7db] shadow-sm max-w-md mx-auto my-3 text-left space-y-3 animate-in fade-in duration-200">
                 <div className="text-xs font-bold text-[#00453d] uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-[#006d2f]" />
                   <span>{t('brandTagline')}</span>
@@ -990,11 +1002,11 @@ export const CustomerPortal: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Send CTA */}
+                  {/* Send CTA with Glowing Pulse */}
                   <button
                     type="button"
                     onClick={handleSendAllStagedDocuments}
-                    className="w-full mt-2.5 py-2.5 px-4 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-md active:scale-[0.98] transition-all cursor-pointer"
+                    className="w-full mt-2.5 py-2.5 px-4 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-md active:scale-[0.98] transition-all cursor-pointer animate-pulse-glow"
                   >
                     <Lock className="w-4 h-4" />
                     <span>{t('sendFilesToRam')}</span>
@@ -1011,9 +1023,12 @@ export const CustomerPortal: React.FC = () => {
             <div ref={chatBottomRef} />
           </div>
 
-          {/* WhatsApp Attachment Sheet Popover */}
+          {/* WhatsApp Attachment Sheet Popover with Click-Outside Guard */}
           {showAttachmentMenu && (
-            <div className="absolute bottom-20 left-3 sm:left-4 bg-white rounded-2xl p-3 sm:p-4 shadow-2xl border border-[#bec9c5] flex items-center gap-3 sm:gap-4 animate-in slide-in-from-bottom duration-150 z-30">
+            <div
+              ref={attachmentMenuRef}
+              className="absolute bottom-20 left-3 sm:left-4 bg-white/95 backdrop-blur-md rounded-2xl p-3 sm:p-4 shadow-2xl border border-[#bec9c5] flex items-center gap-3 sm:gap-4 animate-in slide-in-from-bottom duration-150 z-30"
+            >
               <button
                 onClick={() => {
                   setShowAttachmentMenu(false);
@@ -1089,7 +1104,7 @@ export const CustomerPortal: React.FC = () => {
             ))}
           </div>
 
-          {/* ── AUTHENTIC WHATSAPP INPUT BAR WITH LIVE VOICE RECORDING ── */}
+          {/* ── AUTHENTIC WHATSAPP INPUT BAR WITH LIVE VOICE WAVEFORM ── */}
           <div className="bg-[#EFEAE2] p-2 sm:p-2.5 flex items-center gap-2 border-t border-[#bec9c5]/30 shrink-0 z-20">
             {/* Hidden native pickers with MULTIPLE enabled */}
             <input
@@ -1109,12 +1124,18 @@ export const CustomerPortal: React.FC = () => {
               className="hidden"
             />
 
-            {/* If actively recording audio */}
+            {/* If actively recording audio with dynamic waveform bars */}
             {isRecordingVoice ? (
-              <div className="flex-1 bg-red-50 px-4 h-12 rounded-[24px] border border-red-200 flex items-center justify-between animate-pulse">
-                <div className="flex items-center gap-2 text-red-600 font-bold text-xs">
+              <div className="flex-1 bg-red-50 px-4 h-11 sm:h-12 rounded-[24px] border border-red-200 flex items-center justify-between animate-pulse">
+                <div className="flex items-center gap-2.5 text-red-600 font-bold text-xs">
                   <span className="w-3 h-3 rounded-full bg-red-600 animate-ping" />
                   <span>{t('recordingVoice')} ({voiceSeconds}s)</span>
+                  <div className="flex items-center gap-0.5 ml-2">
+                    <span className="w-1 bg-red-500 rounded-full animate-sound-bar" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1 bg-red-500 rounded-full animate-sound-bar" style={{ animationDelay: '200ms' }} />
+                    <span className="w-1 bg-red-500 rounded-full animate-sound-bar" style={{ animationDelay: '400ms' }} />
+                    <span className="w-1 bg-red-500 rounded-full animate-sound-bar" style={{ animationDelay: '600ms' }} />
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -1126,7 +1147,7 @@ export const CustomerPortal: React.FC = () => {
               </div>
             ) : (
               /* Text Input Wrapper */
-              <div className="flex-1 bg-white rounded-[24px] flex items-center px-3 min-h-[46px] shadow-xs border border-[#bec9c5]/30">
+              <div className="flex-1 bg-white rounded-[24px] flex items-center px-3 min-h-[44px] sm:min-h-[46px] shadow-xs border border-[#bec9c5]/30">
                 <button
                   type="button"
                   onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
