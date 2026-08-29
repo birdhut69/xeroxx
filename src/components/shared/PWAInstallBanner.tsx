@@ -54,7 +54,7 @@ export const PWAInstallBanner: React.FC = () => {
         </div>
         <div className="text-left min-w-0">
           <div className="text-xs font-bold text-[#111b21] truncate">Install CipherPrint App</div>
-          <div className="text-[11px] text-[#667781] truncate">Instant 0ms launch & offline mode</div>
+          <div className="text-[11px] text-[#006d2f] font-medium truncate">Enables 1-tap WhatsApp Direct Share</div>
         </div>
       </div>
 

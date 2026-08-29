@@ -3,6 +3,7 @@
   "short_name": "CipherPrint",
   "description": "Zero-knowledge, end-to-end encrypted, RAM-only document printing platform for Xerox and print shops.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#efeae2",
   "theme_color": "#075E54",
@@ -21,5 +22,28 @@
       "purpose": "any maskable"
     }
   ],
+  "share_target": {
+    "action": "/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "files": [
+        {
+          "name": "documents",
+          "accept": [
+            "application/pdf",
+            "image/*",
+            ".pdf",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".webp"
+          ]
+        }
+      ]
+    }
+  },
   "categories": ["utilities", "productivity", "business"]
 }

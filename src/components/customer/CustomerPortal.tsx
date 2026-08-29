@@ -27,7 +27,9 @@ import {
   Sparkles,
   Eye,
   LogOut,
-  Edit2
+  Edit2,
+  Share2,
+  QrCode
 } from 'lucide-react';
 import { importKeyFromHash, encryptDocument } from '../../crypto/e2ee';
 import { SecurityGuards } from '../../crypto/securityGuards';
@@ -41,6 +43,7 @@ import { ShredCertificateModal } from './ShredCertificateModal';
 import { VoiceNotePlayer } from '../shared/VoiceNotePlayer';
 import { LiveCameraModal } from './LiveCameraModal';
 import { DestructionCertificate } from '../../crypto/ledger';
+import { getSharedFiles, clearSharedFiles } from '../../services/shareTarget';
 
 interface StagedFile {
   id: string;
@@ -50,6 +53,7 @@ interface StagedFile {
   buffer: ArrayBuffer;
   watermark?: string;
   copies: number;
+  isFromShareTarget?: boolean;
 }
 
 interface SentDocument {
@@ -101,7 +105,6 @@ export const CustomerPortal: React.FC = () => {
   const [activeRedactionFileId, setActiveRedactionFileId] = useState<string | null>(null);
   const [activeCert, setActiveCert] = useState<DestructionCertificate | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
 
   // Voice recording state
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -123,6 +126,54 @@ export const CustomerPortal: React.FC = () => {
     setCustomerName(name);
     localStorage.setItem('safeprint_customer_name', name);
   };
+
+  // ── 1. CHECK FOR INCOMING FILES FROM WHATSAPP / ANDROID SHARE TARGET ──
+  useEffect(() => {
+    const checkIncomingSharedFiles = async () => {
+      try {
+        const shared = await getSharedFiles();
+        if (shared && shared.length > 0) {
+          const newStaged: StagedFile[] = [];
+
+          for (const item of shared) {
+            if (!SecurityGuards.validateFileSize(item.size)) {
+              toast.error('File Too Large', `${item.name} exceeds 50 MB limit.`);
+              continue;
+            }
+
+            const safeFilename = SecurityGuards.sanitizeFilename(item.name);
+            newStaged.push({
+              id: `SHARED-${Math.random().toString(36).substring(2, 8)}`,
+              name: safeFilename,
+              type: item.type || 'application/pdf',
+              size: item.size,
+              buffer: item.buffer,
+              watermark: watermarkText || undefined,
+              copies: maxCopies,
+              isFromShareTarget: true,
+            });
+          }
+
+          if (newStaged.length > 0) {
+            setStagedFiles((prev) => [...prev, ...newStaged]);
+            sounds.playSuccess();
+            toast.shield('Shared Document Received', `${newStaged.length} file(s) received from WhatsApp staged in RAM.`);
+            await clearSharedFiles();
+          }
+        }
+      } catch (err) {
+        console.warn('[CipherPrint] Share target check note:', err);
+      }
+    };
+
+    checkIncomingSharedFiles();
+
+    // Check again when window gains focus (e.g. returning from WhatsApp share sheet)
+    window.addEventListener('focus', checkIncomingSharedFiles);
+    return () => {
+      window.removeEventListener('focus', checkIncomingSharedFiles);
+    };
+  }, [watermarkText, maxCopies, toast]);
 
   // Parse URL parameters on load
   useEffect(() => {
@@ -508,8 +559,61 @@ export const CustomerPortal: React.FC = () => {
     <div className="w-full h-full flex-1 flex flex-col overflow-hidden bg-[#EFEAE2]">
       {/* ── STEP 1: Not Paired -> Scan QR ── */}
       {!roomId ? (
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 flex flex-col items-center justify-center">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 flex flex-col items-center justify-start max-w-xl mx-auto w-full">
+          {/* 📲 Shared Document from WhatsApp Pre-Staging Banner */}
+          {stagedFiles.length > 0 && (
+            <div className="w-full bg-[#D9FDD3] border-2 border-[#00a884] rounded-2xl p-4 shadow-lg text-left mb-3 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between pb-2 border-b border-[#00453d]/15">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#00453d] text-white flex items-center justify-center font-bold shadow-xs">
+                    <Sparkles className="w-4 h-4 text-[#25D366]" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-[#00453d] uppercase tracking-wider">Document Ready to Print</div>
+                    <div className="text-[11px] text-[#006d2f] font-medium">Shared directly from WhatsApp / Storage</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStagedFiles([])}
+                  className="text-xs text-red-600 hover:underline font-semibold cursor-pointer"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div className="space-y-1.5 mt-2.5">
+                {stagedFiles.map((file) => (
+                  <div key={file.id} className="bg-white p-2.5 rounded-xl border border-[#00a884]/20 flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="w-4 h-4 text-[#ba1a1a] shrink-0" />
+                      <div className="truncate text-xs font-bold text-[#1d1c17]">{file.name}</div>
+                    </div>
+                    <span className="text-[11px] font-mono text-[#6f7976] shrink-0">{(file.size / 1024).toFixed(1)} KB</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 text-center bg-white/80 py-2 px-3 rounded-xl border border-[#00a884]/30 text-xs font-bold text-[#00453d] flex items-center justify-center gap-1.5 shadow-xs">
+                <QrCode className="w-4 h-4 text-[#006d2f] animate-pulse" />
+                <span>Point camera at the Xerox Standee QR below to print now</span>
+              </div>
+            </div>
+          )}
+
+          {/* QR Scanner */}
           <QRScanner onSessionDecoded={handleSessionDecoded} />
+
+          {/* WhatsApp Direct Share How-To Tip Card */}
+          <div className="w-full max-w-[480px] bg-white rounded-2xl p-3.5 border border-[#bec9c5]/40 shadow-xs text-left mt-2 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#00453d]">
+              <Share2 className="w-4 h-4 text-[#006d2f]" />
+              <span>Direct Share from WhatsApp</span>
+            </div>
+            <p className="text-[11.5px] text-[#54656f] leading-relaxed">
+              Inside WhatsApp, tap any PDF or photo ➔ tap <strong>Share (📤)</strong> ➔ select <strong>CipherPrint</strong> to load documents instantly without saving to phone!
+            </p>
+          </div>
         </div>
       ) : (
         /* ── STEP 2: Authentic WhatsApp Full-Screen Chat Interface ── */
@@ -638,7 +742,7 @@ export const CustomerPortal: React.FC = () => {
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-[#00a884]/15 text-[#00453d] font-bold flex items-center justify-center text-[11px] shrink-0">1</span>
                     <div>
-                      <strong className="text-[#111b21]">Attach Document:</strong> Tap <Paperclip className="w-3.5 h-3.5 inline mx-0.5 text-[#54656f]" /> or <Camera className="w-3.5 h-3.5 inline mx-0.5 text-[#00453d]" /> below to scan ID cards or select PDFs.
+                      <strong className="text-[#111b21]">Attach Document:</strong> Tap <Paperclip className="w-3.5 h-3.5 inline mx-0.5 text-[#54656f]" /> or <Camera className="w-3.5 h-3.5 inline mx-0.5 text-[#00453d]" /> below, or share directly from WhatsApp.
                     </div>
                   </div>
 
@@ -846,13 +950,20 @@ export const CustomerPortal: React.FC = () => {
                             </div>
                             <div className="flex flex-col min-w-0">
                               <span className="text-[13px] font-bold text-[#1d1c17] truncate pr-2">{file.name}</span>
-                              <span className="text-[11px] font-mono text-[#6f7976]">{(file.size / 1024).toFixed(1)} KB</span>
+                              <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#6f7976]">
+                                <span>{(file.size / 1024).toFixed(1)} KB</span>
+                                {file.isFromShareTarget && (
+                                  <span className="text-[10px] bg-[#D9FDD3] text-[#006d2f] px-1.5 py-0.2 rounded font-sans font-bold">
+                                    WhatsApp Share
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => setStagedFiles((prev) => prev.filter((f) => f.id !== file.id))}
-                            className="text-[#6f7976] hover:text-[#ba1a1a] transition-colors shrink-0 p-1"
+                            className="text-[#6f7976] hover:text-[#ba1a1a] transition-colors shrink-0 p-1 cursor-pointer"
                             title="Remove file"
                           >
                             <X className="w-4 h-4" />
@@ -870,7 +981,7 @@ export const CustomerPortal: React.FC = () => {
                             className="mt-2 inline-flex items-center self-start bg-emerald-50 text-[#00453d] border border-[#00453d]/20 rounded-md px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 cursor-pointer transition-colors"
                           >
                             <ShieldAlert className="w-3 h-3 mr-1 text-[#00453d]" />
-                            <span>Mask Sensitive ID Numbers</span>
+                            <span>Crop & Mask Sensitive ID Numbers</span>
                           </button>
                         )}
                       </div>

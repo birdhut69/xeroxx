@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cipherprint-v2';
+const CACHE_NAME = 'cipherprint-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -6,6 +6,50 @@ const STATIC_ASSETS = [
   '/icon-192.svg',
   '/icon-512.svg'
 ];
+
+const DB_NAME = 'cipherprint_shared_db';
+const STORE_NAME = 'shared_files';
+const DB_VERSION = 1;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveSharedFiles(files) {
+  if (!files || files.length === 0) return;
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const store = tx.objectStore(STORE_NAME);
+
+  for (const file of files) {
+    if (!file || typeof file.arrayBuffer !== 'function') continue;
+    const buffer = await file.arrayBuffer();
+    const entry = {
+      id: `SHARED-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      name: file.name || 'Shared_Document.pdf',
+      type: file.type || 'application/pdf',
+      size: file.size || buffer.byteLength,
+      buffer,
+      timestamp: Date.now(),
+    };
+    store.put(entry);
+  }
+
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -32,6 +76,25 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  const url = new URL(request.url);
+
+  // ── 1. Web Share Target API Interceptor (WhatsApp / Android Direct Share) ──
+  if (request.method === 'POST' && url.pathname === '/share-target') {
+    event.respondWith(
+      (async () => {
+        try {
+          const formData = await request.formData();
+          const files = formData.getAll('documents');
+          await saveSharedFiles(files);
+          return Response.redirect('/?shared=true', 303);
+        } catch (err) {
+          console.error('[SW Share Target] Error receiving shared files:', err);
+          return Response.redirect('/', 303);
+        }
+      })()
+    );
+    return;
+  }
 
   // Only handle HTTP/HTTPS GET requests
   if (request.method !== 'GET') return;
