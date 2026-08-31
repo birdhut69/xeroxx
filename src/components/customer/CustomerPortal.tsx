@@ -96,6 +96,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
   const [keyHex, setKeyHex] = useState<string | null>(null);
   const [shopName, setShopName] = useState('QuickXerox Station #01');
   const [shopId, setShopId] = useState('');
+  const [shopUpi, setShopUpi] = useState('');
+  const [bwRate, setBwRate] = useState(2);
+  const [colorRate, setColorRate] = useState(10);
   const [customerId] = useState(() => `CUST-${Math.random().toString(36).substring(2, 7).toUpperCase()}`);
   const [customerName, setCustomerName] = useState<string>(() => {
     return localStorage.getItem('safeprint_customer_name') || 'Rahul Sharma';
@@ -254,6 +257,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
       onConnectedToShop: (data) => {
         setShopName(data.shopName);
         setShopId(data.shopId);
+        if (data.upiId) setShopUpi(data.upiId);
+        if (data.bwRate) setBwRate(data.bwRate);
+        if (data.colorRate) setColorRate(data.colorRate);
         sounds.playConnect();
         toast.shield('Paired to Shop Terminal', `Connected to ${data.shopName}`);
       },
@@ -1090,11 +1096,32 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
                     ))}
                   </div>
 
+                  {/* Estimated Cost Banner & UPI Pay Button */}
+                  <div className="bg-white/90 rounded-xl p-2 border border-[#00a884]/30 flex items-center justify-between mt-1 text-xs">
+                    <div className="flex flex-col text-left">
+                      <span className="text-[#00453d] font-bold">
+                        Est. Total: ₹{(stagedFiles.reduce((acc, f) => acc + (bwRate * f.copies), 0)).toFixed(2)}
+                      </span>
+                      <span className="text-[10px] text-[#6f7976]">
+                        {stagedFiles.length} file(s) @ ₹{bwRate}/pg
+                      </span>
+                    </div>
+
+                    {shopUpi && (
+                      <a
+                        href={`upi://pay?pa=${encodeURIComponent(shopUpi)}&pn=${encodeURIComponent(shopName)}&am=${(stagedFiles.reduce((acc, f) => acc + (bwRate * f.copies), 0)).toFixed(2)}&cu=INR`}
+                        className="px-2.5 py-1 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition-colors"
+                      >
+                        <span>Pay via UPI</span>
+                      </a>
+                    )}
+                  </div>
+
                   {/* Send CTA with Glowing Pulse */}
                   <button
                     type="button"
                     onClick={handleSendAllStagedDocuments}
-                    className="w-full mt-2.5 py-2.5 px-4 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-md active:scale-[0.98] transition-all cursor-pointer animate-pulse-glow"
+                    className="w-full mt-2 py-2.5 px-4 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-md active:scale-[0.98] transition-all cursor-pointer animate-pulse-glow"
                   >
                     <Lock className="w-4 h-4" />
                     <span>{t('sendFilesToRam')}</span>

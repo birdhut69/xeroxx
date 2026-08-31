@@ -26,7 +26,10 @@ import {
   Smile,
   ShieldCheck,
   Mic,
-  Square
+  Square,
+  SlidersHorizontal,
+  Store,
+  Settings
 } from 'lucide-react';
 import {
   generateSessionKey,
@@ -45,6 +48,7 @@ import { VoiceNotePlayer } from '../shared/VoiceNotePlayer';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLanguage } from '../../context/LanguageContext';
 import { StandeePrintModal } from './StandeePrintModal';
+import { ShopSettingsModal } from './ShopSettingsModal';
 
 interface QueuedDocument {
   id: string;
@@ -90,7 +94,10 @@ export const TerminalDashboard: React.FC = () => {
   const [sessionId, setSessionId] = useState('');
   const [sessionKeyHex, setSessionKeyHex] = useState('');
   const [shopId] = useState(() => `XEROX-${Math.random().toString(36).substring(2, 7).toUpperCase()}`);
-  const [shopName] = useState('SafePrint Express Terminal');
+  const [shopName, setShopName] = useState(() => localStorage.getItem('cipherprint_shop_name') || 'SafePrint Express Terminal');
+  const [upiId, setUpiId] = useState(() => localStorage.getItem('cipherprint_upi_id') || 'shopkeeper@upi');
+  const [bwRate, setBwRate] = useState(() => parseFloat(localStorage.getItem('cipherprint_bw_rate') || '2'));
+  const [colorRate, setColorRate] = useState(() => parseFloat(localStorage.getItem('cipherprint_color_rate') || '10'));
 
   // Customer Queue State
   const [customers, setCustomers] = useState<Map<string, QueuedCustomer>>(new Map());
@@ -100,6 +107,7 @@ export const TerminalDashboard: React.FC = () => {
   const [filterTab, setFilterTab] = useState<'ALL' | 'PENDING' | 'PRINTED'>('ALL');
   const [showQRModal, setShowQRModal] = useState(false);
   const [showStandeeModal, setShowStandeeModal] = useState(false);
+  const [showShopSettingsModal, setShowShopSettingsModal] = useState(false);
   const [copiedQR, setCopiedQR] = useState(false);
   const [mobileTab, setMobileTab] = useState<'QUEUE' | 'WORKSPACE'>('QUEUE');
   const [replyText, setReplyText] = useState('');
@@ -172,6 +180,9 @@ export const TerminalDashboard: React.FC = () => {
           roomId: newSessionId,
           shopId,
           shopName,
+          upiId,
+          bwRate,
+          colorRate,
         });
       },
       onCustomerConnected: (data) => {
@@ -657,15 +668,23 @@ export const TerminalDashboard: React.FC = () => {
                 <Printer className="w-5 h-5" />
               </div>
               <div className="text-left leading-tight min-w-0">
-                <div className="text-[15px] font-bold text-white truncate">QuickXerox Terminal #01</div>
+                <div className="text-[15px] font-bold text-white truncate" title={shopName}>{shopName}</div>
                 <div className="text-[12px] text-white/80 font-medium flex items-center gap-1.5 mt-0.5">
                   <span className="w-2 h-2 rounded-full bg-[#25D366] inline-block shrink-0 animate-pulse" />
-                  <span className="truncate">Connected • 28 MB RAM • 0 Disk</span>
+                  <span className="truncate">Connected • RAM Only • 0 Disk</span>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-1 text-white/80 shrink-0">
+              <button
+                onClick={() => setShowShopSettingsModal(true)}
+                className="p-2 rounded-full hover:bg-white/15 text-white/80 hover:text-white transition-colors cursor-pointer"
+                title="Shop Profile & Pricing Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+
               <button
                 onClick={() => setShowQRModal(true)}
                 className="p-2 rounded-full hover:bg-white/15 text-white/80 hover:text-white transition-colors cursor-pointer"
@@ -1422,6 +1441,35 @@ export const TerminalDashboard: React.FC = () => {
           customerUrl={customerUrl}
           shopName={shopName}
           shopId={shopId}
+        />
+      )}
+
+      {/* Shop Profile & Pricing Settings Modal */}
+      {showShopSettingsModal && (
+        <ShopSettingsModal
+          isOpen={showShopSettingsModal}
+          onClose={() => setShowShopSettingsModal(false)}
+          shopName={shopName}
+          onSaveShopName={(name) => {
+            setShopName(name);
+            localStorage.setItem('cipherprint_shop_name', name);
+          }}
+          upiId={upiId}
+          onSaveUpiId={(upi) => {
+            setUpiId(upi);
+            localStorage.setItem('cipherprint_upi_id', upi);
+          }}
+          bwRate={bwRate}
+          onSaveBwRate={(rate) => {
+            setBwRate(rate);
+            localStorage.setItem('cipherprint_bw_rate', rate.toString());
+          }}
+          colorRate={colorRate}
+          onSaveColorRate={(rate) => {
+            setColorRate(rate);
+            localStorage.setItem('cipherprint_color_rate', rate.toString());
+          }}
+          onRegenerateSession={initTerminal}
         />
       )}
     </div>

@@ -6,7 +6,15 @@ export interface RelaySocketCallbacks {
   onError?: (err: any) => void;
   onCustomerConnected?: (data: { customerId: string; customerName: string; totalCustomers: number; timestamp: number }) => void;
   onCustomerLeft?: (data: { customerId: string; totalCustomers: number; timestamp: number }) => void;
-  onConnectedToShop?: (data: { shopName: string; shopId: string; customerId: string; timestamp: number }) => void;
+  onConnectedToShop?: (data: {
+    shopName: string;
+    shopId: string;
+    customerId: string;
+    timestamp: number;
+    upiId?: string;
+    bwRate?: number;
+    colorRate?: number;
+  }) => void;
   onDocPayload?: (data: { customerId: string; customerName?: string; metadata: any; iv: number[]; docHash: string; ciphertextBase64: string; timestamp: number }) => void;
   onPrintStatus?: (data: { status: string; pagesPrinted: number; copies: number }) => void;
   onShredConfirmed?: (data: { certificate: any; ledgerBlock: any }) => void;
