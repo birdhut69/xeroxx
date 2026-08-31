@@ -38,6 +38,7 @@ import { zeroizeBuffer } from '../../crypto/zeroize';
 import { SecurityGuards } from '../../crypto/securityGuards';
 import { RelaySocket } from '../../services/relaySocket';
 import { sounds } from '../../services/AudioEffects';
+import { parseSessionUrl } from '../../utils/qrParser';
 import { useToast } from '../shared/ToastContext';
 import { QRScanner } from './QRScanner';
 import { RedactionStudio } from './RedactionStudio';
@@ -210,20 +211,23 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
     };
   }, [watermarkText, maxCopies, toast, t]);
 
-  // Parse URL parameters on load
+  // Universal URL & QR session listener on load & hashchange
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const room = params.get('room');
-    const hash = window.location.hash;
-
-    if (room && hash.includes('key=')) {
-      const parsedKey = hash.split('key=')[1]?.split('&')[0];
-      if (parsedKey) {
-        handleSessionDecoded(room, parsedKey);
+    const checkUrlSession = () => {
+      const parsed = parseSessionUrl(window.location.href);
+      if (parsed && parsed.roomId && parsed.keyHex) {
+        handleSessionDecoded(parsed.roomId, parsed.keyHex);
       }
-    }
+    };
+
+    checkUrlSession();
+
+    window.addEventListener('hashchange', checkUrlSession);
+    window.addEventListener('popstate', checkUrlSession);
 
     return () => {
+      window.removeEventListener('hashchange', checkUrlSession);
+      window.removeEventListener('popstate', checkUrlSession);
       relayRef.current?.close();
     };
   }, []);

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { sounds } from '../../services/AudioEffects';
 import { useLanguage } from '../../context/LanguageContext';
+import { parseSessionUrl } from '../../utils/qrParser';
 
 interface QRScannerProps {
   onSessionDecoded: (roomId: string, keyHex: string) => void;
@@ -34,27 +35,17 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
 
   const handleDecodedUrl = useCallback((text: string) => {
     try {
-      sounds.playConnect();
+      const parsed = parseSessionUrl(text);
 
-      let url: URL;
-      if (text.startsWith('http://') || text.startsWith('https://')) {
-        url = new URL(text);
-      } else {
-        url = new URL(text, window.location.origin);
-      }
-
-      const room = url.searchParams.get('room');
-      const hash = url.hash;
-      const keyHex = hash.includes('key=') ? hash.split('key=')[1]?.split('&')[0] : '';
-
-      if (room && keyHex) {
+      if (parsed && parsed.roomId && parsed.keyHex) {
+        sounds.playConnect();
         // Stop scanner before moving to chat
         if (scannerInstanceRef.current && scannerInstanceRef.current.isScanning) {
           scannerInstanceRef.current.stop().catch(() => {});
         }
-        onSessionDecoded(room, keyHex);
+        onSessionDecoded(parsed.roomId, parsed.keyHex);
       } else {
-        setScanError('Invalid CipherPrint QR. Must contain ?room= and #key=');
+        setScanError('Scanned QR code does not contain a valid CipherPrint session. Please scan the shop standee QR.');
       }
     } catch {
       setScanError('Failed to parse QR code link.');
@@ -92,14 +83,20 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
         });
       }
 
+      const qrConfig = {
+        fps: 20,
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+          const size = Math.floor(minEdge * 0.82);
+          return { width: Math.max(180, Math.min(size, 320)), height: Math.max(180, Math.min(size, 320)) };
+        },
+        aspectRatio: 1.0,
+      };
+
       // Try environment camera first
       await scannerInstanceRef.current.start(
         { facingMode: facing },
-        {
-          fps: 15,
-          qrbox: { width: 230, height: 230 },
-          aspectRatio: 1.0,
-        },
+        qrConfig,
         (decodedText) => {
           handleDecodedUrl(decodedText);
         },
@@ -119,7 +116,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
             const backCamera = cameras.find((c) => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('rear')) || cameras[cameras.length - 1];
             await scannerInstanceRef.current.start(
               backCamera.id,
-              { fps: 15, qrbox: { width: 230, height: 230 } },
+              { fps: 20, qrbox: { width: 220, height: 220 } },
               (decodedText) => handleDecodedUrl(decodedText),
               () => {}
             );
@@ -143,17 +140,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
   }, [stopCamera, handleDecodedUrl]);
 
   useEffect(() => {
-    // Check if current URL already has room and key in hash
-    const params = new URLSearchParams(window.location.search);
-    const room = params.get('room');
-    const hash = window.location.hash;
-
-    if (room && hash.includes('key=')) {
-      const keyHex = hash.split('key=')[1]?.split('&')[0];
-      if (keyHex) {
-        onSessionDecoded(room, keyHex);
-        return;
-      }
+    // Check if current URL already has room and key
+    const parsed = parseSessionUrl(window.location.href);
+    if (parsed && parsed.roomId && parsed.keyHex) {
+      onSessionDecoded(parsed.roomId, parsed.keyHex);
+      return;
     }
 
     // Auto-attempt camera start on mount
