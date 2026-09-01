@@ -366,6 +366,8 @@ export const TerminalDashboard: React.FC = () => {
         }
       },
     });
+
+    relay.initShopTerminal(newSessionId, shopId, shopName);
   }, [shopId, shopName, toast]);
 
   useEffect(() => {

@@ -46,6 +46,9 @@ export class RelaySocket {
 
   private ws: WebSocket | null = null;
   private wsConnected: boolean = false;
+  private wsDisabled: boolean = false;
+  private wsRetryCount: number = 0;
+  private readonly maxWsRetries: number = 2;
 
   constructor() {
     try {
@@ -56,23 +59,40 @@ export class RelaySocket {
     } catch {
       // BroadcastChannel fallback
     }
-    this.initWebSocket();
+
+    // Only attempt local WebSocket if on localhost/development
+    const isLocalhost =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.'));
+
+    if (isLocalhost) {
+      this.initWebSocket();
+    } else {
+      // On cloud serverless platforms (Vercel), rely on WebRTC P2P + Serverless HTTP Relay
+      this.wsDisabled = true;
+    }
   }
 
   private initWebSocket() {
+    if (this.wsDisabled || this.wsRetryCount >= this.maxWsRetries) return;
+
     try {
       const isHttps = window.location.protocol === 'https:';
       const wsProtocol = isHttps ? 'wss:' : 'ws:';
-      const host = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'localhost:8080'
-        : window.location.host;
-      
+      const host =
+        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? 'localhost:8080'
+          : window.location.host;
+
       const wsUrl = `${wsProtocol}//${host}/ws`;
       const socket = new WebSocket(wsUrl);
 
       socket.onopen = () => {
         this.ws = socket;
         this.wsConnected = true;
+        this.wsRetryCount = 0;
         console.log('[SafePrint WebSocket] Connected to local relay server');
 
         // Re-register if role and roomId already set
@@ -107,20 +127,27 @@ export class RelaySocket {
       socket.onclose = () => {
         this.ws = null;
         this.wsConnected = false;
-        // Auto-reconnect after 2.5 seconds
-        setTimeout(() => {
-          if (!this.ws && (this.activeRoomId || this.role)) {
-            this.initWebSocket();
-          }
-        }, 2500);
+        this.wsRetryCount++;
+
+        // Only retry on localhost if under max retries
+        if (this.wsRetryCount < this.maxWsRetries && (this.activeRoomId || this.role)) {
+          setTimeout(() => {
+            if (!this.ws && !this.wsDisabled) {
+              this.initWebSocket();
+            }
+          }, 3000);
+        } else {
+          this.wsDisabled = true;
+        }
       };
 
       socket.onerror = () => {
         this.ws = null;
         this.wsConnected = false;
+        this.wsDisabled = true;
       };
     } catch {
-      // WebSocket optional fallback
+      this.wsDisabled = true;
     }
   }
 

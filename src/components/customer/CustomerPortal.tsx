@@ -317,6 +317,8 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
         toast.shield(t('statusShredded'), 'Shopkeeper RAM zeroized. Proof generated.');
       },
     });
+
+    relay.joinCustomerToShop(decodedRoom, customerId, activeName);
   };
 
   const processIncomingFiles = async (files: FileList | File[]) => {
