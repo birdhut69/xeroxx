@@ -120,6 +120,24 @@ export interface Translations {
   clearAllBoxes: string;
   saveChangesToRam: string;
 
+  // Smart Document Studio & Print Engine
+  passportStudioBtn: string;
+  passportStudioTitle: string;
+  passportStudioDesc: string;
+  autoEdgeStraighten: string;
+  camScanEnhanced: string;
+  selfAttestBtn: string;
+  selfAttestTitle: string;
+  pageRangeLabel: string;
+  pageRangePlaceholder: string;
+  layoutModeLabel: string;
+  layout1Up: string;
+  layout2Up: string;
+  layout4Up: string;
+  duplexLabel: string;
+  singleSided: string;
+  doubleSided: string;
+
   // Terminal Dashboard
   terminalHeaderTitle: string;
   terminalHeaderSubtitle: string;
@@ -269,6 +287,23 @@ export const translations: Record<SupportedLanguage, Translations> = {
     clearAllBoxes: 'Clear All',
     saveChangesToRam: 'Save Changes to RAM',
 
+    passportStudioBtn: 'Passport Photos',
+    passportStudioTitle: 'Passport Photo Studio (35x45 mm)',
+    passportStudioDesc: 'Instant 8 or 16 photo grid with background selection',
+    autoEdgeStraighten: 'Auto-Straighten',
+    camScanEnhanced: 'CamScan Filter',
+    selfAttestBtn: 'Self-Attest & Sign',
+    selfAttestTitle: 'KYC Self-Attestation Stamp',
+    pageRangeLabel: 'Page Range',
+    pageRangePlaceholder: 'e.g. 1-3, 5, 8 (or All)',
+    layoutModeLabel: 'Layout Mode',
+    layout1Up: '1-Up (Standard)',
+    layout2Up: '2-in-1 (2 Pgs/Sheet)',
+    layout4Up: '4-in-1 (College Notes)',
+    duplexLabel: 'Print Sides',
+    singleSided: 'Single-Sided',
+    doubleSided: 'Double-Sided (Duplex)',
+
     terminalHeaderTitle: 'QuickXerox Terminal #01',
     terminalHeaderSubtitle: 'Connected • 28 MB RAM • 0 Disk',
     secureTransferCardTitle: 'Secure Transfer',
@@ -414,6 +449,23 @@ export const translations: Record<SupportedLanguage, Translations> = {
     clearAllBoxes: 'सर्व पुसा',
     saveChangesToRam: 'बदल RAM मध्ये सेव्ह करा',
 
+    passportStudioBtn: 'पासपोर्ट फोटो',
+    passportStudioTitle: 'पासपोर्ट फोटो स्टुडिओ (३५x४५ मिमी)',
+    passportStudioDesc: '८ किंवा १६ फोटो ग्रिड आणि पार्श्वभूमी रंग निवडा',
+    autoEdgeStraighten: 'कागदपत्र सरळ करा',
+    camScanEnhanced: 'कॅमस्कॅन फिल्टर',
+    selfAttestBtn: 'स्वाक्षरी आणि साक्षांकित करा',
+    selfAttestTitle: 'KYC स्वयं-साक्षांकित शिक्का',
+    pageRangeLabel: 'पानांची श्रेणी',
+    pageRangePlaceholder: 'उदा. 1-3, 5, 8 (किंवा सर्व)',
+    layoutModeLabel: 'लेआउट मोड',
+    layout1Up: '१-अप (प्रमाणित)',
+    layout2Up: '२-इन-१ (२ पाने/शीट)',
+    layout4Up: '४-इन-१ (कॉलेज नोट्स)',
+    duplexLabel: 'प्रिंट बाजू',
+    singleSided: 'एका बाजूने प्रिंट',
+    doubleSided: 'दोन्ही बाजूंनी प्रिंट (Duplex)',
+
     terminalHeaderTitle: 'क्विकझेरॉक्स टर्मिनल #०१',
     terminalHeaderSubtitle: 'कनेक्टेड • २८ MB RAM • ० डिस्क',
     secureTransferCardTitle: 'सुरक्षित ट्रान्सफर',
@@ -558,6 +610,23 @@ export const translations: Record<SupportedLanguage, Translations> = {
     undoBtn: 'पूर्ववत करें (Undo)',
     clearAllBoxes: 'सभी मिटाएं',
     saveChangesToRam: 'बदलाव RAM में सहेजें',
+
+    passportStudioBtn: 'पासपोर्ट फोटो',
+    passportStudioTitle: 'पासपोर्ट फोटो स्टूडियो (३५x४५ मिमी)',
+    passportStudioDesc: '८ या १६ फोटो ग्रिड और बैकग्राउंड रंग चुनें',
+    autoEdgeStraighten: 'दस्तावेज़ सीधा करें',
+    camScanEnhanced: 'कैमस्कैन फिल्टर',
+    selfAttestBtn: 'हस्ताक्षर और सत्यापित करें',
+    selfAttestTitle: 'KYC स्वयं-सत्यापित मुहर',
+    pageRangeLabel: 'पेज श्रेणी',
+    pageRangePlaceholder: 'उदा. 1-3, 5, 8 (या सभी)',
+    layoutModeLabel: 'लेआउट मोड',
+    layout1Up: '१-अप (मानक)',
+    layout2Up: '२-इन-१ (२ पेज/शीट)',
+    layout4Up: '४-इन-१ (कॉलेज नोट्स)',
+    duplexLabel: 'प्रिंट साइड',
+    singleSided: 'एक तरफा प्रिंट',
+    doubleSided: 'दोनों तरफ प्रिंट (Duplex)',
 
     terminalHeaderTitle: 'क्विकज़ेरॉक्स टर्मिनल #०१',
     terminalHeaderSubtitle: 'कनेक्टेड • २८ MB RAM • ० डिस्क',

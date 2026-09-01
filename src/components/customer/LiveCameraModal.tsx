@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, X, Check, Zap, ZapOff, Image as ImageIcon, AlertCircle, ShieldAlert, Sparkles, Eye } from 'lucide-react';
+import { Camera, RefreshCw, X, Check, Zap, ZapOff, Image as ImageIcon, AlertCircle, ShieldAlert, Sparkles, Eye, Wand2, Crop } from 'lucide-react';
 import { sounds } from '../../services/AudioEffects';
 import { useLanguage } from '../../context/LanguageContext';
+import { DocumentProcessor } from '../../services/documentProcessor';
 
 interface LiveCameraModalProps {
   isOpen: boolean;
@@ -180,6 +181,53 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
     setCapturedImage(null);
   };
 
+  const handleCamScanFilter = () => {
+    if (!capturedImage) return;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0);
+
+      const enhancedCanvas = DocumentProcessor.applyCamScanFilter(canvas, 1.4);
+      enhancedCanvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const buffer = await blob.arrayBuffer();
+        const dataUrl = enhancedCanvas.toDataURL('image/jpeg', 0.95);
+        setCapturedImage((prev) => prev ? { ...prev, dataUrl, blob, buffer } : null);
+        sounds.playSuccess();
+      }, 'image/jpeg', 0.95);
+    };
+    img.src = capturedImage.dataUrl;
+  };
+
+  const handleAutoStraighten = () => {
+    if (!capturedImage) return;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0);
+
+      const corners = DocumentProcessor.detectDocumentCorners(canvas);
+      const warped = DocumentProcessor.warpPerspective(canvas, corners);
+      warped.toBlob(async (blob) => {
+        if (!blob) return;
+        const buffer = await blob.arrayBuffer();
+        const dataUrl = warped.toDataURL('image/jpeg', 0.95);
+        setCapturedImage((prev) => prev ? { ...prev, dataUrl, blob, buffer } : null);
+        sounds.playSuccess();
+      }, 'image/jpeg', 0.95);
+    };
+    img.src = capturedImage.dataUrl;
+  };
+
   const handleConfirmUse = (openRedaction = false) => {
     if (!capturedImage) return;
     onCapture(
@@ -334,35 +382,58 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
       {/* ── BOTTOM CONTROLS ── */}
       <div className="w-full max-w-lg px-6 py-5 z-30 bg-black/75 backdrop-blur-lg border-t border-white/10 flex items-center justify-between">
         {capturedImage ? (
-          /* SNAPSHOT CONFIRMATION BUTTONS */
-          <div className="w-full flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={handleRetake}
-              className="flex-1 py-3 px-4 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-white/20"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>{t('retake')}</span>
-            </button>
+          /* SNAPSHOT CONFIRMATION BUTTONS & ENHANCEMENT BAR */
+          <div className="w-full flex flex-col gap-2.5">
+            {/* Quick Enhancement Toolbar */}
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={handleCamScanFilter}
+                className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-white font-bold text-[11px] flex items-center justify-center gap-1 transition-colors cursor-pointer border border-emerald-400/40"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>{t('camScanEnhanced')}</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => handleConfirmUse(true)}
-              className="flex-1 py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-[#2a1b00] font-bold text-xs flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-md"
-              title="Open in Redaction Studio to mask sensitive details"
-            >
-              <Eye className="w-4 h-4" />
-              <span>{t('maskIdPhoto')}</span>
-            </button>
+              <button
+                type="button"
+                onClick={handleAutoStraighten}
+                className="flex-1 py-1.5 px-2 rounded-lg bg-blue-600/80 hover:bg-blue-600 text-white font-bold text-[11px] flex items-center justify-center gap-1 transition-colors cursor-pointer border border-blue-400/40"
+              >
+                <Crop className="w-3.5 h-3.5" />
+                <span>{t('autoEdgeStraighten')}</span>
+              </button>
+            </div>
 
-            <button
-              type="button"
-              onClick={() => handleConfirmUse(false)}
-              className="flex-1 py-3 px-4 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold text-xs flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-lg"
-            >
-              <Check className="w-4 h-4" />
-              <span>{t('usePhoto')}</span>
-            </button>
+            <div className="w-full flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={handleRetake}
+                className="flex-1 py-3 px-3 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer border border-white/20"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>{t('retake')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleConfirmUse(true)}
+                className="flex-1 py-3 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-[#2a1b00] font-bold text-xs flex items-center justify-center gap-1 transition-transform active:scale-95 cursor-pointer shadow-md"
+                title="Open in Redaction Studio to mask sensitive details"
+              >
+                <Eye className="w-4 h-4" />
+                <span>{t('maskIdPhoto')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleConfirmUse(false)}
+                className="flex-1 py-3 px-3 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold text-xs flex items-center justify-center gap-1 transition-transform active:scale-95 cursor-pointer shadow-lg"
+              >
+                <Check className="w-4 h-4" />
+                <span>{t('usePhoto')}</span>
+              </button>
+            </div>
           </div>
         ) : (
           /* LIVE SHUTTER CONTROLS */

@@ -18,7 +18,7 @@ interface DRMCanvasViewerProps {
   shopId: string;
   sessionId: string;
   rotation: number;
-  filterMode: 'NORMAL' | 'BW' | 'GRAYSCALE' | 'HIGH_CONTRAST';
+  filterMode: 'NORMAL' | 'BW' | 'GRAYSCALE' | 'HIGH_CONTRAST' | 'CAMSCAN';
   zoomLevel: number;
   currentPage: number;
   onPageCountLoaded: (count: number) => void;
@@ -310,6 +310,11 @@ export const DRMCanvasViewer: React.FC<DRMCanvasViewerProps> = ({
           const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
           if (filterMode === 'GRAYSCALE') {
             data[i] = data[i + 1] = data[i + 2] = gray;
+          } else if (filterMode === 'CAMSCAN') {
+            let val = (gray - 128) * 1.4 + 128;
+            if (val > 190) val = 255;
+            else if (val < 95) val = Math.max(0, val * 0.7);
+            data[i] = data[i + 1] = data[i + 2] = val;
           } else {
             // Photocopy B&W Threshold
             const threshold = filterMode === 'HIGH_CONTRAST' ? 145 : 128;

@@ -84,7 +84,7 @@ interface QueuedCustomer {
   status: 'WAITING' | 'ACTIVE' | 'PRINTED' | 'COMPLETED';
 }
 
-type FilterMode = 'NORMAL' | 'BW' | 'GRAYSCALE' | 'HIGH_CONTRAST';
+type FilterMode = 'NORMAL' | 'BW' | 'GRAYSCALE' | 'HIGH_CONTRAST' | 'CAMSCAN';
 
 export const TerminalDashboard: React.FC = () => {
   const toast = useToast();
@@ -1308,6 +1308,12 @@ export const TerminalDashboard: React.FC = () => {
                     className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${filterMode === 'BW' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f] hover:text-[#111b21]'}`}
                   >
                     {t('filterPhotocopy')}
+                  </button>
+                  <button
+                    onClick={() => setFilterMode('CAMSCAN')}
+                    className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${filterMode === 'CAMSCAN' ? 'bg-[#008069] text-white shadow-xs' : 'text-[#54656f] hover:text-[#111b21]'}`}
+                  >
+                    {t('camScanEnhanced')}
                   </button>
                 </div>
 

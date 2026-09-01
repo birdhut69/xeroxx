@@ -46,6 +46,8 @@ import { WatermarkTool } from './WatermarkTool';
 import { ShredCertificateModal } from './ShredCertificateModal';
 import { VoiceNotePlayer } from '../shared/VoiceNotePlayer';
 import { LiveCameraModal } from './LiveCameraModal';
+import { PassportPhotoStudio } from './PassportPhotoStudio';
+import { SelfAttestStampModal } from './SelfAttestStampModal';
 import { DestructionCertificate } from '../../crypto/ledger';
 import { getSharedFiles, clearSharedFiles } from '../../services/shareTarget';
 import { useLanguage } from '../../context/LanguageContext';
@@ -59,6 +61,9 @@ interface StagedFile {
   buffer: ArrayBuffer;
   watermark?: string;
   copies: number;
+  pageRange?: string;
+  isDuplex?: boolean;
+  layoutMode?: '1-UP' | '2-UP' | '4-UP';
   isFromShareTarget?: boolean;
 }
 
@@ -116,6 +121,10 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showLiveCamera, setShowLiveCamera] = useState(false);
   const [showRedactionStudio, setShowRedactionStudio] = useState(false);
+  const [showPassportStudio, setShowPassportStudio] = useState(false);
+  const [showSelfAttestModal, setShowSelfAttestModal] = useState(false);
+  const [passportSourceBuffer, setPassportSourceBuffer] = useState<ArrayBuffer | null>(null);
+  const [selfAttestSourceFileId, setSelfAttestSourceFileId] = useState<string | null>(null);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [activeRedactionFileId, setActiveRedactionFileId] = useState<string | null>(null);
   const [activeCert, setActiveCert] = useState<DestructionCertificate | null>(null);
@@ -130,6 +139,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const passportPhotoInputRef = useRef<HTMLInputElement | null>(null);
   const relayRef = useRef<RelaySocket | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const attachmentMenuRef = useRef<HTMLDivElement | null>(null);
@@ -339,6 +349,47 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
       sounds.playSuccess();
       toast.success('Files Ready', `${newStaged.length} file(s) staged in RAM.`);
     }
+  };
+
+  const handlePassportPhotoPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const buffer = await file.arrayBuffer();
+    setPassportSourceBuffer(buffer);
+    setShowPassportStudio(true);
+    setShowAttachmentMenu(false);
+    if (passportPhotoInputRef.current) passportPhotoInputRef.current.value = '';
+  };
+
+  const handleApplyPassportSheet = (newBuffer: ArrayBuffer, sheetName: string) => {
+    setStagedFiles((prev) => [
+      ...prev,
+      {
+        id: `PASSPORT-${Math.random().toString(36).substring(2, 8)}`,
+        name: sheetName,
+        type: 'image/png',
+        size: newBuffer.byteLength,
+        buffer: newBuffer,
+        copies: 1,
+      },
+    ]);
+    setShowPassportStudio(false);
+    setPassportSourceBuffer(null);
+    sounds.playSuccess();
+  };
+
+  const handleApplySelfAttestation = (newBuffer: ArrayBuffer) => {
+    if (!selfAttestSourceFileId) return;
+    setStagedFiles((prev) =>
+      prev.map((f) =>
+        f.id === selfAttestSourceFileId
+          ? { ...f, buffer: newBuffer, size: newBuffer.byteLength }
+          : f
+      )
+    );
+    setShowSelfAttestModal(false);
+    setSelfAttestSourceFileId(null);
+    sounds.playSuccess();
   };
 
   const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1049,11 +1100,11 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
                   </div>
 
                   {/* List of Staged Files */}
-                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                     {stagedFiles.map((file) => (
                       <div
                         key={file.id}
-                        className="bg-white rounded-xl p-2.5 border border-[#bec9c5]/30 shadow-xs flex flex-col relative overflow-hidden"
+                        className="bg-white rounded-xl p-2.5 border border-[#bec9c5]/30 shadow-xs flex flex-col gap-2 relative overflow-hidden"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -1082,20 +1133,84 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
                           </button>
                         </div>
 
-                        {/* Mask Badge if image */}
-                        {file.type.startsWith('image/') && (
+                        {/* Page Range & Layout Controls for Documents / PDFs */}
+                        <div className="grid grid-cols-2 gap-2 bg-[#f8fafc] p-2 rounded-lg border border-[#bec9c5]/20 text-[10.5px]">
+                          <div className="space-y-0.5 text-left">
+                            <label className="font-bold text-[#54656f]">{t('pageRangeLabel')}</label>
+                            <input
+                              type="text"
+                              value={file.pageRange || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, pageRange: val } : f));
+                              }}
+                              placeholder={t('pageRangePlaceholder')}
+                              className="w-full px-2 py-1 bg-white rounded border border-[#bec9c5] font-mono text-[10px]"
+                            />
+                          </div>
+
+                          <div className="space-y-0.5 text-left">
+                            <label className="font-bold text-[#54656f]">{t('layoutModeLabel')}</label>
+                            <select
+                              value={file.layoutMode || '1-UP'}
+                              onChange={(e) => {
+                                const val = e.target.value as any;
+                                setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, layoutMode: val } : f));
+                              }}
+                              className="w-full px-1.5 py-1 bg-white rounded border border-[#bec9c5] text-[10px] font-semibold"
+                            >
+                              <option value="1-UP">{t('layout1Up')}</option>
+                              <option value="2-UP">{t('layout2Up')}</option>
+                              <option value="4-UP">{t('layout4Up')}</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Image Action Badges (Redaction & Self-Attestation) */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                          {file.type.startsWith('image/') && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveRedactionFileId(file.id);
+                                  setShowRedactionStudio(true);
+                                }}
+                                className="inline-flex items-center bg-emerald-50 text-[#00453d] border border-[#00453d]/20 rounded-md px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 cursor-pointer transition-colors"
+                              >
+                                <ShieldAlert className="w-3 h-3 mr-1 text-[#00453d]" />
+                                <span>{t('maskIdBtn')}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelfAttestSourceFileId(file.id);
+                                  setShowSelfAttestModal(true);
+                                }}
+                                className="inline-flex items-center bg-purple-50 text-purple-800 border border-purple-200 rounded-md px-2 py-0.5 text-[10px] font-bold hover:bg-purple-100 cursor-pointer transition-colors"
+                              >
+                                <Sparkles className="w-3 h-3 mr-1 text-purple-600" />
+                                <span>{t('selfAttestBtn')}</span>
+                              </button>
+                            </>
+                          )}
+
+                          {/* Duplex Toggle */}
                           <button
                             type="button"
                             onClick={() => {
-                              setActiveRedactionFileId(file.id);
-                              setShowRedactionStudio(true);
+                              setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, isDuplex: !f.isDuplex } : f));
                             }}
-                            className="mt-2 inline-flex items-center self-start bg-emerald-50 text-[#00453d] border border-[#00453d]/20 rounded-md px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 cursor-pointer transition-colors"
+                            className={`ml-auto px-2 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
+                              file.isDuplex
+                                ? 'bg-blue-50 text-blue-700 border-blue-300'
+                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                            }`}
                           >
-                            <ShieldAlert className="w-3 h-3 mr-1 text-[#00453d]" />
-                            <span>{t('maskIdBtn')}</span>
+                            <span>{file.isDuplex ? t('doubleSided') : t('singleSided')}</span>
                           </button>
-                        )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1104,16 +1219,24 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
                   <div className="bg-white/90 rounded-xl p-2 border border-[#00a884]/30 flex items-center justify-between mt-1 text-xs">
                     <div className="flex flex-col text-left">
                       <span className="text-[#00453d] font-bold">
-                        Est. Total: ₹{(stagedFiles.reduce((acc, f) => acc + (bwRate * f.copies), 0)).toFixed(2)}
+                        Est. Total: ₹{(stagedFiles.reduce((acc, f) => {
+                          const unit = f.isDuplex ? bwRate * 0.75 : bwRate;
+                          const layoutMul = f.layoutMode === '2-UP' ? 0.5 : f.layoutMode === '4-UP' ? 0.25 : 1.0;
+                          return acc + (unit * f.copies * layoutMul);
+                        }, 0)).toFixed(2)}
                       </span>
                       <span className="text-[10px] text-[#6f7976]">
-                        {stagedFiles.length} file(s) @ ₹{bwRate}/pg
+                        {stagedFiles.length} file(s) • Duplex & N-Up Applied
                       </span>
                     </div>
 
                     {shopUpi && (
                       <a
-                        href={`upi://pay?pa=${encodeURIComponent(shopUpi)}&pn=${encodeURIComponent(shopName)}&am=${(stagedFiles.reduce((acc, f) => acc + (bwRate * f.copies), 0)).toFixed(2)}&cu=INR`}
+                        href={`upi://pay?pa=${encodeURIComponent(shopUpi)}&pn=${encodeURIComponent(shopName)}&am=${(stagedFiles.reduce((acc, f) => {
+                          const unit = f.isDuplex ? bwRate * 0.75 : bwRate;
+                          const layoutMul = f.layoutMode === '2-UP' ? 0.5 : f.layoutMode === '4-UP' ? 0.25 : 1.0;
+                          return acc + (unit * f.copies * layoutMul);
+                        }, 0)).toFixed(2)}&cu=INR`}
                         className="px-2.5 py-1 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition-colors"
                       >
                         <span>Pay via UPI</span>
@@ -1190,6 +1313,19 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
               <button
                 onClick={() => {
                   setShowAttachmentMenu(false);
+                  passportPhotoInputRef.current?.click();
+                }}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#0284c7] text-white flex items-center justify-center shadow-md">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <span className="text-xs text-[#54656f] font-semibold">{t('passportStudioBtn')}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowAttachmentMenu(false);
                   setShowSettings(true);
                 }}
                 className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
@@ -1240,6 +1376,13 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
               multiple
               accept="image/*"
               onChange={handleFilePicked}
+              className="hidden"
+            />
+            <input
+              ref={passportPhotoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePassportPhotoPicked}
               className="hidden"
             />
 
@@ -1301,10 +1444,10 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
               <button
                 type="button"
                 onClick={handleSendMessage}
-                className="w-11 h-11 sm:w-12 sm:h-12 bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
+                className="w-11 h-11 sm:w-12 sm:h-12 bg-[#00a884] hover:bg-[#008f6f] text-white rounded-full flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer"
                 title={t('sendBtn')}
               >
-                <Send className="w-5 h-5" />
+                <Send className="w-5 h-5 ml-0.5" />
               </button>
             ) : isRecordingVoice ? (
               <button
@@ -1336,6 +1479,40 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
           onClose={() => setShowLiveCamera(false)}
           onCapture={handleLiveCameraCapture}
         />
+      )}
+
+      {/* Passport Photo Studio Modal */}
+      {showPassportStudio && passportSourceBuffer && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm p-4 overflow-y-auto flex items-center justify-center">
+          <PassportPhotoStudio
+            imageBuffer={passportSourceBuffer}
+            onApplyPassportSheet={handleApplyPassportSheet}
+            onCancel={() => {
+              setShowPassportStudio(false);
+              setPassportSourceBuffer(null);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Self-Attestation & Signature Stamp Modal */}
+      {showSelfAttestModal && selfAttestSourceFileId && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm p-4 overflow-y-auto flex items-center justify-center">
+          {(() => {
+            const file = stagedFiles.find((f) => f.id === selfAttestSourceFileId);
+            if (!file) return null;
+            return (
+              <SelfAttestStampModal
+                imageBuffer={file.buffer}
+                onApplyAttestedImage={handleApplySelfAttestation}
+                onCancel={() => {
+                  setShowSelfAttestModal(false);
+                  setSelfAttestSourceFileId(null);
+                }}
+              />
+            );
+          })()}
+        </div>
       )}
 
       {/* Redaction Studio Modal */}
