@@ -254,18 +254,18 @@ export const PassportPhotoStudio: React.FC<PassportPhotoStudioProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-3xl p-4 sm:p-5 max-w-xl w-full max-h-[92vh] flex flex-col gap-3 shadow-2xl border border-[#bec9c5] animate-in zoom-in-95 duration-150 overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-[#bec9c5]/40 shrink-0">
+    <div className="bg-white rounded-3xl max-w-xl w-full max-h-[94dvh] flex flex-col shadow-2xl border border-[#bec9c5] animate-in zoom-in-95 duration-150 overflow-hidden">
+      {/* ── Fixed Header ── */}
+      <div className="flex items-center justify-between p-3.5 sm:p-4 pb-3 border-b border-[#bec9c5]/40 shrink-0 bg-white">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-[#00453d] text-white flex items-center justify-center font-bold shadow-xs">
             <Sparkles className="w-4 h-4 text-[#25D366]" />
           </div>
-          <div>
+          <div className="text-left">
             <h3 className="text-sm sm:text-base font-bold text-[#00453d]">
               Passport Photo Studio (35x45 mm)
             </h3>
-            <p className="text-[11px] text-[#6f7976]">
+            <p className="text-[10.5px] sm:text-[11px] text-[#6f7976]">
               Instant 8 or 16 photo grid with background selection & cutting lines
             </p>
           </div>
@@ -279,26 +279,56 @@ export const PassportPhotoStudio: React.FC<PassportPhotoStudioProps> = ({
         </button>
       </div>
 
-      {/* Main Viewport & Face Alignment Guide */}
-      <div className="flex flex-col sm:flex-row items-center gap-4 bg-[#f8fafc] p-3 rounded-2xl border border-[#bec9c5]/30">
-        <div
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          className="relative bg-[#1e293b] rounded-2xl overflow-hidden shadow-inner cursor-move touch-none shrink-0"
-          style={{ width: '280px', height: '360px' }}
-        >
-          <canvas
-            ref={previewCanvasRef}
-            className="w-full h-full object-contain"
-          />
-          <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-xs px-2 py-1 rounded-lg text-[10px] text-white text-center pointer-events-none">
-            Drag to center face in oval
+      {/* ── Scrollable Body ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4 space-y-3.5 overscroll-contain text-left">
+        {/* Main Viewport & Face Alignment Guide */}
+        <div className="flex flex-col items-center gap-3 bg-[#f8fafc] p-3 rounded-2xl border border-[#bec9c5]/30">
+          <div
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            className="relative bg-[#1e293b] rounded-2xl overflow-hidden shadow-inner cursor-move touch-none shrink-0"
+            style={{ width: '240px', height: '300px' }}
+          >
+            <canvas
+              ref={previewCanvasRef}
+              className="w-full h-full object-contain"
+            />
+            <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-xs px-2 py-1 rounded-lg text-[10px] text-white text-center pointer-events-none">
+              Drag to center face in oval
+            </div>
+          </div>
+
+          {/* Quick Zoom & Reset Stepper */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="font-bold text-[#54656f] text-[11px]">Zoom:</span>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.1).toFixed(1)))}
+              className="w-7 h-7 rounded-lg bg-white border border-[#bec9c5] font-bold text-xs flex items-center justify-center hover:bg-gray-100 cursor-pointer shadow-2xs"
+            >
+              -
+            </button>
+            <span className="font-mono font-bold text-[#00453d] min-w-[36px] text-center">{Math.round(zoom * 100)}%</span>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.1).toFixed(1)))}
+              className="w-7 h-7 rounded-lg bg-white border border-[#bec9c5] font-bold text-xs flex items-center justify-center hover:bg-gray-100 cursor-pointer shadow-2xs"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={() => { setZoom(1.0); setPanOffset({ x: 0, y: 0 }); }}
+              className="px-2 py-1 bg-white border border-[#bec9c5] rounded-lg text-[10.5px] font-bold text-[#54656f] hover:bg-gray-50 ml-1 cursor-pointer"
+            >
+              Reset
+            </button>
           </div>
         </div>
 
         {/* Adjustments Panel */}
-        <div className="flex-1 space-y-3 w-full text-xs text-left">
+        <div className="space-y-3 w-full text-xs">
           {/* Background Selection */}
           <div className="space-y-1.5">
             <label className="font-bold text-[#1d1c17] text-[11.5px]">Background Color</label>
@@ -306,9 +336,9 @@ export const PassportPhotoStudio: React.FC<PassportPhotoStudioProps> = ({
               <button
                 type="button"
                 onClick={() => setBgColor('WHITE')}
-                className={`py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1 font-bold text-[11px] cursor-pointer transition-all ${
+                className={`py-2 px-2 rounded-xl border flex items-center justify-center gap-1 font-bold text-[11px] cursor-pointer transition-all ${
                   bgColor === 'WHITE'
-                    ? 'border-[#00a884] bg-white text-[#00453d] ring-2 ring-[#00a884]/30 shadow-xs'
+                    ? 'border-[#00a884] bg-emerald-50 text-[#00453d] ring-2 ring-[#00a884]/30 shadow-xs'
                     : 'border-[#bec9c5] bg-white text-[#54656f]'
                 }`}
               >
@@ -319,7 +349,7 @@ export const PassportPhotoStudio: React.FC<PassportPhotoStudioProps> = ({
               <button
                 type="button"
                 onClick={() => setBgColor('BLUE')}
-                className={`py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1 font-bold text-[11px] cursor-pointer transition-all ${
+                className={`py-2 px-2 rounded-xl border flex items-center justify-center gap-1 font-bold text-[11px] cursor-pointer transition-all ${
                   bgColor === 'BLUE'
                     ? 'border-[#00a884] bg-blue-50 text-[#00453d] ring-2 ring-[#00a884]/30 shadow-xs'
                     : 'border-[#bec9c5] bg-white text-[#54656f]'
@@ -332,7 +362,7 @@ export const PassportPhotoStudio: React.FC<PassportPhotoStudioProps> = ({
               <button
                 type="button"
                 onClick={() => setBgColor('GRAY')}
-                className={`py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1 font-bold text-[11px] cursor-pointer transition-all ${
+                className={`py-2 px-2 rounded-xl border flex items-center justify-center gap-1 font-bold text-[11px] cursor-pointer transition-all ${
                   bgColor === 'GRAY'
                     ? 'border-[#00a884] bg-gray-100 text-[#00453d] ring-2 ring-[#00a884]/30 shadow-xs'
                     : 'border-[#bec9c5] bg-white text-[#54656f]'
@@ -345,9 +375,9 @@ export const PassportPhotoStudio: React.FC<PassportPhotoStudioProps> = ({
               <button
                 type="button"
                 onClick={() => setBgColor('ORIGINAL')}
-                className={`py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1 font-bold text-[11px] cursor-pointer transition-all ${
+                className={`py-2 px-2 rounded-xl border flex items-center justify-center gap-1 font-bold text-[11px] cursor-pointer transition-all ${
                   bgColor === 'ORIGINAL'
-                    ? 'border-[#00a884] bg-white text-[#00453d] ring-2 ring-[#00a884]/30 shadow-xs'
+                    ? 'border-[#00a884] bg-emerald-50 text-[#00453d] ring-2 ring-[#00a884]/30 shadow-xs'
                     : 'border-[#bec9c5] bg-white text-[#54656f]'
                 }`}
               >
@@ -363,53 +393,37 @@ export const PassportPhotoStudio: React.FC<PassportPhotoStudioProps> = ({
               <button
                 type="button"
                 onClick={() => setSheetLayout('8_ON_4X6')}
-                className={`py-2 px-2.5 rounded-xl border flex flex-col text-left cursor-pointer transition-all ${
+                className={`py-2.5 px-3 rounded-xl border flex flex-col text-left cursor-pointer transition-all ${
                   sheetLayout === '8_ON_4X6'
-                    ? 'border-[#00a884] bg-[#D9FDD3]/40 text-[#00453d] ring-2 ring-[#00a884]/30'
+                    ? 'border-[#00a884] bg-[#D9FDD3]/50 text-[#00453d] ring-2 ring-[#00a884]/30 shadow-xs'
                     : 'border-[#bec9c5] bg-white text-[#54656f]'
                 }`}
               >
-                <span className="font-bold text-[11.5px]">8 Photos (4x6" Sheet)</span>
-                <span className="text-[9.5px] text-[#6f7976]">Standard Photo Paper</span>
+                <span className="font-bold text-[12px]">8 Photos (4x6" Sheet)</span>
+                <span className="text-[10px] text-[#6f7976]">Standard Photo Paper</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setSheetLayout('16_ON_A4')}
-                className={`py-2 px-2.5 rounded-xl border flex flex-col text-left cursor-pointer transition-all ${
+                className={`py-2.5 px-3 rounded-xl border flex flex-col text-left cursor-pointer transition-all ${
                   sheetLayout === '16_ON_A4'
-                    ? 'border-[#00a884] bg-[#D9FDD3]/40 text-[#00453d] ring-2 ring-[#00a884]/30'
+                    ? 'border-[#00a884] bg-[#D9FDD3]/50 text-[#00453d] ring-2 ring-[#00a884]/30 shadow-xs'
                     : 'border-[#bec9c5] bg-white text-[#54656f]'
                 }`}
               >
-                <span className="font-bold text-[11.5px]">16 Photos (A4 Sheet)</span>
-                <span className="text-[9.5px] text-[#6f7976]">Full Page Layout</span>
+                <span className="font-bold text-[12px]">16 Photos (A4 Sheet)</span>
+                <span className="text-[10px] text-[#6f7976]">Full Page Layout</span>
               </button>
             </div>
           </div>
 
-          {/* Zoom & Brightness Sliders */}
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px] font-bold text-[#1d1c17]">
-                <span>Zoom</span>
-                <span>{Math.round(zoom * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min="0.8"
-                max="2.2"
-                step="0.05"
-                value={zoom}
-                onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="w-full accent-[#00a884] cursor-pointer"
-              />
-            </div>
-
+          {/* Sliders: Brightness & Contrast */}
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
             <div className="space-y-1">
               <div className="flex justify-between text-[11px] font-bold text-[#1d1c17]">
                 <span>Brightness</span>
-                <span>{brightness}%</span>
+                <span className="font-mono text-[#008069]">{brightness}%</span>
               </div>
               <input
                 type="range"
@@ -417,29 +431,44 @@ export const PassportPhotoStudio: React.FC<PassportPhotoStudioProps> = ({
                 max="140"
                 value={brightness}
                 onChange={(e) => setBrightness(parseInt(e.target.value, 10))}
-                className="w-full accent-[#00a884] cursor-pointer"
+                className="w-full accent-[#00a884] cursor-pointer h-2 bg-gray-200 rounded-lg"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] font-bold text-[#1d1c17]">
+                <span>Contrast</span>
+                <span className="font-mono text-[#008069]">{contrast}%</span>
+              </div>
+              <input
+                type="range"
+                min="80"
+                max="140"
+                value={contrast}
+                onChange={(e) => setContrast(parseInt(e.target.value, 10))}
+                className="w-full accent-[#00a884] cursor-pointer h-2 bg-gray-200 rounded-lg"
               />
             </div>
           </div>
 
-          {/* Cutting Guides Checkbox */}
-          <label className="flex items-center gap-2 pt-1 font-bold text-[#1d1c17] cursor-pointer">
+          {/* Micro Cutting Guides Toggle */}
+          <label className="flex items-center justify-between bg-[#f8fafc] p-2.5 rounded-xl border border-[#bec9c5]/30 cursor-pointer">
+            <span className="text-[11.5px] font-bold text-[#1d1c17] flex items-center gap-1.5">
+              <Scissors className="w-3.5 h-3.5 text-[#00453d]" />
+              <span>Include Cutting Guides (Dashed Lines)</span>
+            </span>
             <input
               type="checkbox"
               checked={showCutLines}
               onChange={(e) => setShowCutLines(e.target.checked)}
-              className="accent-[#00a884] w-4 h-4 rounded"
+              className="accent-[#00a884] w-4 h-4 rounded cursor-pointer"
             />
-            <span className="text-[11.5px] flex items-center gap-1">
-              <Scissors className="w-3.5 h-3.5 text-[#00453d]" />
-              Include Cutting Guides (Dashed Lines)
-            </span>
           </label>
         </div>
       </div>
 
-      {/* Footer Controls */}
-      <div className="flex items-center justify-between pt-2 border-t border-[#bec9c5]/40 shrink-0">
+      {/* ── Fixed Footer Action Bar ── */}
+      <div className="p-3.5 sm:p-4 border-t border-[#bec9c5]/40 shrink-0 bg-white flex items-center justify-between">
         <button
           type="button"
           onClick={onCancel}

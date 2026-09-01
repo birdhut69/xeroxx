@@ -439,16 +439,16 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
   };
 
   return (
-    <div className="wa-panel p-4 sm:p-5 rounded-2xl max-w-xl w-full mx-auto space-y-3.5 shadow-2xl border border-[#d1d7db] text-left animate-in zoom-in-95 duration-150">
-      {/* Top Header */}
-      <div className="flex items-center justify-between border-b border-[#bec9c5]/30 pb-2.5">
+    <div className="wa-panel rounded-3xl max-w-xl w-full mx-auto max-h-[94dvh] flex flex-col shadow-2xl border border-[#d1d7db] text-left animate-in zoom-in-95 duration-150 overflow-hidden bg-white">
+      {/* ── Fixed Top Header ── */}
+      <div className="p-3.5 sm:p-4 pb-3 border-b border-[#bec9c5]/30 shrink-0 bg-white flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="p-2 rounded-xl bg-[#00a884]/15 text-[#00453d]">
             <Scissors className="w-5 h-5" />
           </div>
           <div>
             <h3 className="text-sm sm:text-base font-bold text-[#1d1c17]">{t('studioTitle')}</h3>
-            <p className="text-[11px] text-[#6f7976]">{t('studioSubtitle')}</p>
+            <p className="text-[10.5px] sm:text-[11px] text-[#6f7976]">{t('studioSubtitle')}</p>
           </div>
         </div>
 
@@ -460,133 +460,136 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
         </button>
       </div>
 
-      {/* Mode Switcher Tabs */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center bg-[#f0f2f5] p-1 rounded-xl border border-[#bec9c5]/40 text-xs">
-          <button
-            type="button"
-            onClick={() => setActiveMode('CROP')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-              activeMode === 'CROP'
-                ? 'bg-white text-[#00453d] shadow-sm'
-                : 'text-[#54656f] hover:text-[#111b21]'
-            }`}
-          >
-            <Crop className="w-3.5 h-3.5" />
-            <span>{t('tabCrop')}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveMode('REDACT')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-              activeMode === 'REDACT'
-                ? 'bg-white text-[#00453d] shadow-sm'
-                : 'text-[#54656f] hover:text-[#111b21]'
-            }`}
-          >
-            <Square className="w-3.5 h-3.5" />
-            <span>{t('tabMask')} ({redactionBoxes.length})</span>
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleRotate}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] border border-[#bec9c5]/40 text-xs font-bold text-[#111b21] transition-colors cursor-pointer"
-          title="Rotate Document 90°"
-        >
-          <RotateCw className="w-3.5 h-3.5 text-[#00453d]" />
-          <span>{t('rotateBtn')}</span>
-        </button>
-      </div>
-
-      {/* Mode-Specific Toolbar */}
-      {activeMode === 'CROP' ? (
-        <div className="flex items-center justify-between gap-2 p-2 bg-[#fef9f0] rounded-xl border border-[#bec9c5]/30 text-xs">
-          <span className="text-[11.5px] text-[#6f7976] font-medium flex items-center gap-1">
-            <Move className="w-3.5 h-3.5 text-[#00453d]" />
-            <span>{t('dragCropTip')}</span>
-          </span>
-
-          <button
-            type="button"
-            onClick={handleApplyCrop}
-            className="px-3 py-1.5 rounded-lg bg-[#00453d] hover:bg-[#075e54] text-white font-bold flex items-center gap-1 cursor-pointer transition-transform active:scale-95 shadow-xs"
-          >
-            <Crop className="w-3.5 h-3.5" />
-            <span>{t('cutAndCropBtn')}</span>
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2 p-2 bg-[#fef9f0] rounded-xl border border-[#bec9c5]/30 text-xs">
-          <div className="flex flex-wrap items-center gap-1.5">
+      {/* ── Scrollable Content Body ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4 space-y-3 overscroll-contain">
+        {/* Mode Switcher Tabs */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center bg-[#f0f2f5] p-1 rounded-xl border border-[#bec9c5]/40 text-xs">
             <button
               type="button"
-              onClick={handleMaskAadhaar8Digits}
-              className="px-2.5 py-1 rounded-lg bg-[#e7f8ff] text-[#0284c7] hover:bg-[#d0f0fd] text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+              onClick={() => setActiveMode('CROP')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                activeMode === 'CROP'
+                  ? 'bg-white text-[#00453d] shadow-sm'
+                  : 'text-[#54656f] hover:text-[#111b21]'
+              }`}
             >
-              <Sparkles className="w-3 h-3" />
-              <span>{t('maskAadhaar')}</span>
+              <Crop className="w-3.5 h-3.5" />
+              <span>{t('tabCrop')}</span>
             </button>
+
             <button
               type="button"
-              onClick={handleMaskSignature}
-              className="px-2.5 py-1 rounded-lg bg-[#f0fdf4] text-[#15803d] hover:bg-[#dcfce7] text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+              onClick={() => setActiveMode('REDACT')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                activeMode === 'REDACT'
+                  ? 'bg-white text-[#00453d] shadow-sm'
+                  : 'text-[#54656f] hover:text-[#111b21]'
+              }`}
             >
-              <Shield className="w-3 h-3" />
-              <span>{t('maskSignature')}</span>
+              <Shield className="w-3.5 h-3.5" />
+              <span>{t('tabMask')}</span>
             </button>
           </div>
-          <div className="flex items-center justify-between border-t border-[#bec9c5]/20 pt-2">
+
+          <button
+            type="button"
+            onClick={handleRotate}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] border border-[#bec9c5]/40 text-xs font-bold text-[#111b21] transition-colors cursor-pointer"
+            title="Rotate Document 90°"
+          >
+            <RotateCw className="w-3.5 h-3.5 text-[#00453d]" />
+            <span>{t('rotateBtn')}</span>
+          </button>
+        </div>
+
+        {/* Mode-Specific Toolbar */}
+        {activeMode === 'CROP' ? (
+          <div className="flex items-center justify-between gap-2 p-2.5 bg-[#fef9f0] rounded-xl border border-[#bec9c5]/30 text-xs">
+            <span className="text-[11.5px] text-[#6f7976] font-medium flex items-center gap-1">
+              <Move className="w-3.5 h-3.5 text-[#00453d]" />
+              <span>{t('dragCropTip')}</span>
+            </span>
+
             <button
               type="button"
-              onClick={handleAutoMask}
-              className="text-[#6f7976] font-medium"
+              onClick={handleApplyCrop}
+              className="px-3 py-1.5 rounded-lg bg-[#00453d] hover:bg-[#075e54] text-white font-bold flex items-center gap-1 cursor-pointer transition-transform active:scale-95 shadow-xs"
             >
-              {t('manualTips')}
+              <Crop className="w-3.5 h-3.5" />
+              <span>{t('cutAndCropBtn')}</span>
             </button>
-            <div className="flex items-center gap-1.5">
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2.5 p-2.5 bg-[#fef9f0] rounded-xl border border-[#bec9c5]/30 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
-                onClick={handleUndo}
-                disabled={redactionBoxes.length === 0}
-                className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#f0f2f5] disabled:opacity-30 text-[#54656f] text-[11px] font-semibold flex items-center gap-1 border border-[#bec9c5]/30 cursor-pointer"
+                type="button"
+                onClick={handleMaskAadhaar8Digits}
+                className="px-3 py-1.5 rounded-xl bg-[#e7f8ff] text-[#0284c7] hover:bg-[#d0f0fd] text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
               >
-                <Undo className="w-3 h-3" />
-                <span>{t('undoBtn')}</span>
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{t('maskAadhaar')}</span>
               </button>
               <button
-                onClick={handleClearAll}
-                disabled={redactionBoxes.length === 0}
-                className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#fee2e2] disabled:opacity-30 text-[#dc2626] text-[11px] font-semibold flex items-center gap-1 border border-[#bec9c5]/30 cursor-pointer"
+                type="button"
+                onClick={handleMaskSignature}
+                className="px-3 py-1.5 rounded-xl bg-[#f0fdf4] text-[#15803d] hover:bg-[#dcfce7] text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
               >
-                <Eraser className="w-3 h-3" />
-                <span>{t('clearAllBoxes')}</span>
+                <Shield className="w-3.5 h-3.5" />
+                <span>{t('maskSignature')}</span>
               </button>
             </div>
+            <div className="flex items-center justify-between border-t border-[#bec9c5]/20 pt-2">
+              <button
+                type="button"
+                onClick={handleAutoMask}
+                className="text-[#6f7976] font-medium text-[11px]"
+              >
+                {t('manualTips')}
+              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleUndo}
+                  disabled={redactionBoxes.length === 0}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#f0f2f5] disabled:opacity-30 text-[#54656f] text-[11px] font-semibold flex items-center gap-1 border border-[#bec9c5]/30 cursor-pointer"
+                >
+                  <Undo className="w-3 h-3" />
+                  <span>{t('undoBtn')}</span>
+                </button>
+                <button
+                  onClick={handleClearAll}
+                  disabled={redactionBoxes.length === 0}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#fee2e2] disabled:opacity-30 text-[#dc2626] text-[11px] font-semibold flex items-center gap-1 border border-[#bec9c5]/30 cursor-pointer"
+                >
+                  <Eraser className="w-3 h-3" />
+                  <span>{t('clearAllBoxes')}</span>
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Main Canvas Viewport */}
-      <div
-        ref={containerRef}
-        className="relative bg-[#2d3748] rounded-2xl overflow-hidden touch-none flex items-center justify-center min-h-[280px] max-h-[440px] shadow-inner p-2 select-none"
-      >
-        <canvas
-          ref={canvasRef}
-          onMouseDown={handlePointerDown}
-          onMouseMove={handlePointerMove}
-          onMouseUp={handlePointerUp}
-          onTouchStart={handlePointerDown}
-          onTouchMove={handlePointerMove}
-          onTouchEnd={handlePointerUp}
-          className="max-w-full max-h-[420px] object-contain rounded-lg cursor-crosshair"
-        />
+        {/* Main Canvas Viewport */}
+        <div
+          ref={containerRef}
+          className="relative bg-[#2d3748] rounded-2xl overflow-hidden touch-none flex items-center justify-center min-h-[240px] max-h-[360px] shadow-inner p-2 select-none"
+        >
+          <canvas
+            ref={canvasRef}
+            onMouseDown={handlePointerDown}
+            onMouseMove={handlePointerMove}
+            onMouseUp={handlePointerUp}
+            onTouchStart={handlePointerDown}
+            onTouchMove={handlePointerMove}
+            onTouchEnd={handlePointerUp}
+            className="max-w-full max-h-[340px] object-contain rounded-lg cursor-crosshair"
+          />
+        </div>
       </div>
 
-      {/* Footer controls */}
-      <div className="flex items-center justify-between pt-2 border-t border-[#bec9c5]/30">
+      {/* ── Fixed Footer Action Bar ── */}
+      <div className="p-3.5 sm:p-4 border-t border-[#bec9c5]/30 shrink-0 bg-white flex items-center justify-between">
         <button
           onClick={onCancel}
           className="px-4 py-2 rounded-xl bg-[#f0f2f5] hover:bg-[#e9edef] text-[#54656f] text-xs font-semibold cursor-pointer"
@@ -596,7 +599,7 @@ export const RedactionStudio: React.FC<RedactionStudioProps> = ({
 
         <button
           onClick={handleSaveAndApply}
-          className="px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-transform active:scale-95"
+          className="px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-transform active:scale-95 animate-pulse-glow"
         >
           <Check className="w-4 h-4" />
           <span>{t('saveChangesToRam')}</span>

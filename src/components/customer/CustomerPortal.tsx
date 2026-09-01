@@ -722,7 +722,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
         </div>
       ) : (
         /* ── STEP 2: Authentic Full-Screen Single WhatsApp Top Bar & Chat Interface ── */
-        <div className="w-full h-full flex-1 flex flex-col overflow-hidden relative">
+        <div className="w-full h-full flex-1 min-h-0 flex flex-col overflow-hidden relative">
           {/* 🌟 UNIFIED WHATSAPP TOP APP BAR (#075E54) 🌟 */}
           <div className="bg-[#075E54] text-white px-2.5 sm:px-4 py-2 flex items-center justify-between shadow-md shrink-0 h-[56px] z-30 select-none">
             {/* Left: Back Arrow + Avatar + Status */}
@@ -867,7 +867,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className="flex-1 wa-chat-wallpaper overflow-y-auto p-3 sm:p-4 space-y-3 text-left relative"
+            className="flex-1 min-h-0 wa-chat-wallpaper overflow-y-auto p-3 sm:p-4 space-y-3 text-left relative overscroll-contain touch-pan-y"
           >
             {/* Visual Drag & Drop Overlay */}
             {isDragging && (
@@ -1100,20 +1100,21 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
                   </div>
 
                   {/* List of Staged Files */}
-                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  <div className="space-y-2.5 max-h-[60vh] overflow-y-auto overscroll-contain pr-0.5">
                     {stagedFiles.map((file) => (
                       <div
                         key={file.id}
-                        className="bg-white rounded-xl p-2.5 border border-[#bec9c5]/30 shadow-xs flex flex-col gap-2 relative overflow-hidden"
+                        className="bg-white rounded-2xl p-3 border border-[#bec9c5]/40 shadow-sm flex flex-col gap-2.5 relative overflow-hidden"
                       >
-                        <div className="flex items-start justify-between">
+                        {/* Card Header: File Icon + Name + Remove Button */}
+                        <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center text-[#ba1a1a] shrink-0 font-bold">
-                              <FileText className="w-4 h-4" />
+                            <div className="w-9 h-9 bg-red-50 text-[#ba1a1a] rounded-xl flex items-center justify-center shrink-0 font-bold border border-red-200">
+                              <FileText className="w-5 h-5" />
                             </div>
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-[13px] font-bold text-[#1d1c17] truncate pr-2">{file.name}</span>
-                              <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#6f7976]">
+                            <div className="flex flex-col min-w-0 text-left">
+                              <span className="text-[13.5px] font-bold text-[#1d1c17] truncate leading-tight">{file.name}</span>
+                              <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#6f7976] mt-0.5">
                                 <span>{(file.size / 1024).toFixed(1)} KB</span>
                                 {file.isFromShareTarget && (
                                   <span className="text-[10px] bg-[#D9FDD3] text-[#006d2f] px-1.5 py-0.2 rounded font-sans font-bold">
@@ -1123,62 +1124,154 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
                               </div>
                             </div>
                           </div>
+
+                          {/* Remove Button (40px touch target) */}
                           <button
                             type="button"
                             onClick={() => setStagedFiles((prev) => prev.filter((f) => f.id !== file.id))}
-                            className="text-[#6f7976] hover:text-[#ba1a1a] transition-colors shrink-0 p-1 cursor-pointer"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-[#6f7976] hover:text-[#ba1a1a] hover:bg-red-50 transition-colors shrink-0 cursor-pointer"
                             title="Remove file"
                           >
                             <X className="w-4 h-4" />
                           </button>
                         </div>
 
-                        {/* Page Range & Layout Controls for Documents / PDFs */}
-                        <div className="grid grid-cols-2 gap-2 bg-[#f8fafc] p-2 rounded-lg border border-[#bec9c5]/20 text-[10.5px]">
-                          <div className="space-y-0.5 text-left">
-                            <label className="font-bold text-[#54656f]">{t('pageRangeLabel')}</label>
-                            <input
-                              type="text"
-                              value={file.pageRange || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, pageRange: val } : f));
-                              }}
-                              placeholder={t('pageRangePlaceholder')}
-                              className="w-full px-2 py-1 bg-white rounded border border-[#bec9c5] font-mono text-[10px]"
-                            />
+                        {/* Layout Mode Segmented Pills (Touch-Friendly) */}
+                        <div className="space-y-1 text-left">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-[#54656f]">
+                            <span>{t('layoutModeLabel')}</span>
+                            <span className="text-[#008069] font-mono">
+                              {file.layoutMode === '2-UP' ? '2 Pages / Sheet' : file.layoutMode === '4-UP' ? '4 Pages / Sheet' : 'Standard'}
+                            </span>
                           </div>
-
-                          <div className="space-y-0.5 text-left">
-                            <label className="font-bold text-[#54656f]">{t('layoutModeLabel')}</label>
-                            <select
-                              value={file.layoutMode || '1-UP'}
-                              onChange={(e) => {
-                                const val = e.target.value as any;
-                                setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, layoutMode: val } : f));
-                              }}
-                              className="w-full px-1.5 py-1 bg-white rounded border border-[#bec9c5] text-[10px] font-semibold"
+                          <div className="grid grid-cols-3 gap-1.5 bg-[#f0f2f5] p-1 rounded-xl">
+                            <button
+                              type="button"
+                              onClick={() => setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, layoutMode: '1-UP' } : f))}
+                              className={`py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                (!file.layoutMode || file.layoutMode === '1-UP')
+                                  ? 'bg-[#008069] text-white shadow-xs'
+                                  : 'text-[#54656f] hover:text-[#111b21] bg-white'
+                              }`}
                             >
-                              <option value="1-UP">{t('layout1Up')}</option>
-                              <option value="2-UP">{t('layout2Up')}</option>
-                              <option value="4-UP">{t('layout4Up')}</option>
-                            </select>
+                              1-Up
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, layoutMode: '2-UP' } : f))}
+                              className={`py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                file.layoutMode === '2-UP'
+                                  ? 'bg-[#008069] text-white shadow-xs'
+                                  : 'text-[#54656f] hover:text-[#111b21] bg-white'
+                              }`}
+                            >
+                              2-in-1
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, layoutMode: '4-UP' } : f))}
+                              className={`py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                file.layoutMode === '4-UP'
+                                  ? 'bg-[#008069] text-white shadow-xs'
+                                  : 'text-[#54656f] hover:text-[#111b21] bg-white'
+                              }`}
+                            >
+                              4-in-1
+                            </button>
                           </div>
                         </div>
 
-                        {/* Image Action Badges (Redaction & Self-Attestation) */}
-                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {/* Page Range & Duplex Strip */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+                          {/* Page Range with 1-Tap Presets */}
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-[#54656f]">{t('pageRangeLabel')}</label>
+                            <div className="flex gap-1">
+                              <input
+                                type="text"
+                                value={file.pageRange || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, pageRange: val } : f));
+                                }}
+                                placeholder="All (or 1-3, 5)"
+                                className="flex-1 px-2.5 py-1.5 bg-[#f8fafc] rounded-xl border border-[#bec9c5] font-mono text-xs focus:ring-1 focus:ring-[#008069] focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, pageRange: '1' } : f))}
+                                className="px-2 py-1 bg-white border border-[#bec9c5] rounded-xl text-[10px] font-bold text-[#54656f] hover:bg-gray-50"
+                                title="Page 1 Only"
+                              >
+                                Pg 1
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Print Sides (Single vs Duplex) */}
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-[#54656f]">{t('duplexLabel')}</label>
+                            <div className="grid grid-cols-2 gap-1 bg-[#f0f2f5] p-1 rounded-xl">
+                              <button
+                                type="button"
+                                onClick={() => setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, isDuplex: false } : f))}
+                                className={`py-1.5 px-1.5 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                                  !file.isDuplex
+                                    ? 'bg-[#008069] text-white shadow-xs'
+                                    : 'text-[#54656f] bg-white'
+                                }`}
+                              >
+                                1-Sided
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, isDuplex: true } : f))}
+                                className={`py-1.5 px-1.5 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                                  file.isDuplex
+                                    ? 'bg-[#008069] text-white shadow-xs'
+                                    : 'text-[#54656f] bg-white'
+                                }`}
+                              >
+                                2-Sided (Duplex)
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Copies Stepper & Image Action Badges */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#bec9c5]/30">
+                          {/* Copies Stepper */}
+                          <div className="flex items-center gap-1.5 bg-[#f8fafc] px-2 py-1 rounded-xl border border-[#bec9c5]/50">
+                            <span className="text-[10.5px] font-bold text-[#54656f]">Copies:</span>
+                            <button
+                              type="button"
+                              onClick={() => setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, copies: Math.max(1, f.copies - 1) } : f))}
+                              className="w-5 h-5 rounded-md bg-white border border-[#bec9c5] font-bold text-xs flex items-center justify-center hover:bg-gray-100 cursor-pointer"
+                            >
+                              -
+                            </button>
+                            <span className="text-xs font-mono font-bold text-[#008069] px-1">{file.copies}</span>
+                            <button
+                              type="button"
+                              onClick={() => setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, copies: f.copies + 1 } : f))}
+                              className="w-5 h-5 rounded-md bg-white border border-[#bec9c5] font-bold text-xs flex items-center justify-center hover:bg-gray-100 cursor-pointer"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          {/* Image Action Badges */}
                           {file.type.startsWith('image/') && (
-                            <>
+                            <div className="flex items-center gap-1.5 ml-auto">
                               <button
                                 type="button"
                                 onClick={() => {
                                   setActiveRedactionFileId(file.id);
                                   setShowRedactionStudio(true);
                                 }}
-                                className="inline-flex items-center bg-emerald-50 text-[#00453d] border border-[#00453d]/20 rounded-md px-2 py-0.5 text-[10px] font-bold hover:bg-emerald-100 cursor-pointer transition-colors"
+                                className="inline-flex items-center bg-emerald-50 text-[#00453d] border border-[#00453d]/30 rounded-xl px-2.5 py-1 text-[11px] font-bold hover:bg-emerald-100 cursor-pointer transition-colors shadow-2xs"
                               >
-                                <ShieldAlert className="w-3 h-3 mr-1 text-[#00453d]" />
+                                <ShieldAlert className="w-3.5 h-3.5 mr-1 text-[#00453d]" />
                                 <span>{t('maskIdBtn')}</span>
                               </button>
 
@@ -1188,45 +1281,30 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
                                   setSelfAttestSourceFileId(file.id);
                                   setShowSelfAttestModal(true);
                                 }}
-                                className="inline-flex items-center bg-purple-50 text-purple-800 border border-purple-200 rounded-md px-2 py-0.5 text-[10px] font-bold hover:bg-purple-100 cursor-pointer transition-colors"
+                                className="inline-flex items-center bg-purple-50 text-purple-800 border border-purple-300 rounded-xl px-2.5 py-1 text-[11px] font-bold hover:bg-purple-100 cursor-pointer transition-colors shadow-2xs"
                               >
-                                <Sparkles className="w-3 h-3 mr-1 text-purple-600" />
+                                <Sparkles className="w-3.5 h-3.5 mr-1 text-purple-600" />
                                 <span>{t('selfAttestBtn')}</span>
                               </button>
-                            </>
+                            </div>
                           )}
-
-                          {/* Duplex Toggle */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setStagedFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, isDuplex: !f.isDuplex } : f));
-                            }}
-                            className={`ml-auto px-2 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
-                              file.isDuplex
-                                ? 'bg-blue-50 text-blue-700 border-blue-300'
-                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                            }`}
-                          >
-                            <span>{file.isDuplex ? t('doubleSided') : t('singleSided')}</span>
-                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
 
                   {/* Estimated Cost Banner & UPI Pay Button */}
-                  <div className="bg-white/90 rounded-xl p-2 border border-[#00a884]/30 flex items-center justify-between mt-1 text-xs">
+                  <div className="bg-white/95 rounded-2xl p-2.5 border border-[#00a884]/40 flex items-center justify-between mt-2 text-xs shadow-xs">
                     <div className="flex flex-col text-left">
-                      <span className="text-[#00453d] font-bold">
+                      <span className="text-[#00453d] font-bold text-[13px]">
                         Est. Total: ₹{(stagedFiles.reduce((acc, f) => {
                           const unit = f.isDuplex ? bwRate * 0.75 : bwRate;
                           const layoutMul = f.layoutMode === '2-UP' ? 0.5 : f.layoutMode === '4-UP' ? 0.25 : 1.0;
                           return acc + (unit * f.copies * layoutMul);
                         }, 0)).toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-[#6f7976]">
-                        {stagedFiles.length} file(s) • Duplex & N-Up Applied
+                      <span className="text-[10.5px] text-[#6f7976]">
+                        {stagedFiles.length} file(s) • Duplex & N-Up Auto-Discounted
                       </span>
                     </div>
 
@@ -1237,7 +1315,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
                           const layoutMul = f.layoutMode === '2-UP' ? 0.5 : f.layoutMode === '4-UP' ? 0.25 : 1.0;
                           return acc + (unit * f.copies * layoutMul);
                         }, 0)).toFixed(2)}&cu=INR`}
-                        className="px-2.5 py-1 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition-colors"
+                        className="px-3 py-1.5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold flex items-center gap-1 shadow-sm transition-transform active:scale-95"
                       >
                         <span>Pay via UPI</span>
                       </a>
@@ -1339,12 +1417,13 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
           )}
 
           {/* Quick Print Instruction Chips Strip */}
-          <div className="bg-[#EFEAE2] px-3 py-1.5 border-t border-[#bec9c5]/30 flex items-center gap-1.5 overflow-x-auto shrink-0 scrollbar-hide">
-            <span className="text-[11px] font-bold text-[#6f7976] uppercase tracking-wider shrink-0">{t('notePrefix')}</span>
+          <div className="bg-[#EFEAE2] px-3 py-2 border-t border-[#bec9c5]/30 flex items-center gap-1.5 overflow-x-auto shrink-0 scrollbar-hide touch-pan-x select-none">
+            <span className="text-[10.5px] font-bold text-[#6f7976] uppercase tracking-wider shrink-0">{t('notePrefix')}</span>
             {[
               t('chipBw'),
               t('chipDoubleSided'),
               t('chipColor'),
+              t('passportStudioBtn'),
               t('chipUrgent'),
               t('chipLegal'),
             ].map((chip) => (
@@ -1352,7 +1431,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
                 key={chip}
                 type="button"
                 onClick={() => setInputText(chip)}
-                className="px-2.5 py-1 rounded-full bg-white hover:bg-[#D9FDD3] hover:border-[#25D366] text-[#00453d] text-xs font-semibold border border-[#bec9c5]/40 shrink-0 cursor-pointer shadow-xs transition-colors"
+                className="px-3 py-1.5 rounded-full bg-white hover:bg-[#D9FDD3] hover:border-[#25D366] text-[#00453d] text-xs font-semibold border border-[#bec9c5]/40 shrink-0 cursor-pointer shadow-xs transition-colors active:scale-95"
               >
                 {chip}
               </button>
