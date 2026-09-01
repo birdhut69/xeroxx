@@ -405,33 +405,33 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({
               </button>
             </div>
 
-            <div className="w-full flex items-center justify-between gap-3">
+            <div className="w-full flex items-center justify-between gap-1.5 sm:gap-3">
               <button
                 type="button"
                 onClick={handleRetake}
-                className="flex-1 py-3 px-3 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer border border-white/20"
+                className="flex-1 py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer border border-white/20"
               >
-                <RefreshCw className="w-4 h-4" />
-                <span>{t('retake')}</span>
+                <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span className="truncate">{t('retake')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleConfirmUse(true)}
-                className="flex-1 py-3 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-[#2a1b00] font-bold text-xs flex items-center justify-center gap-1 transition-transform active:scale-95 cursor-pointer shadow-md"
+                className="flex-1 py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-[#2a1b00] font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1 transition-transform active:scale-95 cursor-pointer shadow-md"
                 title="Open in Redaction Studio to mask sensitive details"
               >
-                <Eye className="w-4 h-4" />
-                <span>{t('maskIdPhoto')}</span>
+                <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span className="truncate">{t('maskIdPhoto')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleConfirmUse(false)}
-                className="flex-1 py-3 px-3 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold text-xs flex items-center justify-center gap-1 transition-transform active:scale-95 cursor-pointer shadow-lg"
+                className="flex-1 py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-[#002109] font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1 transition-transform active:scale-95 cursor-pointer shadow-lg"
               >
-                <Check className="w-4 h-4" />
-                <span>{t('usePhoto')}</span>
+                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span className="truncate">{t('usePhoto')}</span>
               </button>
             </div>
           </div>

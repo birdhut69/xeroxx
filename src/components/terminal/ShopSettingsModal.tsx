@@ -54,8 +54,8 @@ export const ShopSettingsModal: React.FC<ShopSettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm p-4 overflow-y-auto flex items-center justify-center">
-      <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-[#bec9c5] space-y-4 my-auto relative animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto flex items-center justify-center overscroll-contain">
+      <div className="bg-white rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl border border-[#bec9c5] space-y-4 my-auto relative animate-in zoom-in-95 duration-150 max-h-[94dvh] overflow-y-auto overscroll-contain">
         {/* Top Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#bec9c5]/40">
           <div className="flex items-center gap-2">

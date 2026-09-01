@@ -57,19 +57,19 @@ export const RAMProofModal: React.FC<RAMProofModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-[#d1d7db] flex flex-col max-h-[92vh] text-left">
+      <div className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-[#d1d7db] flex flex-col max-h-[94dvh] text-left">
         {/* Top Header */}
-        <div className="bg-[#008069] text-white px-5 py-4 flex items-center justify-between shadow-sm shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 border border-white/40 flex items-center justify-center text-white shadow-inner">
-              <Cpu className="w-5 h-5" />
+        <div className="bg-[#008069] text-white px-4 sm:px-5 py-3.5 sm:py-4 flex items-center justify-between shadow-sm shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/20 border border-white/40 flex items-center justify-center text-white shadow-inner shrink-0">
+              <Cpu className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold flex items-center gap-2">
+              <h3 className="text-sm sm:text-base font-bold flex items-center gap-2">
                 <span>SafePrint Zero-Disk & RAM Proof Engine</span>
-                <span className="text-[10px] bg-white/25 px-2 py-0.5 rounded-full font-mono">100% VERIFIED</span>
+                <span className="text-[9.5px] sm:text-[10px] bg-white/25 px-2 py-0.5 rounded-full font-mono">100% VERIFIED</span>
               </h3>
-              <p className="text-xs text-white/85">
+              <p className="text-[11px] sm:text-xs text-white/85">
                 Technical audit & cryptographic proof of pure in-memory execution.
               </p>
             </div>
@@ -77,17 +77,17 @@ export const RAMProofModal: React.FC<RAMProofModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors"
+            className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="bg-[#f0f2f5] px-4 py-2 border-b border-[#e9edef] flex gap-2 shrink-0">
+        <div className="bg-[#f0f2f5] px-3 sm:px-4 py-2 border-b border-[#e9edef] flex gap-1.5 sm:gap-2 shrink-0 overflow-x-auto">
           <button
             onClick={() => setActiveTab('TELEMETRY')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer ${
               activeTab === 'TELEMETRY'
                 ? 'bg-[#008069] text-white shadow-sm'
                 : 'text-[#54656f] hover:bg-[#e9edef]'
@@ -97,7 +97,7 @@ export const RAMProofModal: React.FC<RAMProofModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('CRYPTO')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer ${
               activeTab === 'CRYPTO'
                 ? 'bg-[#008069] text-white shadow-sm'
                 : 'text-[#54656f] hover:bg-[#e9edef]'
@@ -107,7 +107,7 @@ export const RAMProofModal: React.FC<RAMProofModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('SCRUBBER')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer ${
               activeTab === 'SCRUBBER'
                 ? 'bg-[#008069] text-white shadow-sm'
                 : 'text-[#54656f] hover:bg-[#e9edef]'
@@ -118,7 +118,7 @@ export const RAMProofModal: React.FC<RAMProofModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 overflow-y-auto space-y-4 text-xs text-[#111b21]">
+        <div className="flex-1 min-h-0 p-4 sm:p-5 overflow-y-auto space-y-4 text-xs text-[#111b21] overscroll-contain">
           {activeTab === 'TELEMETRY' && (
             <div className="space-y-4">
               {/* Telemetry Metric Cards */}
