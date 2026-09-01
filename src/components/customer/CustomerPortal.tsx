@@ -247,6 +247,10 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
   }, [sentDocs, textMessages, stagedFiles]);
 
   const handleSessionDecoded = (decodedRoom: string, decodedKey: string) => {
+    if (roomId === decodedRoom && relayRef.current) {
+      return;
+    }
+
     setRoomId(decodedRoom);
     setKeyHex(decodedKey);
 
@@ -279,16 +283,33 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
       },
       onChatMessage: (msg) => {
         sounds.playSuccess();
-        setTextMessages((prev) => [
-          ...prev,
-          {
-            id: msg.id || `MSG-${Date.now()}`,
-            sender: msg.sender,
-            text: msg.text,
-            voiceBase64: msg.voiceBase64,
-            timestamp: msg.timestamp || Date.now(),
-          },
-        ]);
+        setTextMessages((prev) => {
+          // If message already exists by ID, skip
+          if (msg.id && prev.some((m) => m.id === msg.id)) {
+            return prev;
+          }
+          // If message matches sender, text/voice, and timestamp within 3 seconds, skip duplicate
+          const isContentDuplicate = prev.some(
+            (m) =>
+              m.sender === msg.sender &&
+              ((m.text && m.text === msg.text) || (m.voiceBase64 && m.voiceBase64 === msg.voiceBase64)) &&
+              Math.abs(m.timestamp - (msg.timestamp || 0)) < 3000
+          );
+          if (isContentDuplicate) {
+            return prev;
+          }
+
+          return [
+            ...prev,
+            {
+              id: msg.id || `MSG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              sender: msg.sender,
+              text: msg.text,
+              voiceBase64: msg.voiceBase64,
+              timestamp: msg.timestamp || Date.now(),
+            },
+          ];
+        });
       },
       onPrintStatus: (data) => {
         setSentDocs((prev) =>

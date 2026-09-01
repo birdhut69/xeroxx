@@ -388,6 +388,8 @@ export class RelaySocket {
         this.callbacks.onShredConfirmed?.(msg);
         break;
       case 'CHAT_MESSAGE':
+        // Do not echo back our own sent messages
+        if (this.role && msg.sender === this.role) return;
         this.callbacks.onChatMessage?.(msg);
         break;
     }
@@ -443,6 +445,11 @@ export class RelaySocket {
   public send(msg: any) {
     if (msg.roomId) this.activeRoomId = msg.roomId;
     if (msg.customerId) this.activeCustomerId = msg.customerId;
+
+    // Cache outgoing message ID so we never process a local echo
+    if (msg.id) {
+      this.processedMessageIds.add(msg.id);
+    }
 
     if (msg.type === 'INIT_TERMINAL') {
       this.initShopTerminal(msg.roomId, msg.shopId, msg.shopName);

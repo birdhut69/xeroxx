@@ -242,10 +242,18 @@ export const TerminalDashboard: React.FC = () => {
 
           cust.lastActive = Date.now();
 
-          // Deduplicate message
-          if (!cust.messages.some((m) => m.id === msg.id)) {
+          // Deduplicate message by ID and content
+          const isDuplicate = cust.messages.some(
+            (m) =>
+              (msg.id && m.id === msg.id) ||
+              (m.sender === msg.sender &&
+                ((m.text && m.text === safeText) || (m.voiceBase64 && m.voiceBase64 === msg.voiceBase64)) &&
+                Math.abs(m.timestamp - (msg.timestamp || 0)) < 3000)
+          );
+
+          if (!isDuplicate) {
             cust.messages.push({
-              id: msg.id || `MSG-${Date.now()}`,
+              id: msg.id || `MSG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
               sender: msg.sender,
               text: safeText,
               voiceBase64: msg.voiceBase64,
