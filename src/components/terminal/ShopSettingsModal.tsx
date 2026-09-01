@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Store, QrCode, X, Check, DollarSign, Shield, RefreshCw } from 'lucide-react';
+import { Store, QrCode, X, Check, DollarSign, Shield, RefreshCw, KeyRound, Lock, Eye, EyeOff } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../shared/ToastContext';
 
@@ -38,6 +38,18 @@ export const ShopSettingsModal: React.FC<ShopSettingsModalProps> = ({
   const [bw, setBw] = useState(bwRate);
   const [color, setColor] = useState(colorRate);
 
+  // Security & PIN state
+  const [adminPin, setAdminPin] = useState(() => {
+    return localStorage.getItem('safeprint_custom_pin') || '7890';
+  });
+  const [requirePin, setRequirePin] = useState(() => {
+    return localStorage.getItem('safeprint_pin_disabled') !== 'true';
+  });
+  const [customPassword, setCustomPassword] = useState(() => {
+    return localStorage.getItem('safeprint_custom_password') || '';
+  });
+  const [showPassword, setShowPassword] = useState(false);
+
   if (!isOpen) return null;
 
   const handleSave = (e: React.FormEvent) => {
@@ -49,7 +61,18 @@ export const ShopSettingsModal: React.FC<ShopSettingsModalProps> = ({
     onSaveBwRate(Number(bw) || 2);
     onSaveColorRate(Number(color) || 10);
 
-    toast.success('Settings Saved', 'Shop details and pricing updated in RAM & storage.');
+    // Save PIN and security settings
+    if (adminPin.trim().length >= 4) {
+      localStorage.setItem('safeprint_custom_pin', adminPin.trim());
+    }
+    if (customPassword.trim()) {
+      localStorage.setItem('safeprint_custom_password', customPassword.trim());
+    } else {
+      localStorage.removeItem('safeprint_custom_password');
+    }
+    localStorage.setItem('safeprint_pin_disabled', (!requirePin).toString());
+
+    toast.success('Settings Saved', 'Shop details, pricing & terminal PIN updated.');
     onClose();
   };
 
@@ -64,7 +87,7 @@ export const ShopSettingsModal: React.FC<ShopSettingsModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-[#00453d]">Shop Terminal Settings</h3>
-              <p className="text-[11px] text-[#6f7976]">Customize shop name, UPI ID & pricing</p>
+              <p className="text-[11px] text-[#6f7976]">Customize shop name, UPI, rates & security PIN</p>
             </div>
           </div>
 
@@ -132,8 +155,67 @@ export const ShopSettingsModal: React.FC<ShopSettingsModalProps> = ({
             </div>
           </div>
 
+          {/* 🔒 Security & Terminal PIN Section */}
+          <div className="p-3.5 bg-[#f8fafc] rounded-2xl border border-[#bec9c5]/50 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 font-bold text-[#00453d] text-[11.5px]">
+                <KeyRound className="w-4 h-4 text-[#00a884]" />
+                <span>Shop Owner PIN & Security</span>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-[#54656f]">
+                <input
+                  type="checkbox"
+                  checked={requirePin}
+                  onChange={(e) => setRequirePin(e.target.checked)}
+                  className="accent-[#00a884] w-3.5 h-3.5 rounded cursor-pointer"
+                />
+                <span>Require PIN</span>
+              </label>
+            </div>
+
+            {requirePin ? (
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="space-y-1">
+                  <label className="font-semibold text-[#1d1c17] text-[10.5px]">4-Digit Quick PIN</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={adminPin}
+                    onChange={(e) => setAdminPin(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="7890"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#bec9c5] focus:ring-1 focus:ring-[#00a884] font-mono font-bold text-xs text-center"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-[#1d1c17] text-[10.5px]">Password (Optional)</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={customPassword}
+                      onChange={(e) => setCustomPassword(e.target.value)}
+                      placeholder="Optional text password"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-[#bec9c5] focus:ring-1 focus:ring-[#00a884] text-xs font-semibold pr-7"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2 top-2 text-[#54656f] cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-2 bg-emerald-50 text-[#006d2f] text-[10.5px] rounded-lg border border-emerald-200 leading-tight">
+                ⚡ <strong>Instant Counter Mode</strong>: PIN is disabled. The Terminal will open directly without asking for a PIN on this device.
+              </div>
+            )}
+          </div>
+
           {/* Reset Master Counter Session */}
-          <div className="p-3 bg-red-50 rounded-2xl border border-red-200 space-y-1.5 mt-2">
+          <div className="p-3 bg-red-50 rounded-2xl border border-red-200 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="font-bold text-red-800 text-[11px]">Regenerate Master Standee QR</span>
               <button
@@ -144,7 +226,7 @@ export const ShopSettingsModal: React.FC<ShopSettingsModalProps> = ({
                     onClose();
                   }
                 }}
-                className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer shadow-xs"
               >
                 <RefreshCw className="w-3 h-3" />
                 <span>Reset QR</span>
@@ -156,7 +238,7 @@ export const ShopSettingsModal: React.FC<ShopSettingsModalProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2 pt-1">
             <button
               type="submit"
               className="flex-1 py-2.5 px-4 rounded-xl bg-[#00453d] hover:bg-[#075e54] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-transform active:scale-98"
