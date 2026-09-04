@@ -6,7 +6,7 @@ import { ToastProvider } from './components/shared/ToastContext';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { NetworkStatusBanner } from './components/shared/NetworkStatusBanner';
 import { PWAInstallBanner } from './components/shared/PWAInstallBanner';
-import { ShieldCheck, Lock, Flame, Key } from 'lucide-react';
+
 
 import { LanguageProvider } from './context/LanguageContext';
 
@@ -44,11 +44,18 @@ export const AppContent: React.FC = () => {
         const data = await res.json();
         setServerOnline(data.status === 'ONLINE');
       } catch {
-        try {
-          const res = await fetch('http://localhost:8080/api/health');
-          await res.json();
-          setServerOnline(true);
-        } catch {
+        // Fallback: try local relay server on localhost dev
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocalhost) {
+          try {
+            const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+            const res = await fetch(`${protocol}//localhost:8080/api/health`);
+            await res.json();
+            setServerOnline(true);
+          } catch {
+            setServerOnline(false);
+          }
+        } else {
           setServerOnline(false);
         }
       }

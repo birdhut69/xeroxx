@@ -650,6 +650,20 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
     setVoiceSeconds(0);
   };
 
+  // Cleanup voice recording on unmount
+  useEffect(() => {
+    return () => {
+      if (voiceTimerRef.current) {
+        clearInterval(voiceTimerRef.current);
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        try {
+          mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+        } catch {}
+      }
+    };
+  }, []);
+
   const handleSendMessage = () => {
     if (!inputText.trim()) return;
     const msgText = inputText.trim();
@@ -792,7 +806,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
                 </button>
 
                 {showLangMenu && (
-                  <div className="absolute right-0 top-full mt-1.5 bg-white text-[#111b21] rounded-2xl p-1.5 shadow-2xl border border-[#bec9c5] min-w-[140px] z-50 animate-in slide-in-from-top duration-150">
+                  <div className="absolute right-0 top-full mt-1.5 bg-white text-[#111b21] rounded-2xl p-1.5 shadow-2xl border border-[#bec9c5] min-w-[140px] z-[60] animate-in slide-in-from-top duration-150">
                     {availableLanguages.map((lang) => (
                       <button
                         key={lang.code}
@@ -894,12 +908,12 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
           >
             {/* Visual Drag & Drop Overlay */}
             {isDragging && (
-              <div className="absolute inset-0 z-30 bg-[#00453d]/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white text-center animate-in fade-in duration-100">
+              <div className="absolute inset-0 z-30 bg-[#00453d]/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-white text-center animate-in fade-in duration-100">
                 <div className="w-16 h-16 rounded-3xl bg-white/20 border-2 border-dashed border-white flex items-center justify-center mb-3 scale-110 animate-bounce">
                   <FileText className="w-8 h-8 text-white" />
                 </div>
                 <h4 className="text-base font-bold">{t('stagingTitle')}</h4>
-                <p className="text-xs text-white/80 mt-1">PDFs, ID cards, and images accepted (Max 50MB)</p>
+                <p className="text-xs text-white/80 mt-1">PDFs, ID cards, and images accepted (Max 50 MB)</p>
               </div>
             )}
 
@@ -1368,101 +1382,114 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ onSessionActiveC
 
           {/* WhatsApp Attachment Sheet Popover with Click-Outside Guard */}
           {showAttachmentMenu && (
-            <div
-              ref={attachmentMenuRef}
-              className="absolute bottom-20 left-3 sm:left-4 bg-white/95 backdrop-blur-md rounded-2xl p-3 sm:p-4 shadow-2xl border border-[#bec9c5] flex items-center gap-3 sm:gap-4 animate-in slide-in-from-bottom duration-150 z-30"
-            >
-              <button
-                onClick={() => {
-                  setShowAttachmentMenu(false);
-                  fileInputRef.current?.click();
-                }}
-                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
+            <>
+              {/* Background overlay */}
+              <div
+                className="bottom-sheet-overlay animate-in fade-in duration-100"
+                onClick={() => setShowAttachmentMenu(false)}
+              />
+              {/* Bottom sheet grid */}
+              <div
+                ref={attachmentMenuRef}
+                className="bottom-sheet p-5 animate-in slide-up-sheet duration-200"
               >
-                <div className="w-12 h-12 rounded-full bg-[#8f3985] text-white flex items-center justify-center shadow-md">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <span className="text-xs text-[#54656f] font-semibold">{t('attachDoc')}</span>
-              </button>
+                <div className="w-10 h-1 bg-[#d1d7db] rounded-full mx-auto mb-4" />
+                <div className="grid grid-cols-3 gap-4 max-w-sm mx-auto">
+                  <button
+                    onClick={() => {
+                      setShowAttachmentMenu(false);
+                      fileInputRef.current?.click();
+                    }}
+                    className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#f0f2f5] transition-colors cursor-pointer touch-press"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-[#8f3985] text-white flex items-center justify-center shadow-lg">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <span className="text-[11px] text-[#54656f] font-semibold text-center leading-tight">{t('attachDoc')}</span>
+                  </button>
 
-              <button
-                onClick={() => {
-                  setShowAttachmentMenu(false);
-                  setShowLiveCamera(true);
-                }}
-                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#d3396d] text-white flex items-center justify-center shadow-md">
-                  <Camera className="w-6 h-6" />
-                </div>
-                <span className="text-xs text-[#54656f] font-semibold">{t('liveCamera')}</span>
-              </button>
+                  <button
+                    onClick={() => {
+                      setShowAttachmentMenu(false);
+                      setShowLiveCamera(true);
+                    }}
+                    className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#f0f2f5] transition-colors cursor-pointer touch-press"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-[#d3396d] text-white flex items-center justify-center shadow-lg">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <span className="text-[11px] text-[#54656f] font-semibold text-center leading-tight">{t('liveCamera')}</span>
+                  </button>
 
-              <button
-                onClick={() => {
-                  setShowAttachmentMenu(false);
-                  galleryInputRef.current?.click();
-                }}
-                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#ac44cf] text-white flex items-center justify-center shadow-md">
-                  <ImageIcon className="w-6 h-6" />
-                </div>
-                <span className="text-xs text-[#54656f] font-semibold">{t('gallery')}</span>
-              </button>
+                  <button
+                    onClick={() => {
+                      setShowAttachmentMenu(false);
+                      galleryInputRef.current?.click();
+                    }}
+                    className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#f0f2f5] transition-colors cursor-pointer touch-press"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-[#ac44cf] text-white flex items-center justify-center shadow-lg">
+                      <ImageIcon className="w-6 h-6" />
+                    </div>
+                    <span className="text-[11px] text-[#54656f] font-semibold text-center leading-tight">{t('gallery')}</span>
+                  </button>
 
-              <button
-                onClick={() => {
-                  setShowAttachmentMenu(false);
-                  passportPhotoInputRef.current?.click();
-                }}
-                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#0284c7] text-white flex items-center justify-center shadow-md">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <span className="text-xs text-[#54656f] font-semibold">{t('passportStudioBtn')}</span>
-              </button>
+                  <button
+                    onClick={() => {
+                      setShowAttachmentMenu(false);
+                      passportPhotoInputRef.current?.click();
+                    }}
+                    className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#f0f2f5] transition-colors cursor-pointer touch-press"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-[#0284c7] text-white flex items-center justify-center shadow-lg">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <span className="text-[11px] text-[#54656f] font-semibold text-center leading-tight">{t('passportStudioBtn')}</span>
+                  </button>
 
-              <button
-                onClick={() => {
-                  setShowAttachmentMenu(false);
-                  setShowSettings(true);
-                }}
-                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#f0f2f5] transition-colors cursor-pointer"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#00453d] text-white flex items-center justify-center shadow-md">
-                  <SlidersHorizontal className="w-6 h-6" />
+                  <button
+                    onClick={() => {
+                      setShowAttachmentMenu(false);
+                      setShowSettings(true);
+                    }}
+                    className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#f0f2f5] transition-colors cursor-pointer touch-press"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-[#00453d] text-white flex items-center justify-center shadow-lg">
+                      <SlidersHorizontal className="w-6 h-6" />
+                    </div>
+                    <span className="text-[11px] text-[#54656f] font-semibold text-center leading-tight">{t('settings')}</span>
+                  </button>
                 </div>
-                <span className="text-xs text-[#54656f] font-semibold">{t('settings')}</span>
-              </button>
-            </div>
+              </div>
+            </>
           )}
 
           {/* Quick Print Instruction Chips Strip */}
-          <div className="bg-[#EFEAE2] px-3 py-2 border-t border-[#bec9c5]/30 flex items-center gap-1.5 overflow-x-auto shrink-0 scrollbar-hide touch-pan-x select-none">
-            <span className="text-[10.5px] font-bold text-[#6f7976] uppercase tracking-wider shrink-0">{t('notePrefix')}</span>
-            {[
-              t('chipBw'),
-              t('chipDoubleSided'),
-              t('chipColor'),
-              t('passportStudioBtn'),
-              t('chipUrgent'),
-              t('chipLegal'),
-            ].map((chip) => (
-              <button
-                key={chip}
-                type="button"
-                onClick={() => setInputText(chip)}
-                className="px-3 py-1.5 rounded-full bg-white hover:bg-[#D9FDD3] hover:border-[#25D366] text-[#00453d] text-xs font-semibold border border-[#bec9c5]/40 shrink-0 cursor-pointer shadow-xs transition-colors active:scale-95"
-              >
-                {chip}
-              </button>
-            ))}
+          <div className="chip-strip-container bg-[#EFEAE2] px-3 py-2 border-t border-[#bec9c5]/30 shrink-0 select-none">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide touch-pan-x">
+              <span className="text-[10.5px] font-bold text-[#6f7976] uppercase tracking-wider shrink-0">{t('notePrefix')}</span>
+              {[
+                t('chipBw'),
+                t('chipDoubleSided'),
+                t('chipColor'),
+                t('passportStudioBtn'),
+                t('chipUrgent'),
+                t('chipLegal'),
+              ].map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => setInputText(chip)}
+                  className="px-3 py-1.5 rounded-full bg-white hover:bg-[#D9FDD3] hover:border-[#25D366] text-[#00453d] text-xs font-semibold border border-[#bec9c5]/40 shrink-0 cursor-pointer shadow-xs transition-colors touch-press"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* ── AUTHENTIC WHATSAPP INPUT BAR WITH LIVE VOICE WAVEFORM ── */}
-          <div className="bg-[#EFEAE2] p-2 sm:p-2.5 flex items-center gap-2 border-t border-[#bec9c5]/30 shrink-0 z-20">
+          <div className="bg-[#EFEAE2] p-2 sm:p-2.5 flex items-center gap-2 border-t border-[#bec9c5]/30 shrink-0 z-20 safe-bottom">
             {/* Hidden native pickers with MULTIPLE enabled */}
             <input
               ref={fileInputRef}

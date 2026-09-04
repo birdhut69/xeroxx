@@ -96,9 +96,9 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="bg-[#075E54] text-white flex justify-between items-center h-[52px] sm:h-[60px] px-2.5 sm:px-6 w-full z-50 sticky top-0 border-b border-[#bec9c5]/30 shadow-md no-print select-none">
+      <header className="bg-[#075E54] text-white flex justify-between items-center h-[52px] sm:h-[60px] px-2 sm:px-6 w-full z-50 sticky top-0 border-b border-[#bec9c5]/30 shadow-md no-print select-none safe-bottom">
         {/* Left: Brand Logo & Mode Pills */}
-        <div className="flex items-center gap-1.5 sm:gap-4 min-w-0">
+        <div className="flex items-center gap-1 sm:gap-3 min-w-0">
           <div
             className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0"
             onClick={() => handleSelectMode('CUSTOMER')}
@@ -143,7 +143,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Right: Language Selector & Actions & Emergency Purge */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
           {/* 🌐 Language Switcher Dropdown */}
           <div ref={langMenuRef} className="relative">
             <button
@@ -158,7 +158,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {showLangMenu && (
-              <div className="absolute right-0 top-full mt-1.5 bg-white text-[#111b21] rounded-2xl p-1.5 shadow-2xl border border-[#bec9c5] min-w-[140px] z-50 animate-in slide-in-from-top duration-150">
+              <div className="absolute right-0 top-full mt-1.5 bg-white text-[#111b21] rounded-2xl p-1.5 shadow-2xl border border-[#bec9c5] min-w-[140px] z-[60] animate-in slide-in-from-top duration-150">
                 {availableLanguages.map((lang) => (
                   <button
                     key={lang.code}

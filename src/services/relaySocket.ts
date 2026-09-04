@@ -389,7 +389,7 @@ export class RelaySocket {
         break;
       case 'CHAT_MESSAGE':
         // Do not echo back our own sent messages
-        if (this.role && msg.sender === this.role) return;
+        if (this.role && (msg.sender === this.role || msg.originRole === this.role)) return;
         this.callbacks.onChatMessage?.(msg);
         break;
     }
@@ -500,7 +500,7 @@ export class RelaySocket {
           roomId: this.activeRoomId,
           targetRole,
           targetCustomerId: msg.customerId,
-          message: msg,
+          message: { ...msg, originRole: this.role },
         }),
       }).catch(() => {});
     }
@@ -585,5 +585,18 @@ export class RelaySocket {
       this.ws = null;
       this.wsConnected = false;
     }
+    if (this.broadcastChannel) {
+      try { this.broadcastChannel.close(); } catch {}
+      this.broadcastChannel = null;
+    }
+    // Clear dedup sets to free memory
+    this.processedMessageIds.clear();
+    this.processedDocHashes.clear();
+    this.chunkAssemblyMap.clear();
+    this.connections.clear();
+    this.customerConnection = null;
+    this.role = null;
+    this.activeRoomId = null;
+    this.activeCustomerId = null;
   }
 }

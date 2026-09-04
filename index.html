@@ -18,9 +18,25 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Prevent FOUC: set background before CSS loads -->
+    <style>
+      html, body { background-color: #f0f2f5; margin: 0; padding: 0; height: 100%; width: 100%; }
+      #root { height: 100%; }
+    </style>
   </head>
-  <body class="bg-[#d1d7db] text-[#191c1b] antialiased selection:bg-[#00a884] selection:text-white">
+  <body class="antialiased">
     <div id="root"></div>
+
+    <noscript>
+      <div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui,sans-serif;text-align:center;padding:2rem;background:#f0f2f5;">
+        <div style="max-width:400px;">
+          <h1 style="color:#075E54;font-size:1.5rem;margin-bottom:0.5rem;">🛡️ CipherPrint</h1>
+          <p style="color:#54656f;font-size:0.875rem;">JavaScript is required to run this encrypted print platform. Please enable JavaScript in your browser settings.</p>
+        </div>
+      </div>
+    </noscript>
+
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {

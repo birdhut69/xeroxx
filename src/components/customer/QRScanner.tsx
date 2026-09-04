@@ -228,7 +228,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
         {/* Live Camera HTML5 Mount */}
         <div
           id="cipherprint-qr-video"
-          className="w-full h-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover [&_img]:hidden [&_button]:hidden [&_#cipherprint-qr-video__dashboard]:hidden"
+          className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover [&>#cipherprint-qr-video__dashboard]:hidden [&>img]:hidden"
         />
 
         {/* Loading Spinner */}
@@ -241,7 +241,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
 
         {/* Friendly Interactive Camera Activation Fallback */}
         {!isScanning && !cameraLoading && (
-          <div className="absolute inset-0 z-25 bg-[#111b21]/95 flex flex-col items-center justify-center p-4 text-center text-white space-y-3">
+          <div className="absolute inset-0 z-[25] bg-[#111b21]/95 flex flex-col items-center justify-center p-4 text-center text-white space-y-3">
             <div className="w-14 h-14 rounded-full bg-[#00a884]/20 border border-[#25D366]/40 flex items-center justify-center text-[#25D366] shadow-lg animate-pulse-glow">
               <Camera className="w-7 h-7" />
             </div>
@@ -356,7 +356,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onSessionDecoded }) => {
         />
         <button
           type="submit"
-          className="px-3.5 py-2 bg-[#00453d] text-white rounded-xl text-xs font-bold hover:bg-[#075e54] flex items-center gap-1 cursor-pointer transition-transform active:scale-95 shadow-sm shrink-0"
+          className="px-3.5 py-2 bg-[#00453d] text-white rounded-xl text-xs font-bold hover:bg-[#075e54] flex items-center gap-1 cursor-pointer transition-transform active:scale-95 shadow-sm shrink-0 min-w-[70px] justify-center"
         >
           <span>{t('joinBtn')}</span>
           <ArrowRight className="w-3.5 h-3.5" />

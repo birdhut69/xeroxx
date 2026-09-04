@@ -376,7 +376,7 @@ export const TerminalDashboard: React.FC = () => {
     });
 
     relay.initShopTerminal(newSessionId, shopId, shopName);
-  }, [shopId, shopName, toast]);
+  }, [shopId, shopName, toast, upiId, bwRate, colorRate]);
 
   useEffect(() => {
     initTerminal();
@@ -504,6 +504,20 @@ export const TerminalDashboard: React.FC = () => {
     setIsRecordingVoice(false);
     setVoiceSeconds(0);
   };
+
+  // Cleanup voice recording on unmount
+  useEffect(() => {
+    return () => {
+      if (voiceTimerRef.current) {
+        clearInterval(voiceTimerRef.current);
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        try {
+          mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+        } catch {}
+      }
+    };
+  }, []);
 
   // Print execution
   const handlePrint = useCallback(async () => {
@@ -1176,7 +1190,7 @@ export const TerminalDashboard: React.FC = () => {
               </div>
 
               {/* Bottom WhatsApp Chat Input Bar */}
-              <div className="bg-[#f0f2f5] px-4 py-2.5 border-t border-[#d1d7db] flex items-center gap-3 shrink-0">
+              <div className="bg-[#f0f2f5] px-3 sm:px-4 py-2.5 border-t border-[#d1d7db] flex items-center gap-2 sm:gap-3 shrink-0 safe-bottom">
                 {isRecordingVoice ? (
                   <div className="flex-1 bg-red-50 px-4 h-11 rounded-2xl border border-red-200 flex items-center justify-between animate-pulse">
                     <div className="flex items-center gap-2 text-red-600 font-bold text-xs">
@@ -1270,7 +1284,7 @@ export const TerminalDashboard: React.FC = () => {
             </div>
 
             {/* Modal Adjustment Toolbar */}
-            <div className="bg-[#f0f2f5] px-4 py-2.5 border-b border-[#d1d7db] flex flex-wrap items-center justify-between gap-2.5 shrink-0 no-print">
+            <div className="bg-[#f0f2f5] px-3 sm:px-4 py-2 sm:py-2.5 border-b border-[#d1d7db] flex flex-wrap items-center justify-between gap-2 shrink-0 no-print">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}

@@ -18,6 +18,20 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  /* iOS safe area padding for bottom bars */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* Focus-visible accessibility ring */
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  a:focus-visible {
+    outline: 2px solid #00a884;
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
 }
 
 .overflow-y-auto, .overflow-x-auto, .overflow-auto {
@@ -27,18 +41,18 @@
 
 /* ── Custom Sleek Scrollbar ── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 168, 132, 0.25);
+  background: rgba(0, 168, 132, 0.2);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 168, 132, 0.5);
+  background: rgba(0, 168, 132, 0.45);
 }
 
 /* ── Material Symbols ── */
@@ -159,6 +173,9 @@
   50% { height: 16px; }
 }
 .animate-sound-bar {
+  display: inline-block;
+  width: 3px;
+  min-height: 3px;
   animation: sound-bar 0.8s ease-in-out infinite;
 }
 
@@ -213,6 +230,63 @@
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Gradient Fade Edges for Horizontal Scroll Strips ── */
+.chip-strip-container {
+  position: relative;
+}
+.chip-strip-container::before,
+.chip-strip-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  z-index: 10;
+  pointer-events: none;
+}
+.chip-strip-container::before {
+  left: 0;
+  background: linear-gradient(to right, #EFEAE2, transparent);
+}
+.chip-strip-container::after {
+  right: 0;
+  background: linear-gradient(to left, #EFEAE2, transparent);
+}
+
+/* ── Mobile Pane Transition ── */
+.pane-transition {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+}
+
+/* ── Touch Ripple / Press Feedback ── */
+.touch-press {
+  transition: transform 0.1s ease, background-color 0.15s ease;
+}
+.touch-press:active {
+  transform: scale(0.96);
+}
+
+/* ── Bottom Sheet Overlay ── */
+.bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 41;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 32px rgba(11, 20, 26, 0.15);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
 
 /* ── Print-Specific Styles (Strict Document-Only Spooling) ── */
 @media print {
@@ -321,6 +395,10 @@
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes slide-up-sheet {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .animate-in {
   animation-fill-mode: both;
 }
@@ -336,9 +414,13 @@
 .slide-in-from-bottom {
   animation-name: slide-in-from-bottom;
 }
+.slide-up-sheet {
+  animation-name: slide-up-sheet;
+}
 .duration-100 { animation-duration: 100ms; }
 .duration-150 { animation-duration: 150ms; }
 .duration-200 { animation-duration: 200ms; }
+.duration-300 { animation-duration: 300ms; }
 
 /* ── Active Scale Utility ── */
 .active\:scale-98:active { transform: scale(0.98); }
